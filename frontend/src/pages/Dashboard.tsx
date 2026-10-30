@@ -14,13 +14,12 @@ import {
   weekProgress,
   type MissNotice,
 } from '../lib/today';
-import { goalTrend, greetingFor, journeyDays, milestones, nextTestDay, practiceTotals, START_SESSION_STATE } from '../lib/dashboard';
+import { greetingFor, journeyDays, practiceTotals, START_SESSION_STATE } from '../lib/dashboard';
 import { Badge, Button, LoadingState, Skeleton } from '../components/ui';
 import { doneDaysOf, visibleDay } from '../lib/stepLines';
 import { GettingReady } from '../components/today/WeekClose';
 import { Momentum } from '../components/dashboard/Momentum';
 import { JourneyMap } from '../components/dashboard/JourneyMap';
-import { GoalProgress } from '../components/dashboard/GoalProgress';
 import { planDays } from '../lib/planLength';
 
 export const DashboardSkeleton: React.FC = () => (
@@ -89,11 +88,9 @@ const EmptyShell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <main id="main" className="ui-root mx-auto w-full max-w-xl flex-1 px-gutter py-20 text-center">{children}</main>
 );
 
-const shortWeekday = (date: string) => new Date(date + 'T12:00:00Z').toLocaleDateString(undefined, { weekday: 'long', timeZone: 'UTC' });
-
 /**
  * ND-29: the Dashboard answers "how am I doing" (ND-19 keeps it an overview; Today is where a step is done). Today's
- * session sits first with one way in; below it, the whole plan as a map of days and the goal's own measure. Every
+ * session sits first with one way in; below it, the whole plan as a map of days (the goal's own measure is on the Plan page). Every
  * number is real stored state, and the page writes nothing.
  */
 export const Dashboard: React.FC = () => {
@@ -137,16 +134,9 @@ export const Dashboard: React.FC = () => {
 
   const totals = practiceTotals(activeGoal, now, timezone);
   const days = journeyDays(activeGoal, now, timezone);
-  const trend = goalTrend(activeGoal);
-  const test = nextTestDay(activeGoal.dailyTasks ?? [], now, timezone);
-  const nextCheck = test ? 'Next check: ' + (test.date === days.find((d) => d.isToday)?.date ? 'today' : shortWeekday(test.date)) + '.' : null;
   const totalDays = planDays(activeGoal);
   const daysLeft = Math.max(0, totalDays - day);
   const mapSummary = totals.daysDone + ' of ' + totals.daysSoFar + ' practice days done so far. Day ' + day + ' of ' + totalDays + '.';
-
-  const checks = milestones(activeGoal);
-  // GoalProgress has nothing to show for a goal with no number, no checks and no milestone this week.
-  const goalPanel = Boolean(trend) || checks.total > 0 || Boolean(week?.keyMilestone);
 
   const eyebrow = reviewDue ? 'Weekly review' : isDone ? 'Done for today' : isRest ? 'Rest day' : 'Today';
   const heading = reviewDue
@@ -168,7 +158,6 @@ export const Dashboard: React.FC = () => {
 
   return (
     <main id="main" className="ui-root relative mx-auto w-full max-w-5xl flex-1 px-gutter py-10 sm:py-16">
-      <div aria-hidden="true" className="dash-glow" />
 
       <header className="animate-rise-in relative grid items-end gap-8 sm:grid-cols-[1fr_auto]" style={stagger(0)}>
         <div className="min-w-0">
@@ -180,10 +169,10 @@ export const Dashboard: React.FC = () => {
         <Momentum goalId={activeGoal.id} sessions={totals.sessionsDone} minutes={totals.minutesPractised} />
       </header>
 
-      <div className={'relative mt-12 grid gap-5' + (goalPanel ? ' lg:grid-cols-[1.4fr_1fr]' : '')}>
+      <div className="relative mt-12">
         <section
           aria-labelledby="next-heading"
-          className={'dash-card dash-card--glow animate-rise-in flex flex-col p-7 sm:p-10' + (isDone ? ' today-done' : '')}
+          className={'dash-card animate-rise-in flex flex-col p-7 sm:p-10' + (isDone ? ' today-done' : '')}
           style={stagger(120)}
         >
           <div className="flex items-center justify-between gap-3">
@@ -215,14 +204,9 @@ export const Dashboard: React.FC = () => {
           </div>
         </section>
 
-        {goalPanel && (
-          <div className="animate-rise-in flex min-w-0" style={stagger(220)}>
-            <GoalProgress trend={trend} milestones={checks} weekMilestone={week?.keyMilestone} nextCheck={nextCheck} />
-          </div>
-        )}
       </div>
 
-      <section aria-labelledby="map-heading" className="dash-panel animate-rise-in relative mt-5 grid gap-8 p-7 sm:p-8 md:grid-cols-[minmax(0,14rem)_1fr] md:items-center" style={stagger(320)}>
+      <section aria-labelledby="map-heading" className="dash-panel animate-rise-in relative mt-5 grid gap-8 p-7 sm:p-8 md:grid-cols-[minmax(0,1fr)_auto] md:items-center" style={stagger(320)}>
         <div>
           <h2 id="map-heading" className="font-ui-mono text-micro uppercase text-text-secondary">Your {totalDays} days</h2>
           <p className="mt-5 flex items-baseline gap-2">
@@ -235,7 +219,7 @@ export const Dashboard: React.FC = () => {
             <span className="block">{daysLeft > 1 ? daysLeft + ' days to go' : daysLeft === 1 ? '1 day to go' : 'Final day'}</span>
           </p>
         </div>
-        <JourneyMap days={days} phases={activeGoal.roadmap?.phases ?? []} summary={mapSummary} />
+        <JourneyMap days={days} summary={mapSummary} />
       </section>
     </main>
   );

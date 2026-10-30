@@ -172,15 +172,6 @@ export function milestones(goal: Pick<Goal, 'roadmapWeeks'>): Milestones {
   return { reached: checks.filter((week) => week.testResult?.passed).length, total: checks.length };
 }
 
-/** The next open test day, today included. */
-export function nextTestDay(tasks: readonly DailyTask[], now: Date, timezone?: string): DailyTask | null {
-  const today = todayKey(now, timezone);
-  return (
-    [...tasks]
-      .filter((task) => task.isTestDay && task.status === 'pending' && !isRestLike(task) && task.date >= today)
-      .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null
-  );
-}
 
 /** "Good morning" by the hour where the person is, not where the browser is. */
 export function greetingFor(now: Date, timezone?: string): string {

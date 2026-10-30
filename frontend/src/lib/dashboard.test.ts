@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DailyTask, Goal, RoadmapWeek } from '../types';
-import { dateOfDay, goalTrend, greetingFor, journeyDays, milestones, nextTestDay, practiceTimeLabel, practiceTotals } from './dashboard';
+import { dateOfDay, goalTrend, greetingFor, journeyDays, milestones, practiceTimeLabel, practiceTotals } from './dashboard';
 
 const NOW = new Date('2026-10-29T10:00:00Z');
 // Day 10 of 90 on NOW: the target date is 81 days later (`dayNumber` counts 91 minus the days remaining).
@@ -134,17 +134,7 @@ describe('goalTrend (ND-29)', () => {
   });
 });
 
-describe('nextTestDay and greetingFor (ND-29)', () => {
-  it('the next open test day from today, never one done or past', () => {
-    const tasks = [
-      task('2026-10-27', { isTestDay: true }),
-      task('2026-10-29', { isTestDay: true, status: 'completed' }),
-      task('2026-11-02', { isTestDay: true }),
-      task('2026-10-31', { isTestDay: true }),
-    ];
-    expect(nextTestDay(tasks, NOW, 'UTC')?.date).toBe('2026-10-31');
-    expect(nextTestDay([], NOW, 'UTC')).toBeNull();
-  });
+describe('greetingFor (ND-29)', () => {
 
   it("greets by the person's own hour", () => {
     expect(greetingFor(NOW, 'UTC')).toBe('Good morning');

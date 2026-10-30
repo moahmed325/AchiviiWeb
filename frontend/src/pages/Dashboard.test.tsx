@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Dashboard } from './Dashboard';
 import { useGoal } from '../context/GoalContext';
@@ -109,34 +109,7 @@ describe('Dashboard', () => {
     expect(screen.getByText(/2 steps/)).toBeInTheDocument();
   });
 
-  it("a goal measured by milestones with no checks yet shows this week's milestone, without inventing a number", () => {
-    renderWith(buildGoal('pending'));
-
-    const panel = screen.getByRole('region', { name: "This week's milestone" });
-    expect(within(panel).getByText('First 5km continuous run')).toBeInTheDocument();
-    expect(screen.queryByText(/milestones reached/)).not.toBeInTheDocument();
-  });
-
-  it('a number goal shows the share of the gap closed, the line from the start, and a new best', () => {
-    const goal = buildGoal('pending');
-    goal.roadmap = { startingPoint: { value: 60, description: '' }, phases: [] } as unknown as Goal['roadmap'];
-    const target = (value: number) => ({ kind: 'number' as const, metric: '10K time', value, unit: 'min', direction: 'lower_is_better' as const });
-    goal.roadmapWeeks = [1, 2, 3, 12].map((weekNumber) => ({
-      ...goal.roadmapWeeks![0],
-      id: 'w' + weekNumber,
-      weekNumber,
-      target: target(weekNumber === 12 ? 50 : 58),
-      test: { type: 'timer' as const, instructions: '', passIf: '' },
-      testResult: weekNumber === 1 ? { value: 57, passed: true } : weekNumber === 2 ? { value: 55, passed: true } : null,
-    }));
-    renderWith(goal);
-
-    const panel = screen.getByRole('region', { name: '10K time' });
-    expect(within(panel).getByText('50%')).toBeInTheDocument();
-    expect(within(panel).getByText('of the gap to your goal closed')).toBeInTheDocument();
-    expect(within(panel).getByText('New best')).toBeInTheDocument();
-  });
-
+  // ND-31: the goal's own measure (gap closed, staircase, milestones) is on the Roadmap page (RoadmapPage.test.tsx).
   it('celebrates a finished day, counts it, and leads back to Today without starting anything', () => {
     renderWith(buildGoal('completed'));
 
