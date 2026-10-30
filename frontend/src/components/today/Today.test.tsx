@@ -21,7 +21,6 @@ vi.mock('../../lib/api', async (importOriginal) => {
     fetchActiveGoal: vi.fn(),
     reconcileGoal: vi.fn().mockResolvedValue({ applies: false, reason: 'no_active_goal' }),
     updateDailyTask: vi.fn(),
-    submitWeeklyReview: vi.fn(),
     markTodayMissed: vi.fn(),
     swapDays: vi.fn(),
     carryNow: vi.fn(),
@@ -426,10 +425,10 @@ describe('Today', () => {
 
     await user.click(screen.getByRole('button', { name: 'Mark complete' }));
 
-    // The bridge points to the review, which opens on the week's last day.
+    // The week closes on its own after its last day; nothing to review by hand.
     expect(screen.getByText('Week 1 practice complete.')).toBeVisible();
-    expect(screen.getByText('Weekly review opens on Sunday.')).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Start weekly review' })).not.toBeInTheDocument();
+    expect(screen.getByText('Next week opens after Sunday.')).toBeVisible();
+    expect(screen.queryByRole('button', { name: /review/i })).not.toBeInTheDocument();
   });
 
   it('shows where a moved step came from, on the day it landed', async () => {
@@ -879,18 +878,6 @@ describe('Today', () => {
     });
   });
 
-  it('renders review due banner when all tasks of the week have passed', async () => {
-    // All tasks in the week occurred in the past (e.g. days -10 to -4)
-    const pastTasks = tasks.map((t, idx) => ({ ...t, date: isoDay(idx - 10) }));
-    const goalWithPastTasks = { ...GOAL, dailyTasks: pastTasks } as unknown as Goal;
-    mocked.fetchActiveGoal.mockResolvedValueOnce(goalWithPastTasks);
-    await renderToday();
-
-    expect(screen.getByRole('heading', { level: 2, name: 'Week 1 is ready for review' })).toBeVisible();
-    expect(screen.getByText('Review due')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Start weekly review' })).toBeVisible();
-  });
-
   it('renders restyled BasisBadge in header / metadata when goal.basis.label is present', async () => {
     const goalWithBasis = {
       ...GOAL,
@@ -899,67 +886,6 @@ describe('Today', () => {
     mocked.fetchActiveGoal.mockResolvedValueOnce(goalWithBasis);
     await renderToday();
     expect(screen.getByText('Ultralearning')).toBeVisible();
-  });
-
-  it('opens weekly review modal from review due button and submits reflection', async () => {
-    const user = userEvent.setup();
-    const pastTasks = tasks.map((t, idx) => ({ ...t, date: isoDay(idx - 10) }));
-    const goalWithPastTasks = { ...GOAL, dailyTasks: pastTasks } as unknown as Goal;
-    mocked.fetchActiveGoal.mockResolvedValueOnce(goalWithPastTasks);
-    mocked.submitWeeklyReview.mockResolvedValueOnce({
-      review: {
-        id: 'rev-1',
-        goalId: 'g1',
-        weekNumber: 1,
-        tasksPlanned: 6,
-        tasksCompleted: 6,
-        scorePercentage: 100,
-        reflection: '',
-        aiAdaptationInsight: '',
-        created_at: '',
-      },
-      scorePercentage: 100,
-      nextWeekNumber: 2,
-      nextWeekTasks: [],
-    });
-
-    await renderToday();
-    await user.click(screen.getByRole('button', { name: 'Start weekly review' }));
-
-    expect(screen.getByRole('dialog')).toBeVisible();
-    expect(screen.getByRole('heading', { level: 2, name: 'Week 1 Review' })).toBeVisible();
-
-    const textarea = screen.getByPlaceholderText(/Morning sessions went well/i);
-    await user.type(textarea, 'Great consistency all week');
-
-    await user.click(screen.getByRole('button', { name: 'Start Week 2' }));
-    expect(mocked.submitWeeklyReview).toHaveBeenCalledWith(1, 'Great consistency all week', 't');
-  });
-
-  it('handles 503 error on weekly review submission gracefully and allows retry', async () => {
-    const user = userEvent.setup();
-    const pastTasks = tasks.map((t, idx) => ({ ...t, date: isoDay(idx - 10) }));
-    const goalWithPastTasks = { ...GOAL, dailyTasks: pastTasks } as unknown as Goal;
-    mocked.fetchActiveGoal.mockResolvedValueOnce(goalWithPastTasks);
-    mocked.submitWeeklyReview.mockRejectedValueOnce(
-      new Error("Couldn't write next week right now. This week is unchanged; please try again.")
-    );
-
-    await renderToday();
-    await user.click(screen.getByRole('button', { name: 'Start weekly review' }));
-
-    const textarea = screen.getByPlaceholderText(/Morning sessions went well/i);
-    await user.type(textarea, 'Tough week but pushed through');
-
-    await user.click(screen.getByRole('button', { name: 'Start Week 2' }));
-
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      "Couldn't write next week right now. This week is unchanged; please try again."
-    );
-    // Reflection is kept intact
-    expect(textarea).toHaveValue('Tough week but pushed through');
-    // Button offers retry
-    expect(screen.getByRole('button', { name: 'Try again' })).toBeVisible();
   });
 
   it('renders closing stretch state when at day 90 / after week 12 with no remaining tasks (M9.4-R1)', async () => {
@@ -1014,48 +940,12 @@ describe('Today', () => {
     expect(screen.queryByText('Session 3 is in the books.')).not.toBeInTheDocument();
   });
 
-  it('does not make the review due before the week\'s last day, even with every practice day done', async () => {
-    const completedTasks = tasks.map((t) => (t.isRestDay ? t : { ...t, status: 'completed' as const }));
-    mocked.fetchActiveGoal.mockResolvedValueOnce({ ...GOAL, dailyTasks: completedTasks } as unknown as Goal);
+  it('the weekly review is gone: no review card or button, even once the week is over (weeks close on their own)', async () => {
+    const pastTasks = tasks.map((t, idx) => ({ ...t, date: isoDay(idx - 10) }));
+    mocked.fetchActiveGoal.mockResolvedValueOnce({ ...GOAL, dailyTasks: pastTasks } as unknown as Goal);
     await renderToday();
-
     expect(screen.queryByText('Review due')).not.toBeInTheDocument();
-
-    // ND-30: no way into the review before it opens; the bridge says when it does.
     expect(screen.queryByRole('button', { name: /review/i })).not.toBeInTheDocument();
-  });
-
-  it('renders review due card on the week\'s last day once every practice day is done (M7.4-R3)', async () => {
-    const lastDay = tasks.map((t, idx) => ({ ...t, date: isoDay(idx - 6), status: t.isRestDay ? t.status : ('completed' as const) }));
-    mocked.fetchActiveGoal.mockResolvedValueOnce({ ...GOAL, dailyTasks: lastDay } as unknown as Goal);
-    await renderToday();
-
-    expect(screen.getByRole('heading', { level: 2, name: 'Week 1 is ready for review' })).toBeVisible();
-    expect(screen.getByText('Review due')).toBeVisible();
-  });
-
-  it('renders closing stretch unlock messaging on Week 12 review due card (M7.4-R3)', async () => {
-    const pastTasks = tasks.map((t, idx) => ({ ...t, weekNumber: 12, date: isoDay(idx - 10) }));
-    const week12Goal = {
-      ...GOAL,
-      currentWeek: 12,
-      dailyTasks: pastTasks,
-      roadmapWeeks: [{ weekNumber: 12, status: 'active', phase: 'Closing' }],
-    } as unknown as Goal;
-    mocked.fetchActiveGoal.mockResolvedValueOnce(week12Goal);
-    await renderToday();
-
-    expect(screen.getByRole('heading', { level: 2, name: 'Week 12 is ready for review' })).toBeVisible();
-    expect(
-      screen.getByText("You've reached the end of Week 12. Complete this review to unlock your final closing stretch (days 85–90).")
-    ).toBeVisible();
-  });
-
-  it('ND-30: before the review opens there is no review button on the week or in a footer', async () => {
-    await renderToday();
-    expect(screen.queryByText('Review due')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Review week' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Weekly review' })).not.toBeInTheDocument();
   });
 });
 

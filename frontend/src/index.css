@@ -1006,21 +1006,27 @@ html:has(.marketing) {
     animation: dash-pop 620ms var(--ease-ascend) 260ms backwards;
   }
 
-  /* The 90-day map: a column per week (13: twelve weeks and the closing six days), a cell per day. */
-  /* GitHub-sized cells: small squares, a three-pixel gap, a column per week. */
+  /* The plan's map: a column per week (13 for a 12-week plan: the closing six days make the last), a square cell per
+     day. The columns share the panel's width, so the map spreads out; cells stop growing at --map-cell-max. */
+  .dash-map-wrap {
+    width: 100%;
+    max-width: calc(var(--map-cols, 13) * var(--map-cell-max) + (var(--map-cols, 13) - 1) * var(--map-gap));
+    --map-cell-max: 2.75rem;
+    --map-gap: clamp(3px, 0.8vw, 6px);
+  }
+
   .dash-map {
     display: grid;
-    width: max-content;
     grid-auto-flow: column;
-    grid-template-columns: repeat(var(--map-cols, 13), var(--map-cell));
-    grid-template-rows: repeat(7, var(--map-cell));
-    gap: 3px;
-    --map-cell: 0.75rem;
+    grid-template-columns: repeat(var(--map-cols, 13), minmax(0, 1fr));
+    grid-template-rows: repeat(7, auto);
+    gap: var(--map-gap);
   }
 
   .dash-map__cell {
     display: block;
-    border-radius: 2px;
+    aspect-ratio: 1;
+    border-radius: clamp(2px, 0.5vw, 5px);
     background-color: color-mix(in oklab, var(--color-text) 5%, transparent);
   }
 
@@ -1038,13 +1044,13 @@ html:has(.marketing) {
   .dash-map__cell[data-state='rest'],
   .dash-map__cell[data-state='quiet'] {
     background-color: transparent;
-    background-image: radial-gradient(circle, color-mix(in oklab, var(--color-text) 22%, transparent) 0 1.5px, transparent 2px);
+    background-image: radial-gradient(circle, color-mix(in oklab, var(--color-text) 22%, transparent) 0 12%, transparent 15%);
   }
 
   /* Today: a crisp gold outline, no glow. */
   .dash-map__cell[data-today] {
-    outline: 1.5px solid var(--color-achievement);
-    outline-offset: 1px;
+    outline: 2px solid var(--color-achievement);
+    outline-offset: 2px;
   }
 
   .dash-map__cell[data-state='today'] {
@@ -1184,121 +1190,58 @@ html:has(.marketing) {
 }
 
 /* ============================================================
-   Roadmap v3 (ND-31): one page for the plan and how it is going. The staircase draws in once and each check pops in;
-   no glow anywhere. Tokens only; the global reduced-motion rule makes it all near-instant.
+   Roadmap v4 (ND-32): the plan at a glance, kept calm. Every week is one cell under its phase; done weeks fill in
+   once, in order. No glow anywhere. Tokens only; the global reduced-motion rule makes it all near-instant.
    ============================================================ */
 @layer components {
-  @keyframes stair-draw {
-    from { stroke-dashoffset: 1; }
+  @keyframes road-cell-in {
+    from { opacity: 0; transform: scale(0.6); }
   }
 
-  @keyframes stair-dot-in {
-    from { opacity: 0; transform: scale(0.3); }
-  }
-
-  .stair__band {
-    fill: color-mix(in oklab, var(--color-text) 3%, transparent);
-  }
-
-  .stair__phase,
-  .stair__axis,
-  .stair__now-label {
-    fill: var(--color-text-secondary);
-    font-family: var(--font-ui-mono);
-    font-size: 11px;
-  }
-
-  .stair__axis--goal,
-  .stair__goal {
-    fill: var(--color-achievement);
-  }
-
-  .stair__goal {
-    font-family: var(--font-ui-mono);
-    font-size: 11px;
-  }
-
-  .stair__now {
-    stroke: var(--color-text-secondary);
-    stroke-width: 1;
-    stroke-dasharray: 2 4;
-  }
-
-  .stair__steps {
-    fill: none;
-    stroke: color-mix(in oklab, var(--color-achievement) 70%, transparent);
-    stroke-width: 2;
-    stroke-linejoin: round;
-    stroke-dasharray: 1;
-    animation: stair-draw 1400ms var(--ease-ascend) 200ms backwards;
-  }
-
-  .stair__start {
-    fill: var(--color-surface);
-    stroke: var(--color-text-secondary);
-    stroke-width: 1.5;
-  }
-
-  .stair__dot {
-    fill: var(--color-surface);
-    stroke: var(--color-achievement);
-    stroke-width: 2;
-    transform-box: fill-box;
-    transform-origin: center;
-    animation: stair-dot-in 420ms var(--ease-ascend) backwards;
-  }
-
-  .stair__dot--met {
-    fill: var(--color-achievement);
-    stroke: var(--color-surface);
-  }
-
-  .stair-key {
-    display: inline-block;
-    width: 0.625rem;
-    height: 0.625rem;
-    border-radius: 9999px;
-    border: 2px solid var(--color-achievement);
-  }
-
-  .stair-key--met {
-    background-color: var(--color-achievement);
-  }
-
-  .stair-key--line {
-    width: 1rem;
-    height: 2px;
-    border: 0;
-    border-radius: 0;
-    background-color: color-mix(in oklab, var(--color-achievement) 70%, transparent);
-  }
-
-  /* One row per week: what it was for on the left, what happened on the right. */
-  .road-week-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 1rem;
-    padding: 1rem 0 1rem 0.875rem;
-    border-bottom: 1px solid var(--color-border);
-    border-left: 2px solid transparent;
-  }
-
-  .road-week-row[data-state='current'] {
-    border-left-color: var(--color-achievement);
-    background-color: color-mix(in oklab, var(--color-achievement) 5%, transparent);
-  }
-
-  .road-week-row__side {
+  .road-phases {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.125rem;
-    text-align: right;
+    gap: 0.75rem;
   }
 
-  .road-finish {
-    border-radius: var(--radius-panel);
-    border: 1px solid color-mix(in oklab, var(--color-achievement) 30%, transparent);
-    background-color: var(--color-surface);
+  .road-phases__phase {
+    min-width: 0;
+    flex-basis: 0;
+  }
+
+  .road-cells {
+    display: flex;
+    gap: 0.375rem;
+  }
+
+  .road-cell {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 0;
+    height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-control);
+    background-color: color-mix(in oklab, var(--color-text) 5%, transparent);
+    color: var(--color-text-muted);
+    font-family: var(--font-ui-mono);
+    font-size: var(--text-micro);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .road-cell[data-state='done'] {
+    background-color: var(--color-achievement);
+    color: var(--color-text-on-inverse);
+    animation: road-cell-in 480ms var(--ease-ascend) 300ms backwards;
+  }
+
+  .road-cell[data-state='current'] {
+    background-color: color-mix(in oklab, var(--color-achievement) 16%, transparent);
+    box-shadow: inset 0 0 0 1.5px var(--color-achievement);
+    color: var(--color-text);
+  }
+
+  .road-cell[data-state='paused'] {
+    background-color: transparent;
+    border: 1px dashed var(--color-border-strong);
   }
 }
