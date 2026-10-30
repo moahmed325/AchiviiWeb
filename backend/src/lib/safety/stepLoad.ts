@@ -21,23 +21,24 @@ export interface LoadGoal {
 }
 
 /**
- * RULE-4: a goal is asked for load when it is a physical preset (`isHighLoadGoal`) or the week's target has a family.
+ * RULE-4: a goal is asked for load when it is a physical preset (`isHighLoadGoal`) or its measure has a family (no
+ * weekly tests, 2026-10-30: `measureTarget`, the goal's measure with today's level; null for a goal built or made).
  * Undefined for any other goal, whose week call stays exactly as before.
  */
-export function loadGoalFor(goal: Pick<Goal, 'rawGoal' | 'clarifiedOutcome'>, target: WeekTarget, startValue?: number | null): LoadGoal | undefined {
+export function loadGoalFor(goal: Pick<Goal, 'rawGoal' | 'clarifiedOutcome'>, target: WeekTarget | null, startValue?: number | null): LoadGoal | undefined {
   // One lookup, the way `isHighLoadGoal` finds the preset.
   const preset = findPresetForGoal(goal.rawGoal) || findPresetForGoal(goal.clarifiedOutcome);
   const run10k = preset?.id === 'run10k';
-  const family = targetFamily(target, { run10k });
+  const family = target ? targetFamily(target, { run10k }) : null;
   const highLoadGoal = preset !== null && HIGH_LOAD_PRESET_IDS.includes(preset.id);
   if (!highLoadGoal && !family) return undefined;
   const running = run10k || family === 'running_distance' || family === 'running_time';
-  const runLevel = running ? runLevelOf(target, startValue, { run10k }) : null;
+  const runLevel = running && target ? runLevelOf(target, startValue, { run10k }) : null;
   return { running, ...(runLevel ? { runLevel } : {}) };
 }
 
 /** The week call input's `loadGoal`, spread in by both callers: `{}` for a goal that is not a load goal. */
-export function loadGoalInput(goal: Pick<Goal, 'rawGoal' | 'clarifiedOutcome'>, target: WeekTarget, startValue?: number | null): { loadGoal?: LoadGoal } {
+export function loadGoalInput(goal: Pick<Goal, 'rawGoal' | 'clarifiedOutcome'>, target: WeekTarget | null, startValue?: number | null): { loadGoal?: LoadGoal } {
   const loadGoal = loadGoalFor(goal, target, startValue);
   return loadGoal ? { loadGoal } : {};
 }

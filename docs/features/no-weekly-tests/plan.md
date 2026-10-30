@@ -1,6 +1,6 @@
 # No weekly tests: plan
 
-**Status:** PLANNED (2026-10-30). Waiting on Mo's go-ahead on section 6.
+**Status:** IN PROGRESS (2026-10-30). Mo said yes to all of section 6, and added the feel buttons (section 7).
 **Asked by Mo (2026-10-30):** "remove the whole weekly test thing ... next week's plan should just be made based on what tasks the user completed or not." Mo's answers: drop the weekly targets too, drop the final test too, and for goals already running hide tests from the next week written (nothing stored is deleted).
 
 ## 1. What changes for people
@@ -49,3 +49,17 @@ a. **The pace rule** (section 1): 80% / 50% bands as above. Recommended as writt
 b. **The weekly update's AI call goes entirely** (it only set targets; code's pace line replaces it). Recommended.
 c. **The weekly review stays**, without its test step: how it went and a note the week writer reads. Recommended. Alternative: remove the review too and rely on the automatic close.
 d. **Physical goals' safety:** without targets, progression comes from the method and the week load limits (which stay). Recommended: accept; the limits that matter check the actual sessions.
+
+Mo (2026-10-30): yes to a to d, with (a) changed by section 7.
+
+## 7. How did it feel? (Mo, 2026-10-30)
+
+- **After each session it's done, one tap:** Too easy, Just right, Too hard. Optional, and a short note can go with it (the day's existing note field).
+- **Used when next week is written**, never to rewrite the week that is running (its days may hold moved and swapped steps). The week writer reads, for last week: sessions done and planned, each tap, and each note, and code adds the pace line:
+  - most done (80% or more) and mostly "too easy": a bigger step forward;
+  - most done otherwise: move on as the method says;
+  - half to most done (50% to 79%), or mostly "too hard": the same level, a smaller step;
+  - under half done: repeat last week's level, a little lighter.
+  Notes ("my knee hurts", "ran out of time") go to the writer word for word, to take into account.
+- **Stored:** `DailyTask.feel` (`too_easy`, `just_right`, `too_hard`, or null), one additive column. The note is `DailyTask.notes`, as today.
+- **Mid-week changes** (adjust the rest of the running week after two "too hard" taps): an idea, I-32, for later.

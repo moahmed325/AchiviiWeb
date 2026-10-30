@@ -59,10 +59,6 @@ services:
       # dashboard only (sync: false), so a Blueprint sync never overwrites it; setting it back is the kill switch.
       - key: WEEK_CLOSE_ENABLED
         sync: false
-      # Weekly update: the update call and everything that changes targets (RULE-18). Acts only when
-      # WEEK_CLOSE_ENABLED is also "true". Unset or anything but "true" means off. Dashboard only (sync: false).
-      - key: WEEKLY_UPDATE_ENABLED
-        sync: false
       # ND-28: the missed-day reminder email. Unset or anything but "true" means off: nothing is sent. Turn it on
       # only after the Resend settings below are in place; turning it off is the kill switch. Dashboard only.
       - key: MISSED_DAY_REMINDERS_ENABLED

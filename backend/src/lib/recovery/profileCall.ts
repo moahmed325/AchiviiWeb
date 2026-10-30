@@ -1,14 +1,13 @@
 /**
  * Method-aware recovery, M1.3b: the profile call (RULE-3, RULE-4, MR-4). One model call adapts the closest of the
- * 13 templates to a custom goal; code checks the answer with `profileFailures`, including the deliverable fact
- * (MR-22), retries once with the reasons, and otherwise falls back to the template the model picked, unchanged, or
+ * 13 templates to a custom goal; code checks the answer with `profileFailures` (no weekly targets since 2026-10-30, so
+ * the deliverable fact, MR-22, is no longer known and its check is skipped), retries once with the reasons, and otherwise falls back to the template the model picked, unchanged, or
  * the keyword template (MR-14). A half-made profile is never returned. RULE-5's two kinds are added by code.
  * Off unless `CUSTOM_RECOVERY_PROFILES_ENABLED` is exactly 'true' (03-phases section 3, O1); M2.2 scores it.
  */
 import { generateWithOneRetry } from '../ai/retry.js';
 import { flagOn } from '../flags.js';
-import { formatAnswerLines, formatTarget, type PlanAnswer, type RoadmapPhase, type WeekTarget } from '../ai/roadmap.js';
-import { isDeliverableTarget } from './forGoal.js';
+import { formatAnswerLines, type Measure, type PlanAnswer, type RoadmapPhase } from '../ai/roadmap.js';
 import { pickTemplate } from './pickTemplate.js';
 import {
   FIXED_TIME_KIND,
@@ -38,8 +37,10 @@ export interface ProfileCallInput {
   answers: PlanAnswer[];
   method: { name: string; summary: string; rules: string[] };
   phases: Array<Pick<RoadmapPhase, 'name' | 'purpose' | 'startWeek' | 'endWeek'>>;
-  /** The 12 weekly targets, week 1 first. */
-  weeklyTargets: WeekTarget[];
+  /** Each week's focus, week 1 first. */
+  weeklyFocus: string[];
+  /** What the goal is measured in, when it is a number; null for a skill, habit or thing made. */
+  measure: Measure | null;
 }
 
 export type ProfileCallSource = 'model' | 'picked_template' | 'keyword_template';
@@ -131,9 +132,9 @@ export function describeTemplate(id: TemplateId): string {
 }
 
 export function buildProfilePrompt(input: ProfileCallInput): string {
-  const deliverable = isDeliverableTarget(input.weeklyTargets[11]);
   const phases = input.phases.map((phase) => `- ${phase.name} (weeks ${phase.startWeek}-${phase.endWeek}): ${phase.purpose}`).join('\n');
-  const targets = input.weeklyTargets.map((target, index) => `- Week ${index + 1}: ${formatTarget(target)}`).join('\n');
+  const weeks = input.weeklyFocus.map((focus, index) => `- Week ${index + 1}: ${focus}`).join('\n');
+  const measure = input.measure ? `${input.measure.metric} (${input.measure.unit})` : 'not a number (a skill, habit or thing made)';
   return `THE GOAL
 ${input.goalText}${input.domain ? `\nDomain: ${input.domain}` : ''}
 Their answers:
@@ -147,8 +148,10 @@ ${input.method.rules.map((rule) => `- ${rule}`).join('\n')}
 Phases:
 ${phases || '- (none)'}
 
-Weekly targets:
-${targets || '- (none)'}
+Each week's focus:
+${weeks || '- (none)'}
+
+The goal is measured in: ${measure}
 
 THE ACTIONS
 ${Object.values(ACTION_WORDS).map((line) => `- ${line}`).join('\n')}
@@ -175,9 +178,8 @@ WRITE THE PROFILE
    - "highLoad" is true only for physical strain (running, lifting, high-intensity or impact work); a highLoad kind
      must be hard.
    - A hard kind never continues or restarts.
-   - "catchAll": the id of the catch-all kind, for work that fits no other kind.${
-     deliverable ? '\n   - The week-12 target is a deliverable, so the catch-all\'s action must be continue.' : ''
-   }
+   - "catchAll": the id of the catch-all kind, for work that fits no other kind. When the goal is to make or finish one
+     thing (a portfolio, an app, a draft), the catch-all's action should be continue.
    - "restGapDays": 0, 1 or 2.
    - "returnRule": either one break for "any" length, or "1-2 weeks" then "3+ weeks"; each restarts at "last level",
      "back 1 week" or "back 2 weeks"; "firstWeekBack" is one short sentence for the first week after a break.
@@ -236,7 +238,7 @@ export function templateIdReason(template: TemplateId, kinds: Array<Pick<Recover
  */
 export function checkProfileAnswer(
   data: RawProfileAnswer,
-  facts: { deliverableGoal: boolean },
+  facts: { deliverableGoal?: boolean } = {},
   lastAttempt = false
 ): { value: RecoveryProfile } | { reason: string } {
   if (!isTemplateId(data.template)) return { reason: `"template" must be one of: ${TEMPLATE_IDS.join(', ')}.` };
@@ -311,7 +313,6 @@ export function templateChanges(profile: RecoveryProfile, template: RecoveryProf
 
 /** The profile call. Never throws; always returns a checked profile and where it came from. */
 export async function generateRecoveryProfile(input: ProfileCallInput): Promise<ProfileCallResult> {
-  const deliverableGoal = isDeliverableTarget(input.weeklyTargets[11]);
   let pickedTemplate: TemplateId | null = null;
   try {
     const profile = await generateWithOneRetry<RawProfileAnswer, RecoveryProfile>(
@@ -320,7 +321,7 @@ export async function generateRecoveryProfile(input: ProfileCallInput): Promise<
       PROFILE_RESPONSE_SCHEMA,
       (data, lastAttempt) => {
         if (isTemplateId(data?.template)) pickedTemplate = data.template;
-        return checkProfileAnswer(data ?? {}, { deliverableGoal }, lastAttempt);
+        return checkProfileAnswer(data ?? {}, {}, lastAttempt);
       },
       'Recovery profile'
     );

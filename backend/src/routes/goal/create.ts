@@ -1,4 +1,4 @@
-// B-102: goal clarify and goal creation, moved out of routes/goal.ts unchanged (a pure move).
+// B-102: goal clarify and goal creation, moved out of routes/goal.ts.
 import { Router, Request, Response } from 'express';
 import { prisma } from '../../lib/prisma.js';
 import { getAuthUser } from '../auth.js';
@@ -9,11 +9,10 @@ import { clarifyGoalWithAI, UserRoutineInput } from '../../lib/ai/goalDecomposer
 import { findPresetForGoal } from '../../lib/ai/presets/index.js';
 import { isHighLoadGoal } from '../../lib/highLoad.js';
 import { loadGoalInput } from '../../lib/safety/stepLoad.js';
-import { logRoadmapTargets } from '../../lib/safety/targetSteps.js';
-import { generateRoadmap, lightTestSession, TOTAL_WEEKS, type PlanAnswer, type Roadmap } from '../../lib/ai/roadmap.js';
+import { generateRoadmap, TOTAL_WEEKS, type PlanAnswer, type Roadmap } from '../../lib/ai/roadmap.js';
 import { MIN_WEEKS, planLengthFor } from '../../lib/planLength.js';
 import { activeDaysFor, generateWeekPlan, slotTimeFor, validRestWeekdays, type PlanVariant, type WeekDayPlan } from '../../lib/ai/weekPlan.js';
-import { DAILY_MINUTES_MAX, DAILY_MINUTES_MIN, PLAN_VARIANTS, dailyTaskRows, roadmapWeekRows, storedRoadmap } from '../../lib/planV2.js';
+import { DAILY_MINUTES_MAX, DAILY_MINUTES_MIN, PLAN_VARIANTS, dailyTaskRows, measureTarget, roadmapWeekRows, storedRoadmap } from '../../lib/planV2.js';
 import { makeGoalProfile } from '../../lib/recovery/forGoal.js';
 import { customProfilesEnabled, generateRecoveryProfile } from '../../lib/recovery/profileCall.js';
 import type { RecoveryProfile } from '../../lib/recovery/profile.js';
@@ -50,8 +49,8 @@ export type NextPlanRequest =
 
 /**
  * Next plan (NP-7 to NP-10): `nextPlan` on `POST /api/goal/create` (`{ fromGoalId, mode, level? }`). Null when the
- * body has none. Pro for every goal. The level comes from the old plan's stored results (NP-8); only a level the
- * person typed (after a break, or with no result logged) is taken from the body. "Keep going" and "Go further" follow
+ * body has none. Pro for every goal. What the old plan did comes from its stored rows (NP-8); a goal measured in a
+ * number takes the level the person typed from the body (no weekly tests, so there is no measured result). "Keep going" and "Go further" follow
  * a completed plan, "Start a fresh plan" the active one (a long break, WU-9).
  */
 export async function readNextPlanRequest(userId: string, body: unknown): Promise<NextPlanRequest | null> {
@@ -72,7 +71,7 @@ export async function readNextPlanRequest(userId: string, body: unknown): Promis
 
   const old = await prisma.goal.findFirst({
     where: { id: request.fromGoalId, userId },
-    include: { roadmapWeeks: { orderBy: { weekNumber: 'asc' } } },
+    include: { roadmapWeeks: { orderBy: { weekNumber: 'asc' } }, dailyTasks: true },
   });
   if (!old) return { status: 404, error: 'That plan was not found.' };
   if (old.status !== (mode === 'fresh' ? 'active' : 'completed')) {
@@ -181,14 +180,15 @@ export async function recoveryProfileAtCreate(input: {
   try {
     if (input.presetId || !customProfilesEnabled()) return keywordProfile();
     try {
-      const { method, phases, weeks } = input.roadmap;
+      const { method, phases, weeks, measure } = input.roadmap;
       const result = await generateRecoveryProfile({
         goalText: input.goalText,
         domain: input.domain,
         answers: input.answers,
         method: { name: method.name, summary: method.summary, rules: method.rules },
         phases,
-        weeklyTargets: [...weeks].sort((a, b) => a.weekNumber - b.weekNumber).map((week) => week.target),
+        weeklyFocus: [...weeks].sort((a, b) => a.weekNumber - b.weekNumber).map((week) => week.focus),
+        measure,
       });
       if (result.source !== 'model') console.warn('[Recovery] Profile call fell back to a template:', result.source);
       // The copy count: 0 means the model copied its template's rules unchanged.
@@ -368,7 +368,6 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
         roadmap,
       });
       const first = roadmap.weeks[0];
-      const firstSession = lightTestSession(first.test, rawGoal, clarifiedOutcome);
       week1 = await generateWeekPlan({
         finalGoal: roadmap.finalGoal,
         answers: answerList,
@@ -381,15 +380,12 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
         totalWeeks,
         phase: roadmap.phases[0],
         focus: first.focus,
-        target: first.target,
-        test: first.test,
         weekStart: start,
-        // M2.1 (WU-43 (5)): only a light first week names the session its test belongs to.
-        ...(firstSession ? { testSession: firstSession } : {}),
         highLoadGoal: isHighLoadGoal({ rawGoal, clarifiedOutcome }),
         // Plan safety limits M2.1 (RULE-4): only a load goal adds the key.
         // M3.1 (PSL-19): the starting point raises week 1's longest-run cap to what they already run.
-        ...loadGoalInput({ rawGoal, clarifiedOutcome }, first.target, roadmap.startingPoint?.value ?? null),
+        // No weekly targets (2026-10-30): the goal's measure, at the starting value, picks the load family.
+        ...loadGoalInput({ rawGoal, clarifiedOutcome }, measureTarget(roadmap, undefined), roadmap.startingPoint?.value ?? null),
         recovery,
         heldSafetyLines: week1SafetyLines,
       });
@@ -413,14 +409,11 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
         recovery,
         previousPlan: nextPlan ? nextPlan.previousPlan : null,
       });
-      // Plan safety limits M1.2 (RULE-10, AC-10): the accepted roadmap's lowered targets, logged once with the goal id.
-      // The check's own decision (family, no start, pathway), so the log and the check can never disagree.
-      logRoadmapTargets(createdGoalId, roadmapResult.roadmap, roadmapResult.targetCheck);
       for (const line of week1SafetyLines) logSafetyHit({ ...line, goalId: createdGoalId });
     } else {
       for (const line of week1SafetyLines) logSafetyHit(line);
       // No silent v1 fallback, for presets either: a plan the AI could not write is an honest "try again", never an
-      // old-style plan without the plan v2 features (missed sessions, weekly targets). Logged so a missing or broken
+      // old-style plan without the plan v2 features (missed sessions, carried steps). Logged so a missing or broken
       // AI key shows up in the logs.
       console.warn('[GoalRouter] Plan v2 could not be written:', roadmapResult.ok ? 'week 1 failed' : roadmapResult.reason);
       if (!roadmapResult.ok) fail(roadmapResult.unsafe || roadmapResult.lowSafety ? 422 : 503, roadmapResult.reason);

@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeEach, beforeAll, afterAll, afterEach } 
 import express from 'express';
 import type { Server } from 'node:http';
 
-// Weekly update M3.3b (WU-58 (1), (4), RULE-6, RULE-18, AC-5, AC-19): the goal response's `retest` and
-// `dailyTimeCheck`, and POST /api/goal/daily-time. Prisma is a small in-memory store.
+// Weekly update M3.3b (WU-58 (1), (4), RULE-6, RULE-18, AC-5, AC-19): the goal response's `dailyTimeCheck`, and
+// POST /api/goal/daily-time. No weekly tests (2026-10-30): a hard week is a closed week under half done
+// (`executionScore`), and the check follows WEEK_CLOSE_ENABLED alone. Prisma is a small in-memory store.
 
 const store = vi.hoisted(() => ({
   goal: null as any,
@@ -22,28 +23,25 @@ vi.mock('../src/routes/auth.js', () => ({
 
 import { getAuthUser } from '../src/routes/auth.js';
 import { goalRouter } from '../src/routes/goal.js';
-import { retestStepFor } from '../src/lib/ai/retestStep.js';
-import type { WeekTest } from '../src/lib/ai/roadmap.js';
+import { dailyTimeCheckOf } from '../src/lib/weekClose/dailyTime.js';
 
-const SWITCHES = ['WEEK_CLOSE_ENABLED', 'WEEKLY_UPDATE_ENABLED'] as const;
-const RESULT = { value: 26, unit: 'min', passed: false };
-const RETEST_STEP = retestStepFor({ type: 'skill', instructions: 'Play the C major scale at 80 bpm.', passIf: 'no missed notes' } as unknown as WeekTest, 15);
-const DAY = { taskId: 't23', date: '2026-10-20' };
+const SWITCHES = ['WEEK_CLOSE_ENABLED'] as const;
 
 const week = (weekNumber: number, status: string, extra: Record<string, unknown> = {}) => ({
   id: `w${weekNumber}`,
   goalId: 'g1',
   weekNumber,
   status,
-  retestOfWeek: null,
-  updateStatus: null,
+  executionScore: null,
+  target: { kind: 'number', metric: 'Old target', value: 5, unit: 'km', direction: 'higher_is_better' },
+  test: { type: 'skill', instructions: 'An old stored test', passIf: 'old' },
   testResult: null,
   dailyTimeAskedAt: null,
   jumped: false,
   ...extra,
 });
 
-/** Weeks 2 and 3 far_behind, week 3 logged, week 4 open and re-testing week 3. */
+/** Weeks 2 and 3 under half done, week 4 open. */
 const hardGoal = (dailyMinutes = 60) => ({
   id: 'g1',
   userId: 'u1',
@@ -55,21 +53,47 @@ const hardGoal = (dailyMinutes = 60) => ({
   roadmap: null,
   velocityTable: null,
   roadmapWeeks: [
-    week(1, 'completed', { updateStatus: 'on_track' }),
-    week(2, 'completed', { updateStatus: 'far_behind' }),
-    week(3, 'completed', { updateStatus: 'far_behind', testResult: RESULT }),
-    week(4, 'active', { retestOfWeek: 3 }),
+    week(1, 'completed', { executionScore: 90 }),
+    week(2, 'completed', { executionScore: 40 }),
+    week(3, 'completed', { executionScore: 20, testResult: { value: 26, unit: 'min', passed: false } }),
+    week(4, 'active'),
     week(5, 'pending'),
   ],
-  // Week 4's second day holds the measured re-test.
-  dailyTasks: [
-    { id: 't22', weekNumber: 4, dayNumber: 22, date: '2026-10-19', detailedSteps: '[]' },
-    { id: 't23', weekNumber: 4, dayNumber: 23, date: '2026-10-20', detailedSteps: JSON.stringify([RETEST_STEP]) },
-  ],
+  dailyTasks: [{ id: 't22', weekNumber: 4, dayNumber: 22, date: '2026-10-19', detailedSteps: '[]' }],
   weeklyReviews: [],
 });
 
-describe('Daily time and the re-test in goal responses (weekly update M3.3b)', () => {
+describe('dailyTimeCheckOf (two weeks under half done)', () => {
+  const weeks = (...scores: Array<number | null>) => [
+    ...scores.map((executionScore, index) => week(index + 1, 'completed', { executionScore })),
+    week(scores.length + 1, 'active'),
+  ];
+
+  it('asks after two closed weeks under half done, offering only shorter times', () => {
+    expect(dailyTimeCheckOf(weeks(90, 49, 0), 60)).toEqual({ minutes: 60, shorter: [30, 45] });
+  });
+
+  it('not when either week reached half, had no day offered, or was jumped', () => {
+    expect(dailyTimeCheckOf(weeks(90, 50, 10), 60)).toBeNull();
+    expect(dailyTimeCheckOf(weeks(90, null, 10), 60)).toBeNull();
+    const jumped = weeks(90, 10, 10);
+    jumped[1].jumped = true;
+    expect(dailyTimeCheckOf(jumped, 60)).toBeNull();
+  });
+
+  it('not in the last week, nor on the shortest time', () => {
+    expect(dailyTimeCheckOf(weeks(10, 10, 10), 60, 4)).toBeNull();
+    expect(dailyTimeCheckOf(weeks(10, 10), 30)).toBeNull();
+  });
+
+  it('once per run of hard weeks', () => {
+    const run = weeks(10, 10, 10);
+    run[2].dailyTimeAskedAt = new Date() as any;
+    expect(dailyTimeCheckOf(run, 60)).toBeNull();
+  });
+});
+
+describe('Daily time in goal responses (weekly update M3.3b)', () => {
   let server: Server;
   let baseUrl: string;
 
@@ -111,10 +135,7 @@ describe('Daily time and the re-test in goal responses (weekly update M3.3b)', (
 
   afterEach(() => vi.unstubAllEnvs());
 
-  const switchesOn = () => {
-    vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
-    vi.stubEnv('WEEKLY_UPDATE_ENABLED', 'true');
-  };
+  const switchesOn = () => vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
   const active = async () => (await (await fetch(`${baseUrl}/api/goal/active`, { headers: { Authorization: 'Bearer t' } })).json()).activeGoal;
   const answer = (body: unknown) =>
     fetch(`${baseUrl}/api/goal/daily-time`, {
@@ -124,81 +145,39 @@ describe('Daily time and the re-test in goal responses (weekly update M3.3b)', (
     });
 
   describe('GET /active', () => {
-    it('sends the re-test and the daily-time check with both switches on', async () => {
+    it('sends the daily-time check with the week close on', async () => {
       switchesOn();
       const goal = await active();
-      expect(goal.retest).toEqual({ ofWeek: 3, reason: 'two_hard_weeks', logged: false, ...DAY });
       expect(goal.dailyTimeCheck).toEqual({ minutes: 60, shorter: [30, 45] });
+      expect(goal).not.toHaveProperty('retest');
     });
 
-    it('no week in the goal carries updateStatus, in any switch state; the server still reads it (RULE-3, B-95, B-98)', async () => {
-      const off = await active();
-      expect(off.roadmapWeeks).toHaveLength(store.goal.roadmapWeeks.length);
-      expect(off.roadmapWeeks.some((w: Record<string, unknown>) => 'updateStatus' in w)).toBe(false);
-      switchesOn();
-      const on = await active();
-      expect(on.roadmapWeeks.some((w: Record<string, unknown>) => 'updateStatus' in w)).toBe(false);
-      expect(on.retest.reason).toBe('two_hard_weeks');
-      expect(store.goal.roadmapWeeks[1].updateStatus).toBe('far_behind');
-    });
-
-    it('logged once the re-tested week holds a result logged in the open week', async () => {
-      switchesOn();
-      store.goal.roadmapWeeks[2].testResult = { ...RESULT, retestLoggedInWeek: 4 };
-      expect((await active()).retest).toEqual({ ofWeek: 3, reason: 'two_hard_weeks', logged: true, ...DAY });
-    });
-
-    it('no re-test: retest is null, and the daily-time check still follows the two hard weeks (RULE-6)', async () => {
-      switchesOn();
-      store.goal.roadmapWeeks[3].retestOfWeek = null;
+    it('no week carries updateStatus or an old stored target, test or result; the server still has them (RULE-3, no weekly tests)', async () => {
+      store.goal.roadmapWeeks[1].updateStatus = 'far_behind';
       const goal = await active();
-      expect(goal.retest).toBeNull();
-      expect(goal.dailyTimeCheck).toEqual({ minutes: 60, shorter: [30, 45] });
+      expect(goal.roadmapWeeks).toHaveLength(store.goal.roadmapWeeks.length);
+      for (const key of ['updateStatus', 'target', 'test', 'testResult', 'retestOfWeek']) {
+        expect(goal.roadmapWeeks.some((w: Record<string, unknown>) => key in w), key).toBe(false);
+      }
+      expect(store.goal.roadmapWeeks[2].testResult).not.toBeNull();
     });
 
-    it('retest is null when no day of the open week holds the measured re-test', async () => {
-      switchesOn();
-      store.goal.dailyTasks = store.goal.dailyTasks.map((t: any) => ({ ...t, detailedSteps: '[]' }));
-      expect((await active()).retest).toBeNull();
-    });
-
-    it('AC-19: both null with both switches unset, even with a stored re-test, and with only one on', async () => {
-      let goal = await active();
-      expect(goal.retest).toBeNull();
-      expect(goal.dailyTimeCheck).toBeNull();
-      vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
-      goal = await active();
-      expect(goal.retest).toBeNull();
-      expect(goal.dailyTimeCheck).toBeNull();
-    });
-
-    it('M4.1b, AC-19 state D: both null with only WEEKLY_UPDATE_ENABLED on, and the goal is the same as with both unset', async () => {
-      const unset = await active();
-      vi.stubEnv('WEEKLY_UPDATE_ENABLED', 'true');
+    it('an old roadmap is sent without its final test, checkpoints and lowered targets', async () => {
+      store.goal.roadmap = { finalGoal: 'Play a song', method: { name: 'm' }, finalTest: { type: 'skill' }, checkpoints: [], loweredTargets: [], phases: [] };
       const goal = await active();
-      expect(goal.retest).toBeNull();
-      expect(goal.dailyTimeCheck).toBeNull();
-      expect(goal).toEqual(unset);
+      expect(goal.roadmap).toEqual({ finalGoal: 'Play a song', method: { name: 'm' }, phases: [] });
+    });
+
+    it('AC-19: null with the week close unset', async () => {
+      expect((await active()).dailyTimeCheck).toBeNull();
     });
   });
 
   describe('POST /daily-time', () => {
-    it('409 weekly_update_disabled with both switches unset, before reading the goal', async () => {
+    it('409 week_close_disabled with the switch unset, before reading the goal, and nothing is written', async () => {
       const res = await answer({ minutes: 30 });
       expect(res.status).toBe(409);
-      expect((await res.json()).reason).toBe('weekly_update_disabled');
-      expect(store.prisma.goal.findFirst).not.toHaveBeenCalled();
-    });
-
-    it('409 weekly_update_disabled with only WEEKLY_UPDATE_ENABLED on', async () => {
-      vi.stubEnv('WEEKLY_UPDATE_ENABLED', 'true');
-      expect((await (await answer({ minutes: 30 })).json()).reason).toBe('weekly_update_disabled');
-      expect(store.prisma.goal.findFirst).not.toHaveBeenCalled();
-    });
-
-    it('M4.1b, state B: 409 weekly_update_disabled with only WEEK_CLOSE_ENABLED on, and nothing is written', async () => {
-      vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
-      expect((await (await answer({ minutes: 30 })).json()).reason).toBe('weekly_update_disabled');
+      expect((await res.json()).reason).toBe('week_close_disabled');
       expect(store.prisma.goal.findFirst).not.toHaveBeenCalled();
       expect(store.prisma.roadmapWeek.updateMany).not.toHaveBeenCalled();
     });
@@ -237,7 +216,7 @@ describe('Daily time and the re-test in goal responses (weekly update M3.3b)', (
 
     it('409 no_daily_time_check without two hard weeks, or on the shortest daily time', async () => {
       switchesOn();
-      store.goal.roadmapWeeks[1].updateStatus = 'a_bit_behind';
+      store.goal.roadmapWeeks[1].executionScore = 60;
       expect((await (await answer({ minutes: 30 })).json()).reason).toBe('no_daily_time_check');
       store.goal = hardGoal(30);
       expect((await (await answer({ minutes: 30 })).json()).reason).toBe('no_daily_time_check');

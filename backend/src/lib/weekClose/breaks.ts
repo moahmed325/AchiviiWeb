@@ -1,10 +1,6 @@
 import type { DailyTask } from '@prisma/client';
-import type { WeekTarget } from '../ai/roadmap.js';
 import { DEFAULT_SHAPE, type PlanShape } from '../planLength.js';
 import { isHighLoadGoal } from '../highLoad.js';
-import { sameUnit } from '../research/statedTarget.js';
-import { isWeekTarget } from '../safety/storedTargets.js';
-import { harder } from '../safety/targetSteps.js';
 import type { BreakLength, RecoveryProfile, Restart } from '../recovery/profile.js';
 
 /**
@@ -120,71 +116,18 @@ export function returnRuleEntry(profile: RecoveryProfile | null | undefined, day
   return breaks.find((entry) => entry?.length === length) ?? null;
 }
 
-/** WU-59 (1): how many weeks of targets each restart goes back. */
-const RESTART_BACK: Record<Restart, number> = { 'last level': 0, 'back 1 week': 1, 'back 2 weeks': 2 };
-
 /**
- * Weekly update M3.4 (RULE-16, WU-16, WU-20 (2), WU-59 (1)): the level the first week back restarts at. `restart` is the
- * rule's restart, `level` the target and `week` the week it was read from; `fellBack` names why week `n`'s target was
- * used instead (for the log), else null.
- */
-export interface RestartLevel {
-  restart: Restart;
-  level: WeekTarget;
-  week: number;
-  fellBack: 'harder' | 'kind' | 'unit' | 'unreadable' | null;
-}
-
-/**
- * WU-59 (1): the stored target of week `max(1, n - back)` (`n` the closing week, also after "Keep going"; `back` from the
- * entry `returnRuleEntry` picks for `breakDays`; no profile or no matching entry is `last level`, RULE-12), as `weeks`
- * reads it (`safeGoalTargets`). On a light-test goal that is the target the week shows: a light week stores its next
- * check's target. Never harder than week `n`'s target: if it is, or its kind or unit differs, or it can't be read, week
- * `n`'s target is used. Null when week `n`'s target can't be read, or when `weekBack` (the week written) shows week 12's
- * target (WU-15, WU-47): week 12 itself, or a light week whose next check is week 12.
- */
-export function restartLevel(
-  profile: RecoveryProfile | null | undefined,
-  breakDays: number,
-  closingWeek: number,
-  weeks: readonly { weekNumber: number; target: unknown; light: boolean }[],
-  weekBack: number,
-  /** B-109: the week of the final test; missing is 12. */
-  finalWeek: number = DEFAULT_SHAPE.finalWeek
-): RestartLevel | null {
-  const shows = weeks.find((week) => week.weekNumber >= weekBack && !week.light)?.weekNumber ?? finalWeek;
-  if (weekBack >= finalWeek || shows >= finalWeek) return null;
-  const restart = returnRuleEntry(profile, breakDays)?.restart ?? 'last level';
-  const targetOf = (n: number) => {
-    const target = weeks.find((week) => week.weekNumber === n)?.target;
-    return isWeekTarget(target) ? target : null;
-  };
-  const last = targetOf(closingWeek);
-  if (!last) return null;
-  const week = Math.max(1, closingWeek - (RESTART_BACK[restart] ?? 0));
-  const level = targetOf(week);
-  const fellBack: RestartLevel['fellBack'] = !level
-    ? 'unreadable'
-    : level.kind !== last.kind
-      ? 'kind'
-      : level.kind === 'number' && last.kind === 'number' && !sameUnit(level.unit, last.unit)
-        ? 'unit'
-        : level.kind === 'number' && last.kind === 'number' && harder(level.value, last.value, last.direction)
-          ? 'harder'
-          : null;
-  return fellBack || !level ? { restart, level: last, week: closingWeek, fellBack } : { restart, level, week, fellBack: null };
-}
-
-/**
- * What the week writer is told for the first week back (WU-25 (3), WU-29 (1)): the days away and the rule's note. Never
- * a target or a restart level (M3.4). `highLoad` (WU-35 (4)) adds the "at or below" sentence and the first-week-back line.
+ * What the week writer is told for the first week back (WU-25 (3), WU-29 (1)): the days away, the rule's note and its
+ * restart (how far back the level goes). `highLoad` (WU-35 (4)) adds the "at or below" sentence and the first-week-back line.
  */
 export type FirstWeekBack = {
   awayDays: number;
   /** The rule's `firstWeekBack` note; null for a goal with no readable profile. */
   note: string | null;
-  /** The entry the length picked, for the log only (the restart is M3.4's). */
+  /** The entry the length picked, for the log. */
   length: BreakLength | null;
+  /** The rule's restart for that length (no weekly tests, 2026-10-30: told to the writer as a level to go back to). */
+  restart: Restart | null;
 } & GoalLoad;
 
 /**
@@ -204,5 +147,6 @@ export function goalLoad(goal: { rawGoal: string; clarifiedOutcome: string }, pr
 
 export function firstWeekBackFor(profile: RecoveryProfile | null | undefined, breakDays: number, load: GoalLoad): FirstWeekBack {
   const note = typeof profile?.returnRule?.firstWeekBack === 'string' && profile.returnRule.firstWeekBack.trim() ? profile.returnRule.firstWeekBack.trim() : null;
-  return { awayDays: breakDays, note, length: returnRuleEntry(profile, breakDays)?.length ?? null, ...load };
+  const entry = returnRuleEntry(profile, breakDays);
+  return { awayDays: breakDays, note, length: entry?.length ?? null, restart: entry?.restart ?? null, ...load };
 }

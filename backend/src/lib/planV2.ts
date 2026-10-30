@@ -1,30 +1,25 @@
 import type { DailyTask, Goal, Prisma, RoadmapWeek as RoadmapWeekRow } from '@prisma/client';
 import { prisma } from './prisma.js';
 import { shapeOf } from './planLength.js';
+import { type ChosenMethod, type Measure, type PlanAnswer, type Roadmap, type RoadmapPhase, type StartingPoint, type WeekTarget } from './ai/roadmap.js';
 import {
-  formatTarget,
-  keyMilestoneText,
-  lightTestSession,
-  type ChosenMethod,
-  type PlanAnswer,
-  type Roadmap,
-  type RoadmapPhase,
-  type LoweredTarget,
-  type StartingPoint,
-  type WeekTarget,
-  type WeekTest,
-} from './ai/roadmap.js';
-import { activeDaysFor, codeMadeTestStep, generateWeekPlan, validRestWeekdays, weekLayout, type PlanVariant, type WeekDayPlan } from './ai/weekPlan.js';
-import type { Retest } from './ai/retestStep.js';
+  activeDaysFor,
+  codeMadeTestStep,
+  FEELS,
+  generateWeekPlan,
+  validRestWeekdays,
+  weekLayout,
+  type Feel,
+  type LastWeekSummary,
+  type PlanVariant,
+  type WeekDayPlan,
+} from './ai/weekPlan.js';
 import { parseStoredSteps } from './carryForward.js';
 import { isHighLoadGoal } from './highLoad.js';
 import { loadGoalInput } from './safety/stepLoad.js';
 import { baseWeekOf, firstWeekBackBaseOf, type BaseTask, type BaseWeek } from './safety/weekLoad.js';
 import { FIRST_WEEK_BACK_LONG_BREAK_PERCENT } from './safety/limits.js';
 import type { DetailedStep } from './ai/goalDecomposer.js';
-import { logSafetyHit } from './ai/safetyScan.js';
-import { safeGoalTargets } from './safety/storedTargets.js';
-import { dayNinetyLineOf } from './weekClose/checkpoint.js';
 import { handoffBrief, placeHandoff, weekHandoff, type HandoffPlacement, type HandoffTask, type WeekHandoff } from './recovery/handoff.js';
 import { readRecoveryProfile, type RecoveryProfile } from './recovery/profile.js';
 import { methodRecoveryEnabled } from './recovery/switch.js';
@@ -34,8 +29,11 @@ import { LONG_BREAK_DAYS, type FirstWeekBack } from './weekClose/breaks.js';
 /** What `Goal.roadmap` holds for a v2 goal. The 12 weeks live in `RoadmapWeek` rows. */
 export interface StoredRoadmap {
   finalGoal: string;
-  finalTest: string;
+  /** Goals made before the weekly tests went (2026-10-30); never read now. */
+  finalTest?: string;
   startingPoint: StartingPoint;
+  /** The one number that shows progress (`Roadmap.measure`); null or missing for a goal that is built or made. */
+  measure?: Measure | null;
   method: ChosenMethod;
   phases: RoadmapPhase[];
   answers: PlanAnswer[];
@@ -64,12 +62,11 @@ export function roadmapWeekRows(goalId: string, roadmap: Roadmap, dailyMinutes: 
     weekNumber: week.weekNumber,
     phase: week.phase,
     theme: week.focus,
-    objective: formatTarget(week.target),
-    keyMilestone: keyMilestoneText(week.test),
-    targetIntensity: Math.round(60 + (40 * (week.weekNumber - 1)) / (roadmap.weeks.length - 1)),
+    // No weekly tests (2026-10-30): a week has its focus, no target or test (`target` and `test` stay empty).
+    objective: week.focus,
+    keyMilestone: '',
+    targetIntensity: Math.round(60 + (40 * (week.weekNumber - 1)) / Math.max(1, roadmap.weeks.length - 1)),
     plannedMinutes: dailyMinutes * activeDaysFor(planVariant),
-    target: json(week.target),
-    test: json(week.test),
     status: week.weekNumber === 1 ? 'active' : 'pending',
   }));
 }
@@ -183,30 +180,6 @@ export function startingPointValue(goal: { roadmap?: unknown }): number | null {
   return typeof roadmap?.startingPoint?.value === 'number' ? roadmap.startingPoint.value : null;
 }
 
-/** The logged `RoadmapWeek.testResult` as a line for the week writer, or null when none is stored in a usable shape. */
-function loggedResult(testResult: unknown, testDayNote: string | undefined, light = false): string | null {
-  if (!testResult || typeof testResult !== 'object' || Array.isArray(testResult)) return null;
-  const { value, passed, unit, note } = testResult as Record<string, unknown>;
-  if ((typeof value !== 'string' && typeof value !== 'number') || String(value).trim() === '' || typeof passed !== 'boolean') return null;
-  const amount = typeof unit === 'string' && unit.trim() ? `${String(value).trim()} ${unit.trim()}` : String(value).trim();
-  const theirNote = typeof note === 'string' && note.trim() ? note.trim() : testDayNote;
-  // M2.1 review (WU-43 (2)): a light test is done plus a note, never passed or not against the target.
-  if (light) return `light test done${theirNote ? `; their note: "${theirNote}"` : ''}`;
-  return `test logged: ${amount}, ${passed ? 'passed' : 'not passed'}${theirNote ? `; their note: "${theirNote}"` : ''}`;
-}
-
-/**
- * B-61: the logged result first (the review's or a late test's), then the test day's notes. M2.1: `light`, last week's
- * test was a light test; a logged one reads "light test done", an unlogged one as before.
- */
-export function lastWeekResult(testDay: DailyTask | undefined, testResult: unknown, light = false): string {
-  const logged = loggedResult(testResult, testDay?.notes?.trim() || undefined, light);
-  if (logged) return logged;
-  if (!testDay) return 'no test day this week';
-  if (testDay.status !== 'completed') return 'the weekly test was not done';
-  return testDay.notes?.trim() ? `test done; their note: "${testDay.notes.trim()}"` : 'test done, score not logged';
-}
-
 /**
  * M3.1d (RULE-20, MR-32): what the finished week hands on, or null when there is nothing to hand on. Never throws: a
  * failure is logged and the week is written as without the switch, so the review never fails because of it.
@@ -266,36 +239,22 @@ export async function writeNextWeek(
   recovery?: RecoveryProfile | null,
   /** M3.1d review: the week before `finishedWeek`, only to see a break that started there. Read only with the switch on. */
   weekBefore: DailyTask[] = [],
-  options: { firstWeekBack?: FirstWeekBack; weekNumber?: number; olderWeeks?: DailyTask[]; coachNote?: string; retest?: Retest } = {}
+  options: { firstWeekBack?: FirstWeekBack; weekNumber?: number; olderWeeks?: DailyTask[]; reflection?: string } = {}
 ): Promise<WeekDayPlan[] | null> {
   const stored = readStoredRoadmap(goal);
-  // Plan safety limits M1.3 (RULE-9): an older goal's targets lowered on read; nothing stored changes. A goal with
-  // nothing to lower keeps its stored rows, so the week call gets exactly what it did before.
-  const safe = safeGoalTargets(goal);
-  const weeks = safe?.weeks ?? goal.roadmapWeeks;
-  const next = weeks.find((week) => week.weekNumber === (options.weekNumber ?? finishedWeek + 1));
-  const done = weeks.find((week) => week.weekNumber === finishedWeek);
-  if (!stored || !next?.target || !next.test) return null;
-  const loweredNow = safe?.foundNow.find((item) => item.week === next.weekNumber);
-  if (loweredNow) logLoweredOnRead(goal.id, next.target as unknown as WeekTarget, loweredNow);
+  const next = goal.roadmapWeeks.find((week) => week.weekNumber === (options.weekNumber ?? finishedWeek + 1));
+  if (!stored || !next) return null;
 
   const routine = readRoutine(goal);
-  // WU-13: a day not offered is not part of how the week went (never missed, no status effect).
-  const practice = finishedTasks.filter((task) => !task.isRestDay && !task.notOffered);
   const phase = stored.phases.find((item) => item.name === next.phase) ?? { name: next.phase, purpose: '' };
   const profile = recovery === undefined ? readRecoveryProfile(goal.roadmap) : recovery;
   const handOn = methodRecoveryEnabled() && profile ? readHandoff(finishedTasks, weekBefore, profile, readRecoveryProfile(goal.roadmap) ?? profile) : null;
   const brief = handOn ? handoffBrief(handOn.handoff) : [];
 
-  // M2.1 (WU-43 (5)): the session a light week's test belongs to; nothing for any other week.
-  const lastLight = (done?.test as unknown as WeekTest | null)?.light === true;
-  const session = lightTestSession(next.test as unknown as WeekTest, goal.rawGoal, goal.clarifiedOutcome);
-  const load = loadGoalInput(goal, next.target as unknown as WeekTarget, startingPointValue(goal));
-  // Checkpoints (RULE-12): the day-90 line only while a choice stands, so the call is otherwise exactly as before.
-  const dayNinety = dayNinetyLineOf(goal);
+  const load = loadGoalInput(goal, measureTarget(stored, next), startingPointValue(goal));
+  const lastWeek = finishedWeek >= 1 && finishedTasks.length > 0 ? lastWeekOf(finishedTasks, options.reflection) : null;
   const days = await generateWeekPlan({
     finalGoal: stored.finalGoal,
-    ...(dayNinety ? { dayNinety } : {}),
     answers: stored.answers,
     dailyMinutes: routine.dailyMinutes,
     planVariant: routine.planVariant,
@@ -306,8 +265,6 @@ export async function writeNextWeek(
     totalWeeks: shapeOf(goal).weeks,
     phase,
     focus: next.theme,
-    target: next.target as unknown as WeekTarget,
-    test: next.test as unknown as WeekTest,
     weekStart: weekStartFor(goal.startDate, next.weekNumber),
     highLoadGoal: isHighLoadGoal(goal),
     // Plan safety limits M2.1 (RULE-4): only a load goal adds the key, so any other goal's call is exactly as before.
@@ -324,26 +281,9 @@ export async function writeNextWeek(
     // B-64: for the `[Safety]` lines.
     goalId: goal.id,
     recovery: profile,
-    lastWeek: done?.target
-      ? {
-          target: done.target as unknown as WeekTarget,
-          // M2.1: only a light test adds the key, so a goal created before M2.1 gets exactly the input it had.
-          ...(lastLight ? { lightTest: true } : {}),
-          result: lastWeekResult(finishedTasks.find((task) => task.isTestDay), done.testResult, lastLight),
-          done: practice.filter((task) => task.status === 'completed').length,
-          planned: practice.length,
-          keySessionsSkipped: practice
-            // OD-2: a key session done only through the 10-minute version is not "key done" (M2.3).
-            .filter((task) => task.isKeySession && (task.status !== 'completed' || task.usedMinimumVersion === true))
-            .map((task) => `${task.dayOfWeek}: ${task.title}`),
-          ...(options.coachNote ? { note: options.coachNote } : {}),
-        }
-      : undefined,
+    ...(lastWeek ? { lastWeek } : {}),
     ...(brief.length > 0 ? { whereTheyAre: brief } : {}),
-    ...(session ? { testSession: session } : {}),
     ...(options.firstWeekBack ? { firstWeekBack: options.firstWeekBack } : {}),
-    // Weekly update M3.3a (RULE-5, RULE-6): only a re-test adds the key, so any other week's call is exactly as before.
-    ...(options.retest ? { retest: options.retest } : {}),
   });
   if (!days) return days;
   // M1.5a review: the goal's load is worked out once (`goalLoad` in `writeWeekAfter`); the line acts only for a high-load goal.
@@ -391,21 +331,6 @@ function baseTasks(tasks: DailyTask[]): BaseTask[] {
   }));
 }
 
-/** RULE-10 as PSL-12 (2) reads it for older goals: one line when a week whose target was lowered on read is written. */
-function logLoweredOnRead(goalId: string, target: WeekTarget, item: LoweredTarget): void {
-  const metric = target.kind === 'number' ? target.metric : '';
-  const unit = target.kind === 'number' ? target.unit : '';
-  logSafetyHit({
-    goalId,
-    week: item.week,
-    rule: 'target_step',
-    step: `Week ${item.week} target`,
-    matched: `${metric}: ${item.model} ${unit} lowered to ${item.safe} ${unit}`,
-    model: item.model,
-    safe: item.safe,
-    outcome: 'lowered_on_read',
-  });
-}
 
 function placeHandedOn(
   goalId: string,
@@ -428,6 +353,53 @@ function placeHandedOn(
     console.error('[PlanV2] Could not place what last week hands on:', err);
     return days;
   }
+}
+
+/** A stored tap, or null for none or anything else. */
+export function readFeel(value: unknown): Feel | null {
+  return typeof value === 'string' && (FEELS as readonly string[]).includes(value) ? (value as Feel) : null;
+}
+
+/**
+ * No weekly tests (2026-10-30, docs/features/no-weekly-tests/plan.md section 7): the finished week as the next week is
+ * written from it. WU-13: a day not offered is not part of how the week went. The taps count done sessions only; each
+ * note keeps its day ("Tuesday: my knee hurt").
+ */
+export function lastWeekOf(tasks: readonly DailyTask[], reflection?: string): LastWeekSummary {
+  const practice = tasks.filter((task) => !task.isRestDay && !task.notOffered);
+  const done = practice.filter((task) => task.status === 'completed');
+  const feel: Record<Feel, number> = { too_easy: 0, just_right: 0, too_hard: 0 };
+  for (const task of done) {
+    const tapped = readFeel((task as DailyTask & { feel?: unknown }).feel);
+    if (tapped) feel[tapped] += 1;
+  }
+  const notes = tasks.flatMap((task) => (task.notes?.trim() ? [`${task.dayOfWeek}: ${task.notes.trim()}`] : []));
+  return {
+    done: done.length,
+    planned: practice.length,
+    // OD-2: a key session done only through the 10-minute version is not "key done" (M2.3).
+    keySessionsSkipped: practice
+      .filter((task) => task.isKeySession && (task.status !== 'completed' || task.usedMinimumVersion === true))
+      .map((task) => `${task.dayOfWeek}: ${task.title}`),
+    feel,
+    notes,
+    ...(reflection?.trim() ? { reflection: reflection.trim() } : {}),
+  };
+}
+
+/**
+ * The safety limits' reading of the goal (`loadGoalFor`): its measure with today's level, as a number target. A goal
+ * made before the weekly tests went has no measure; its week's stored target is read instead. Null for a goal that is
+ * built or made.
+ */
+export function measureTarget(stored: Pick<StoredRoadmap, 'measure' | 'startingPoint'>, week: Pick<RoadmapWeekRow, 'target'> | undefined): WeekTarget | null {
+  const measure = stored.measure;
+  if (measure) {
+    const value = typeof stored.startingPoint?.value === 'number' ? stored.startingPoint.value : 0;
+    return { kind: 'number', metric: measure.metric, unit: measure.unit, direction: measure.direction, value };
+  }
+  const target = week?.target as WeekTarget | null | undefined;
+  return target && typeof target === 'object' && target.kind === 'number' && typeof target.value === 'number' ? target : null;
 }
 
 /** WU-33 (3): a week with no score (`null`, every day not offered) reports no benchmark (`benchmarkMet: null`). */

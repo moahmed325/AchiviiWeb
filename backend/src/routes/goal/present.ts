@@ -1,14 +1,11 @@
-// B-102: how a goal is sent to the app (presentGoal and its helpers) and the plan stream, moved out of routes/goal.ts unchanged (a pure move).
+// B-102: how a goal is sent to the app (presentGoal and its helpers) and the plan stream, moved out of routes/goal.ts.
 import { shapeOf } from '../../lib/planLength.js';
 import { Request, Response } from 'express';
 import { journeyResultOf, readPreviousPlan, type JourneyGoal, type JourneyResult, type PreviousPlan } from '../../lib/nextPlan.js';
-import { safeGoalTargets, type StoredWeek, type Week12Line } from '../../lib/safety/storedTargets.js';
 import { formatBasisBadge } from '../../lib/research/planGrounding.js';
 import { goalScheduleOf, readRoutine, type GoalSchedule } from '../../lib/planV2.js';
-import { weeklyUpdateEnabled } from '../../lib/weekClose/switch.js';
-import { checkpointViewOf, dayNinetyLineOf, type CheckpointView } from '../../lib/weekClose/checkpoint.js';
-import type { DayNinetyLine } from '../../lib/ai/dayNinety.js';
-import { dailyTimeCheckOf, retestInfo, type DailyTimeCheck, type RetestInfo, type RetestTask, type RetestWeek } from '../../lib/weekClose/retest.js';
+import { weekCloseEnabled } from '../../lib/weekClose/switch.js';
+import { dailyTimeCheckOf, type DailyTimeCheck, type DailyTimeWeek } from '../../lib/weekClose/dailyTime.js';
 
 
 export function wantsPlanStream(req: Request): boolean {
@@ -29,55 +26,18 @@ export function openPlanStream(res: Response, startedAt: number) {
 }
 
 
-/**
- * Plan safety limits M1.3 (RULE-9, PSL-12): an older goal's targets lowered on read, and the honest week 12 line. Writes
- * nothing and logs nothing (`/active` runs on every app load). A goal without a v2 roadmap or weeks is left as it is.
- */
-export function safeTargetsOf(goal: Record<string, unknown>): { roadmapWeeks: unknown; roadmap: unknown; week12Line: Week12Line | null } | null {
-  const safe = safeGoalTargets({
-    rawGoal: typeof goal.rawGoal === 'string' ? goal.rawGoal : '',
-    clarifiedOutcome: typeof goal.clarifiedOutcome === 'string' ? goal.clarifiedOutcome : null,
-    roadmap: goal.roadmap,
-    roadmapWeeks: goal.roadmapWeeks as StoredWeek[] | undefined,
-    totalWeeks: totalWeeksOf(goal),
-  });
-  if (!safe) return null;
-  const roadmap = goal.roadmap as Record<string, unknown>;
-  return {
-    roadmapWeeks: safe.weeks,
-    roadmap: safe.finalTest === roadmap.finalTest ? roadmap : { ...roadmap, finalTest: safe.finalTest },
-    week12Line: safe.week12Line,
-  };
-}
-
 /** B-109: the row's `totalWeeks` (null when a test double or an old select left it out: a 12-week plan). */
 const totalWeeksOf = (goal: Record<string, unknown>): number | null => (typeof goal.totalWeeks === 'number' ? goal.totalWeeks : null);
 
 /**
- * Weekly update M3.3b (WU-58 (1)): the open week's re-test and the daily-time check, from the stored rows. Both null
- * with either switch off (RULE-18), so a switch turned off hides them as it refuses the daily-time answer.
+ * The daily-time check (WU-58 (1), after two weeks under half done, `dailyTime.ts`), from the stored rows. Null with
+ * `WEEK_CLOSE_ENABLED` off, so a switch turned off hides it as it refuses the daily-time answer.
  */
-export function retestOfGoal(goal: Record<string, unknown>): { retest: RetestInfo | null; dailyTimeCheck: DailyTimeCheck | null } {
-  const weeks = goal.roadmapWeeks as RetestWeek[] | undefined;
-  if (!weeklyUpdateEnabled() || !Array.isArray(weeks)) return { retest: null, dailyTimeCheck: null };
+export function dailyTimeOfGoal(goal: Record<string, unknown>): { dailyTimeCheck: DailyTimeCheck | null } {
+  const weeks = goal.roadmapWeeks as DailyTimeWeek[] | undefined;
+  if (!weekCloseEnabled() || !Array.isArray(weeks)) return { dailyTimeCheck: null };
   const routine = typeof goal.routine === 'string' ? goal.routine : '{}';
-  const tasks = Array.isArray(goal.dailyTasks) ? (goal.dailyTasks as RetestTask[]) : [];
-  return { retest: retestInfo(weeks, tasks), dailyTimeCheck: dailyTimeCheckOf(weeks, readRoutine({ routine }).dailyMinutes, shapeOf({ totalWeeks: totalWeeksOf(goal) }).weeks) };
-}
-
-/**
- * Checkpoints (RULE-11, section 7): the open offer and the day-90 line, from the stored rows. Both null with either
- * switch off (RULE-1).
- */
-export function checkpointOfGoal(goal: Record<string, unknown>): { checkpoint: CheckpointView | null; dayNinetyLine: DayNinetyLine | null } {
-  const read = {
-    rawGoal: typeof goal.rawGoal === 'string' ? goal.rawGoal : '',
-    clarifiedOutcome: typeof goal.clarifiedOutcome === 'string' ? goal.clarifiedOutcome : null,
-    roadmap: goal.roadmap,
-    roadmapWeeks: goal.roadmapWeeks as StoredWeek[] | undefined,
-    totalWeeks: totalWeeksOf(goal),
-  };
-  return { checkpoint: checkpointViewOf(read), dayNinetyLine: dayNinetyLineOf(read) };
+  return { dailyTimeCheck: dailyTimeCheckOf(weeks, readRoutine({ routine }).dailyMinutes, shapeOf({ totalWeeks: totalWeeksOf(goal) }).weeks) };
 }
 
 /** Next plan: the goal as `journeyResultOf` reads it, from a goal row with its weeks. */
@@ -87,6 +47,7 @@ export function journeyGoalOf(goal: Record<string, unknown>): JourneyGoal {
     clarifiedOutcome: typeof goal.clarifiedOutcome === 'string' ? goal.clarifiedOutcome : null,
     roadmap: goal.roadmap,
     roadmapWeeks: goal.roadmapWeeks as JourneyGoal['roadmapWeeks'],
+    dailyTasks: goal.dailyTasks as JourneyGoal['dailyTasks'],
     totalWeeks: totalWeeksOf(goal),
   };
 }
@@ -96,9 +57,27 @@ export function nextPlanOfGoal(goal: Record<string, unknown>): { journeyResult: 
   return { journeyResult: journeyResultOf(journeyGoalOf(goal)), previousPlan: readPreviousPlan(goal.roadmap) };
 }
 
+/**
+ * RULE-3 (B-95, B-98): the update status stays inside. No weekly tests (2026-10-30): a goal made before keeps its
+ * stored targets, tests and results, which are never sent, so the app shows no test or target anywhere.
+ */
 export function withoutStatus(week: unknown): unknown {
   if (!week || typeof week !== 'object') return week;
-  const { updateStatus: _status, ...rest } = week as Record<string, unknown>;
+  const {
+    updateStatus: _status,
+    target: _target,
+    test: _test,
+    testResult: _result,
+    retestOfWeek: _retest,
+    ...rest
+  } = week as Record<string, unknown>;
+  return rest;
+}
+
+/** The stored roadmap without what only the weekly tests used (an older goal's final test, checkpoints, lowered targets). */
+export function withoutTests(roadmap: unknown): unknown {
+  if (!roadmap || typeof roadmap !== 'object' || Array.isArray(roadmap)) return roadmap;
+  const { finalTest: _final, checkpoints: _checkpoints, loweredTargets: _lowered, ...rest } = roadmap as Record<string, unknown>;
   return rest;
 }
 
@@ -106,23 +85,18 @@ export function presentGoal<T extends Record<string, unknown>>(
   goal: T
 ): T & {
   basis: ReturnType<typeof formatBasisBadge>;
-  retest: RetestInfo | null;
   dailyTimeCheck: DailyTimeCheck | null;
-  checkpoint: CheckpointView | null;
-  dayNinetyLine: DayNinetyLine | null;
   journeyResult: JourneyResult | null;
   previousPlan: PreviousPlan | null;
   schedule: GoalSchedule | null;
 } {
-  const safe = safeTargetsOf(goal);
-  const weeks = safe ? safe.roadmapWeeks : goal.roadmapWeeks;
+  const weeks = goal.roadmapWeeks;
   return {
     ...goal,
-    ...safe,
-    ...retestOfGoal(goal),
-    ...checkpointOfGoal(goal),
+    ...dailyTimeOfGoal(goal),
     ...nextPlanOfGoal(goal),
-    // RULE-3 (B-95, B-98): the status stays inside; no goal response carries `updateStatus`.
+    ...(goal.roadmap !== undefined ? { roadmap: withoutTests(goal.roadmap) } : {}),
+    // RULE-3 (B-95, B-98): the status stays inside; no goal response carries `updateStatus` (nor any test or target).
     ...(Array.isArray(weeks) ? { roadmapWeeks: weeks.map(withoutStatus) } : {}),
     // B-108: the schedule in force, so the app shows what the next week will use without reading the routine itself.
     schedule: typeof goal.routine === 'string' && goal.startDate ? goalScheduleOf({ routine: goal.routine, startDate: goal.startDate as Date }) : null,

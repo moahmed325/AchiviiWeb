@@ -155,6 +155,7 @@ model DailyTask {
   status                  String    @default("pending")
   completedAt             DateTime?
   notes                   String?
+  feel                    String?   // No weekly tests (2026-10-30): how a done session felt: too_easy | just_right | too_hard
   resourceTitle           String?
   resourceUrl             String?
   resourceType            String?

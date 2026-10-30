@@ -15,10 +15,10 @@ describe('feature switches (B-99 (4))', () => {
 
   it('names every switch in the startup line', () => {
     vi.stubEnv('METHOD_RECOVERY_ENABLED', 'true');
-    vi.stubEnv('WEEKLY_UPDATE_ENABLED', '');
+    vi.stubEnv('WEEK_CLOSE_ENABLED', '');
     const line = flagSummary();
     expect(line).toContain('METHOD_RECOVERY_ENABLED=on');
-    expect(line).toContain('WEEKLY_UPDATE_ENABLED=off');
-    expect(line.split(' ')).toHaveLength(6);
+    expect(line).toContain('WEEK_CLOSE_ENABLED=off');
+    expect(line.split(' ')).toHaveLength(5);
   });
 });

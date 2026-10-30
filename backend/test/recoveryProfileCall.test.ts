@@ -18,20 +18,21 @@ import {
   type RawProfileAnswer,
 } from '../src/lib/recovery/profileCall.js';
 import { profileFailures, templateProfile, TEMPLATE_IDS, RECOVERY_TEMPLATES } from '../src/lib/recovery/index.js';
-import type { WeekTarget } from '../src/lib/ai/roadmap.js';
+import type { Measure } from '../src/lib/ai/roadmap.js';
 
-// Method-aware recovery M1.3b: the profile call (RULE-3, RULE-4, MR-4, MR-14, MR-22) and its switch (O1).
+// Method-aware recovery M1.3b: the profile call (RULE-3, RULE-4, MR-4, MR-14) and its switch (O1). No weekly tests
+// (2026-10-30): the call reads each week's focus and the goal's measure; the deliverable fact (MR-22) is no longer known.
 
-const number: WeekTarget = { kind: 'number', metric: 'Portraits', value: 1, unit: 'portraits', direction: 'higher_is_better' };
-const deliverable: WeekTarget = { kind: 'deliverable', description: 'A finished portrait' };
+const number: Measure | null = { metric: 'Portraits', unit: 'portraits', direction: 'higher_is_better' };
 
-const input = (week12: WeekTarget = number, goalText = 'Draw a realistic portrait'): ProfileCallInput => ({
+const input = (measure: Measure | null = number, goalText = 'Draw a realistic portrait'): ProfileCallInput => ({
   goalText,
   domain: 'Drawing',
   answers: [{ id: 'current_level', question: 'Level?', answer: 'Beginner' }],
   method: { name: 'Drawing on the Right Side of the Brain', summary: 'Seeing exercises.', rules: ['Draw what you see'] },
   phases: [{ name: 'Seeing', purpose: 'Learn to see.', startWeek: 1, endWeek: 12 }],
-  weeklyTargets: Array.from({ length: 12 }, (_, index) => (index === 11 ? week12 : number)),
+  weeklyFocus: Array.from({ length: 12 }, (_, index) => `Week ${index + 1} focus`),
+  measure,
 });
 
 /** A good answer adapted from the creative template. */
@@ -160,21 +161,18 @@ describe('generateRecoveryProfile', () => {
     expect(origami).toEqual({ profile: templateProfile('general'), source: 'keyword_template', pickedTemplate: null });
   });
 
-  it('a deliverable goal whose answer has a non-continue catch-all is rejected', async () => {
-    const moveCatchAll = () => {
-      const answer = good();
-      (answer.kinds as Array<Record<string, unknown>>)[3].action = 'move';
-      return answer;
-    };
-    answers(moveCatchAll(), moveCatchAll());
-    const result = await generateRecoveryProfile(input(deliverable));
-    expect(result.source).toBe('picked_template');
-    expect(prompts()[0]).toMatch(/week-12 target is a deliverable, so the catch-all's action must be continue/);
-    expect(prompts()[1]).toMatch(/catch-all must continue/);
+  it('a non-continue catch-all is no longer rejected (the deliverable fact is not known); the prompt still asks for it', async () => {
+    const answer = good();
+    (answer.kinds as Array<Record<string, unknown>>)[3].action = 'move';
+    answers(answer);
+    expect((await generateRecoveryProfile(input(null))).source).toBe('model');
+    expect(prompts()[0]).toMatch(/When the goal is to make or finish one\s+thing .* the catch-all's action should be continue/s);
+  });
 
-    // The same answer passes when week 12 is a number.
-    answers(moveCatchAll());
-    expect((await generateRecoveryProfile(input(number))).source).toBe('model');
+  it('the prompt names each week\'s focus and the measure', async () => {
+    expect(buildProfilePrompt(input())).toContain('- Week 3: Week 3 focus');
+    expect(buildProfilePrompt(input())).toContain('The goal is measured in: Portraits (portraits)');
+    expect(buildProfilePrompt(input(null))).toContain('The goal is measured in: not a number (a skill, habit or thing made)');
   });
 
   it('a Weekly test or Fixed-time session kind the model writes itself is dropped and added back by code, fixed', async () => {
@@ -208,7 +206,7 @@ describe('the profile prompt', () => {
     expect(prompt).toContain(`Rest gap: 1 day(s). Return: 1-2 weeks: back 1 week; 3+ weeks: back 2 weeks. First week back: ${RECOVERY_TEMPLATES.endurance.returnRule.firstWeekBack}`);
     expect(prompt).toContain('Draw a realistic portrait');
     expect(prompt).toContain('Domain: Drawing');
-    expect(prompt).toMatch(/- Week 12: .*1 portraits/);
+    expect(prompt).toContain("- Week 12: Week 12 focus");
     expect(prompt).not.toMatch(/weekly_test|fixed_time_session/);
     // Size reported in the M1.3b report: well inside both providers' limits.
     expect(prompt.length).toBeLessThan(16000);
