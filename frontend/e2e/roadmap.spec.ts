@@ -3,7 +3,7 @@ import { mockApi, signIn } from './mockApi';
 import { SHELL_GOAL_TITLE, STORED_OUTCOME, expectCleanAt, shellGoal, settled } from './shellFixtures';
 
 /**
- * ND-32: the Roadmap is the plan at a glance (ND-31 folded the Progress page into it). The shell goal is
+ * ND-33: the Roadmap shows progress and the whole plan, each week's details folded (ND-31 folded Progress into it). The shell goal is
  * day 3 of week 1, measured by a deliverable, so its weeks have no number targets; the progress card is checked in the unit tests.
  */
 
@@ -32,16 +32,17 @@ const openRoadmap = async (page: Page, url = '/roadmap') => {
   await expect(page.getByRole('heading', { level: 1, name: SHELL_GOAL_TITLE })).toBeVisible();
 };
 
-test('the goal, where the plan stands, the weeks by phase, this week and the finish line; never the stored outcome', async ({ page }) => {
+test('the goal, where the plan stands, progress, every phase and week, and the finish line; never the stored outcome', async ({ page }) => {
   await openRoadmap(page);
   await expect(main(page).getByText(/^Week 1 of 12 · Foundation · finishes /)).toBeVisible();
   await expect(main(page).getByText(STORED_OUTCOME)).toHaveCount(0);
-  for (const phase of ['Foundation', 'Acceleration', 'Mastery']) await expect(main(page).getByRole('list', { name: phase })).toBeVisible();
+  await expect(main(page).getByRole('region', { name: 'Your progress' })).toBeVisible();
+  for (const phase of ['Foundation', 'Acceleration', 'Mastery']) await expect(main(page).getByRole('heading', { level: 3, name: phase })).toBeVisible();
   const current = main(page).locator('li[aria-current="step"]');
   await expect(current).toHaveCount(1);
-  await expect(main(page).getByText('This week · Week 1')).toBeVisible();
-  await expect(main(page).getByText('2 of 6 days')).toBeVisible();
-  await expect(main(page).getByText(/^✦ Finish line/)).toBeVisible();
+  await expect(current.getByRole('button', { name: /^Week 1: / })).toHaveAttribute('aria-expanded', 'true');
+  await expect(current.getByText('2 of 6')).toBeVisible();
+  await expect(main(page).getByRole('heading', { level: 3, name: /^Finish line/ })).toBeVisible();
 });
 
 test('/progress opens the Roadmap, and the navigation has one entry for both', async ({ page }) => {

@@ -279,20 +279,6 @@ test.describe('Every Today state is clean at 360-412 px (M3.4)', () => {
       card: stepCard,
     },
     {
-      name: 'late-test card',
-      goal: (() => {
-        const base = shellGoal();
-        return {
-          ...base,
-          planVersion: 2,
-          roadmapWeeks: base.roadmapWeeks.map((w) => ({ ...w, test: TEST, testResult: null })),
-          dailyTasks: base.dailyTasks.map((t) => ({ ...t, isTestDay: t.id === 't2' })),
-        };
-      })(),
-      ready: (page) => expect(page.getByRole('region', { name: "This week's test is still open" })).toBeVisible(),
-      card: (page) => page.getByRole('region', { name: "This week's test is still open" }),
-    },
-    {
       name: 'closing stretch (days 85-90)',
       goal: { ...shellGoal(), currentWeek: 12, targetDate: new Date(Date.now() - 5 * 86_400_000).toISOString(), dailyTasks: [] },
       ready: (page) => expect(page.getByRole('heading', { level: 2, name: 'The Final Evaluation & Arrival' })).toBeVisible(),

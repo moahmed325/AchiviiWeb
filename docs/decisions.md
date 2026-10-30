@@ -1972,6 +1972,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-10-29 | ND-30 Decided by Mo: Today puts the step first (one-line header, steps listed, one Start, a real done state, the focus session's end names the session and the week). |
 | 2026-10-30 | ND-31 Decided by Mo: no glow in the app; Roadmap and Progress are one page; a plain Pathways dialog; GitHub-sized map cells and no goal box on the Dashboard; less on Today. |
 | 2026-10-30 | ND-32 Decided by Mo: the Roadmap at a glance (progress card, week cells, this week, finish line); the Dashboard's map spread wide; greeting by first name; no weekly review by hand (weeks close on their own). |
+| 2026-10-30 | ND-33 Decided by Mo: the Dashboard with a goal ring, streak and number tiles, the map with a key and Coming up; the Roadmap with a progress card and the whole plan by phase, week details folded; no late-test card on Today. |
 
 ### ND-32 — The Roadmap at a glance, a name in the greeting, no weekly review by hand
 
@@ -1994,6 +1995,27 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 **Consequences.** `WeeklyReviewModal` and the parts only it used (`ReviewSummaryCard`, `ReviewReflectionStep`, `PhaseGateOutcomeCard`, `AdaptationMomentStep`, `lib/reviewDraft.ts`, `submitWeeklyReview`, `isWeekReviewDue`), `Staircase` and its styles are removed. The test entry (`ReviewTestResultStep`, `LightTestEntry`) stays, used by Today's week-close card and the late-test card. The backend review route stays (B-110). With `WEEK_CLOSE_ENABLED` off, weeks would no longer close at all; it must stay on.
 
 **Related.** ND-24, ND-29, ND-31.
+
+### ND-33 — A Dashboard worth opening, the Roadmap with progress and every week, no late-test card
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-30 — Mo: the Dashboard "looks ugly … make it visually appealing and add things that are valuable"; "the weekly log thing is still displayed on the today page"; the Roadmap should show progress "in a visually pleasing way" and "the whole roadmap too with details … collapsing the details while keeping the main titles" |
+| Decided | 2026-10-30 — Mo |
+
+**Context.** After ND-32 the Dashboard was a greeting, one card and a large map; the Roadmap showed week cells without titles or details. Today still showed "This week's test is still open" with "Log my result" after a test day passed, although the week's test is asked for when the week closes.
+
+**Decision.**
+* **Dashboard:** the greeting and one status line; today's session beside a goal card (a ring for the share of the way covered: the goal's own measure, else milestones, else the plan's days; now and the goal); four tiles (streak, sessions counted up since the last visit, practice time, this week with a dot per day); the map of days with a key; "Coming up" (this week's check, the next phase, the finish line) with a link to the Roadmap.
+* **Roadmap:** a progress card (ring, now and goal, the weekly checks as a small line toward a dashed goal line, weeks done, sessions, checks met), then the whole plan by phase: each phase's name, weeks, state, purpose and a bar of its weeks; every week's title and state always shown; a week's dates, days done, target, check, result and the review's line fold open on tap (this week open); the finish line; why the plan works, closed.
+* **No late-test card on Today:** the week's test is asked for once, when the week closes (`WeekTestFirst`). The re-test entry stays.
+
+**Consequences.** New: `ProgressRing` (ui), `practiceStreak` (`lib/dashboard.ts`), `comingUp` (`lib/plan.ts`). Removed: `LateTestCard`, `lib/lateTest.ts`, the old roadmap styles.
+
+**Related.** ND-29, ND-31, ND-32.
 
 ### PAY-1 — Achivii Pro pricing
 

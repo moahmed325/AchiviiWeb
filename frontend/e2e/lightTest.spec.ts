@@ -51,9 +51,11 @@ test.describe('Light weekly tests (M2.1)', () => {
     await mockApi(page, { goal: lightWeekGoal() });
     await signIn(page);
     await page.goto('/roadmap');
-    await expect(page.getByText(NEXT_CHECK).first()).toBeVisible();
+    // ND-33: this week's details are open on the Roadmap; earlier weeks' are folded.
+    const thisWeek = page.locator('li[aria-current="step"]');
+    await expect(thisWeek.getByText(NEXT_CHECK)).toBeVisible();
     await expect(page.getByText(/Done as written/)).toHaveCount(0);
-    await page.getByText(NEXT_CHECK).first().scrollIntoViewIfNeeded();
+    await thisWeek.getByText(NEXT_CHECK).scrollIntoViewIfNeeded();
     await evidence(page, info, 'roadmap-next-check');
     expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
   });

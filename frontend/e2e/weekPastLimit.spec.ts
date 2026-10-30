@@ -80,11 +80,11 @@ test.describe('Past the limit (M1.5b)', () => {
     expect(calls.reconcile).toBe(1);
     await evidence(page, info, 'after-keep-going');
 
-    // ND-32: the Roadmap's week cells name each jumped week paused, never done.
+    // ND-33: the Roadmap's plan names each jumped week "Paused", never done.
     await page.goto('/progress');
     await expect(page).toHaveURL('/roadmap');
-    const weeks = page.getByRole('region', { name: /^Your \d+ weeks$/ });
-    await expect(weeks.getByText(/^Week \d+, paused$/)).toHaveCount(4);
+    const weeks = page.getByRole('region', { name: 'The plan' });
+    await expect(weeks.getByRole('button', { name: /^Week \d+: .*, paused$/ })).toHaveCount(4);
     await weeks.scrollIntoViewIfNeeded();
     await evidence(page, info, 'paused-roadmap');
   });
