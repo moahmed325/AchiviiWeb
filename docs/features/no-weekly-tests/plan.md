@@ -1,6 +1,6 @@
 # No weekly tests: plan
 
-**Status:** IN PROGRESS (2026-10-30). Mo said yes to all of section 6, and added the feel buttons (section 7).
+**Status:** BUILT (2026-10-30) on `claude/trusting-edison-v1d3od`, waiting on Mo's review and merge. Mo said yes to all of section 6, and added the feel buttons (section 7). Decision: ND-31. How it works now: `docs/architecture/plan-v2.md`.
 **Asked by Mo (2026-10-30):** "remove the whole weekly test thing ... next week's plan should just be made based on what tasks the user completed or not." Mo's answers: drop the weekly targets too, drop the final test too, and for goals already running hide tests from the next week written (nothing stored is deleted).
 
 ## 1. What changes for people

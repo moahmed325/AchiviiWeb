@@ -1892,6 +1892,28 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Related.** ND-18, ND-24, ND-29.
 
+### ND-31 — No weekly tests: next week follows what was done
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-30 — Mo: "remove the whole weekly test thing ... next week's plan should just be made based on what tasks the user completed or not" |
+| Decided | 2026-10-30 — Mo: drop weekly targets and checkpoints too, remove the final test, hide tests on running goals from the next week written; yes to the pace rule, removing the weekly update call, keeping the review, and keeping the safety limits on sessions; plus a one-tap "how did it feel" after each session, used weekly |
+
+**Context.** Every week had a target and a test day; the weekly update call set the remaining targets from the logged result, checkpoints at weeks 4 and 8 offered to lower the day-90 target, and the plan ended in a final test. A week whose test wasn't logged was held behind a test card, re-tests followed two hard weeks, and many results were never logged, so the plan often adapted to nothing.
+
+**Decision.** **No weekly tests, targets, checkpoints or final test.** Each week has a focus inside the method's phases; a goal counted in one number keeps its `measure` and starting point (for the safety limits and a next plan). The next week is written from last week's sessions done and planned, the key sessions skipped, a one-tap feel after each done session (Too easy, Just right, Too hard) and the day notes, word for word, with a pace line code picks: 80%+ done and mostly too easy, a bigger step; 80%+, move on; 50-79% or mostly too hard, the same level with a small step; under 50%, repeat a little lighter. The weekly review stays ("how did it go" and a note). The week load limits still check every session. The running week is never rewritten (mid-week changes are idea I-32).
+
+**Consequences.**
+* Removed: the weekly update call and `WEEKLY_UPDATE_ENABLED` (nothing reads it; delete it in Render), checkpoints, re-tests, late tests, the test-result route, the safe target climb and the week-12 line, the light-test swap, the final test, and their app screens.
+* A next plan of a measured goal always asks the level now; the end screen says weeks and sessions done.
+* Stored targets, tests and results on goals made before stay in the database, unread and never sent (backlog B-110 drops them). `DailyTask.feel` is one additive column.
+* Spec: `docs/features/no-weekly-tests/plan.md`; how it works: `docs/architecture/plan-v2.md`.
+
+**Related.** ND-21, ND-24, B-109.
+
 ---
 
 # 5 — SUPERSEDED AND REJECTED
@@ -1945,6 +1967,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-10-26 | ND-28 Decided by Mo: a missed-day reminder email, on by default, sent through Resend, behind `MISSED_DAY_REMINDERS_ENABLED`. |
 | 2026-10-29 | ND-29 Decided by Mo: the Dashboard shows how the person is doing (sessions counted up, goal measure, 90-day map); its Start opens the session on Today in one tap. |
 | 2026-10-29 | ND-30 Decided by Mo: Today puts the step first (one-line header, steps listed, one Start, a real done state, the focus session's end names the session and the week). |
+| 2026-10-30 | ND-31 Decided by Mo: no weekly tests, targets, checkpoints or final test; next week follows sessions done, the feel taps and the notes. |
 
 ### PAY-1 — Achivii Pro pricing
 

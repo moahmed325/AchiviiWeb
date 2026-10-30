@@ -14,12 +14,12 @@ Written 2026-10-15 for Mo (B-28). Prices and limits change often. Check the two 
 |---|---|---|
 | Creates a pathway goal (clarify, roadmap, week 1) | 3 | about 9 (each step retries once, and busy errors are retried twice more) |
 | Creates a custom goal (clarify, roadmap, recovery profile, week 1) | 4 | about 11 (the profile call retries once; if it still fails the goal uses a template) |
-| Closes a week, by review or automatically (weekly update, then next week) | 2 | about 5 (the update retries once within its 15 s limit) |
+| Closes a week, by review or automatically (next week) | 1 | about 3 (the week call retries once, and busy errors are retried) |
 | Anything else (Today, Focus, ticking steps, missed days) | 0 | 0 |
 
-Since 2026-10-28 both `WEEKLY_UPDATE_ENABLED` and `CUSTOM_RECOVERY_PROFILES_ENABLED` are on, so a week close makes the update call too and a custom goal makes the profile call. Week 12 has no week after it, so its close makes no week call.
+Since 2026-10-28 `CUSTOM_RECOVERY_PROFILES_ENABLED` is on, so a custom goal makes the profile call. The weekly update call went with the weekly tests on 2026-10-30 (ND-31), so a week close makes only the week call. The last week has no week after it, so its close makes no call.
 
-So, roughly: **a new user costs about 3 calls on day 1 (4 for a custom goal), and then about 2 calls a week.**
+So, roughly: **a new user costs about 3 calls on day 1 (4 for a custom goal), and then about 1 call a week.**
 
 ## 2. How far the free tier goes
 
@@ -62,7 +62,7 @@ Paying is "pay as you go": no monthly fee. You link a billing account to the Goo
 
 ### What that means for Achivii (estimates)
 
-My guess at the size of each call: a goal creation sends about 11,000 tokens and gets about 10,000 back; a weekly review sends about 5,000 and gets about 5,000 back. These are estimates, not measurements, and "thinking" models can use 2 to 3 times more output. Treat the numbers below as a rough guide. They were made before the weekly update call and the custom profile call were switched on (2026-10-28); so a week close and a custom goal cost more than shown. Their sizes are not measured yet.
+My guess at the size of each call: a goal creation sends about 11,000 tokens and gets about 10,000 back; a weekly review sends about 5,000 and gets about 5,000 back. These are estimates, not measurements, and "thinking" models can use 2 to 3 times more output. Treat the numbers below as a rough guide. They were made before the custom profile call was switched on (2026-10-28), so a custom goal costs a little more than shown; a week close is one week call again since the weekly update went (2026-10-30). Their sizes are not measured yet.
 
 | Model | One new goal | One weekly review | One person, a whole 12-week plan | 1,000 active people a month |
 |---|---|---|---|---|
