@@ -109,32 +109,16 @@ describe('Dashboard', () => {
     expect(screen.getByText(/2 steps/)).toBeInTheDocument();
   });
 
-  it("a goal measured by milestones with no checks yet shows this week's milestone, without inventing a number", () => {
-    renderWith(buildGoal('pending'));
-
-    const panel = screen.getByRole('region', { name: "This week's milestone" });
-    expect(within(panel).getByText('First 5km continuous run')).toBeInTheDocument();
-    expect(screen.queryByText(/milestones reached/)).not.toBeInTheDocument();
-  });
-
-  it('a number goal shows the share of the gap closed, the line from the start, and a new best', () => {
+  it("this week's panel: sessions done of planned, the focus and the goal; no target or measured number (no weekly tests)", () => {
     const goal = buildGoal('pending');
-    goal.roadmap = { startingPoint: { value: 60, description: '' }, phases: [] } as unknown as Goal['roadmap'];
-    const target = (value: number) => ({ kind: 'number' as const, metric: '10K time', value, unit: 'min', direction: 'lower_is_better' as const });
-    goal.roadmapWeeks = [1, 2, 3, 12].map((weekNumber) => ({
-      ...goal.roadmapWeeks![0],
-      id: 'w' + weekNumber,
-      weekNumber,
-      target: target(weekNumber === 12 ? 50 : 58),
-      test: { type: 'timer' as const, instructions: '', passIf: '' },
-      testResult: weekNumber === 1 ? { value: 57, passed: true } : weekNumber === 2 ? { value: 55, passed: true } : null,
-    }));
+    goal.roadmap = { finalGoal: 'Run 10 km without stopping', startingPoint: { value: 3, description: '' }, phases: [] } as unknown as Goal['roadmap'];
     renderWith(goal);
 
-    const panel = screen.getByRole('region', { name: '10K time' });
-    expect(within(panel).getByText('50%')).toBeInTheDocument();
-    expect(within(panel).getByText('of the gap to your goal closed')).toBeInTheDocument();
-    expect(within(panel).getByText('New best')).toBeInTheDocument();
+    const panel = screen.getByRole('region', { name: 'This week' });
+    expect(within(panel).getByText(/of \d+/)).toBeInTheDocument();
+    expect(within(panel).getByText('Building Volume')).toBeInTheDocument();
+    expect(within(panel).getByText('Your goal: Run 10 km without stopping')).toBeInTheDocument();
+    expect(screen.queryByText(/gap to your goal|New best|Next check|milestones reached/)).not.toBeInTheDocument();
   });
 
   it('celebrates a finished day, counts it, and leads back to Today without starting anything', () => {

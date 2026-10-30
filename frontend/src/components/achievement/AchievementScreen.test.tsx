@@ -23,7 +23,6 @@ const mockGoal: Goal = {
   completedAt: '2026-08-30T10:00:00Z',
   roadmap: {
     finalGoal: 'Run 10 kilometers under 45 minutes',
-    finalTest: 'Run 10k test on official flat course',
     startingPoint: { value: 52, description: '52 minute 10k' },
     method: {
       name: 'VDOT Running Formula',
@@ -52,17 +51,6 @@ const mockGoal: Goal = {
       keyMilestone: 'Consistent sub-threshold pacing',
       targetIntensity: 3,
       plannedMinutes: 200,
-      test: {
-        type: 'timer',
-        instructions: 'Run 5k at continuous threshold pace',
-        passIf: 'Under 22:30',
-      },
-      testResult: {
-        value: '22:15',
-        passed: true,
-        unit: 'mm:ss',
-        note: 'Paced evenly',
-      },
       created_at: '2026-06-01T00:00:00Z',
     },
     {
@@ -76,24 +64,6 @@ const mockGoal: Goal = {
       keyMilestone: 'Official sub-45 arrival',
       targetIntensity: 5,
       plannedMinutes: 240,
-      target: {
-        kind: 'number',
-        metric: '10k Race Time',
-        value: 45,
-        unit: 'min',
-        direction: 'lower_is_better',
-      },
-      test: {
-        type: 'timer',
-        instructions: 'Official 10k timed time-trial on certified course',
-        passIf: 'Sub-45:00',
-      },
-      testResult: {
-        value: '44:12',
-        passed: true,
-        unit: 'mm:ss',
-        note: 'Personal best recorded on cool morning',
-      },
       created_at: '2026-06-01T00:00:00Z',
     },
   ],
@@ -164,8 +134,9 @@ describe('AchievementScreen Component (Visual Level 4 — M9.3)', () => {
 
     // Results view displayed
     expect(screen.getByRole('heading', { level: 2, name: 'Verified Execution Metrics' })).toBeInTheDocument();
-    expect(screen.getByText('Phase 3 Capstone Verification')).toBeInTheDocument();
-    expect(screen.getAllByText(/Personal best recorded on cool morning/).length).toBeGreaterThan(0);
+    expect(screen.getByText('Weeks Finished')).toBeInTheDocument();
+    // No weekly tests (2026-10-30): no benchmark log or final test.
+    expect(screen.queryByText(/Benchmark|Capstone/)).not.toBeInTheDocument();
   });
 
   it('3. Supports accessible tab switching between Arrival, Results, and Journey', () => {

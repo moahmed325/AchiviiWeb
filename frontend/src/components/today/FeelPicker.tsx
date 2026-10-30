@@ -5,7 +5,7 @@ import { NOT_SAVED } from '../../lib/weekClose';
 import { useTaskActions } from './useTaskActions';
 
 /** The three taps, in the order they show (docs/features/no-weekly-tests/plan.md section 7). */
-export const FEEL_OPTIONS: ReadonlyArray<{ value: Feel; label: string }> = [
+const FEEL_OPTIONS: ReadonlyArray<{ value: Feel; label: string }> = [
   { value: 'too_easy', label: 'Too easy' },
   { value: 'just_right', label: 'Just right' },
   { value: 'too_hard', label: 'Too hard' },

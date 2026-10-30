@@ -67,7 +67,7 @@ export const BreakChoice: React.FC<{ goal: Goal; choice: PastLimitChoice }> = ({
   const fresh = () => {
     const result = goal.journeyResult ?? null;
     if (isPro && result) {
-      if (needsLevel(result, 'fresh')) setAskLevel(true);
+      if (needsLevel(result)) setAskLevel(true);
       else launchNextPlan(goal, 'fresh');
       return;
     }

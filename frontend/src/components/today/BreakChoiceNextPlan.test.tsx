@@ -16,19 +16,12 @@ const journeyResult: JourneyResult = {
   kind: 'number',
   start: '3 km',
   startValue: 3,
-  reached: '6 km',
-  reachedValue: 6,
-  reachedWeek: 7,
-  goal: '10 km',
-  goalValue: 10,
+  goal: 'Run 10 km',
   unit: 'km',
   direction: 'higher_is_better',
-  dayNinetyTarget: null,
-  reachedDayNinety: false,
-  madeIt: false,
-  nearGoal: false,
   weeksFinished: 7,
-  lastDone: null,
+  sessionsDone: 30,
+  sessionsPlanned: 35,
 };
 
 const goal = { id: 'g1', rawGoal: 'Run 10 km', status: 'active', roadmap: { answers: [] }, journeyResult } as unknown as Goal;
@@ -57,13 +50,13 @@ describe('Start a fresh plan', () => {
     expect(seenState()).toEqual({ draftGoal: 'Run 10 km', isPreset: false, switchGoal: true });
   });
 
-  it('with Pro: asks the level now with the last result filled in, then starts from it', async () => {
+  it('with Pro: asks the level now, then starts from it', async () => {
     pro.value = true;
     renderCard();
     await userEvent.click(screen.getByRole('button', { name: 'Start a fresh plan' }));
     const dialog = screen.getByRole('dialog');
-    const input = within(dialog).getByLabelText('Your last result was 6 km, in week 7. Where are you now?');
-    expect(input).toHaveValue('6');
+    const input = within(dialog).getByLabelText('You started this plan at 3 km. Where are you now?');
+    expect(input).toHaveValue('');
     await userEvent.clear(input);
     await userEvent.type(input, '5');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Continue' }));

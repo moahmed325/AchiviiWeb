@@ -100,7 +100,7 @@ const AFTER = {
   weeklyReviews: [{ id: 'r2', goalId: 'g1', weekNumber: 2, aiAdaptationInsight: KEEP_LINE } as WeeklyReview],
 } as unknown as Goal;
 
-const checkWith = (choice: PastLimitChoice | null, isBreak = true) => ({ due: true, weekNumber: 2, testLogged: false, break: isBreak, choice }) as CloseWeekAnswer;
+const checkWith = (choice: PastLimitChoice | null, isBreak = true) => ({ due: true, weekNumber: 2, break: isBreak, choice }) as CloseWeekAnswer;
 const CLOSED = { due: true, closedBy: 'auto' } as unknown as CloseWeekAnswer;
 
 let calls: string[];
@@ -295,19 +295,12 @@ describe('the choice card past the limit (WU-38, WU-40)', () => {
   });
 });
 
-describe('no test card after a break (WU-39)', () => {
-  it('a break with no choice closes at once as unlogged, with no card', async () => {
+describe('a break with no choice (WU-39)', () => {
+  it('closes at once, with no card', async () => {
     check = checkWith(null);
     renderApp();
     expect(await screen.findByRole('heading', { level: 1, name: 'Run a 10K' })).toBeVisible();
-    expect(screen.queryByRole('dialog', { name: "Did you do last week's test?" })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(calls).toEqual(['close:check', 'close:none', 'reconcile', 'fetch']);
-  });
-
-  it('a gap under 7 days still shows the test card', async () => {
-    check = checkWith(null, false);
-    renderApp();
-    expect(await screen.findByRole('dialog', { name: "Did you do last week's test?" })).toBeVisible();
-    expect(closes()).toEqual([]);
   });
 });

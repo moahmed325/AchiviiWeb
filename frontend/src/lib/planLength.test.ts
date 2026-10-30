@@ -1,31 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { bigTestWeeks, closingStartDay, finalWeekOf, nextCheckWeekOf, planDays, planLengthLabel, planWeeks, readyWeekOf, weeksBefore } from './planLength';
-import { nextCheckLine, weekTargetText } from './lightTest';
+import { closingStartDay, planDays, planLengthLabel, planWeeks, weeksBefore } from './planLength';
 import { dayNumber } from './today';
-import { acceptedLine, checkpointCopy } from './checkpoint';
-import { dayNinetyLineText, week12LineText, week12NoteText } from './week12Line';
 import { journeyHeadline } from './nextPlan';
-import type { Checkpoint, JourneyResult, WeekTarget } from '../types';
+import type { JourneyResult } from '../types';
 
 // B-109: the app reads a goal's own plan length, as the server works it out (`backend/src/lib/planLength.ts`).
 describe('plan length', () => {
   it('a goal without totalWeeks, or with one out of range, is a 12-week plan, exactly as before', () => {
     for (const goal of [{}, { totalWeeks: 3 }, { totalWeeks: 13 }, null]) {
       expect(planWeeks(goal)).toBe(12);
-      expect(finalWeekOf(goal)).toBe(12);
-      expect(readyWeekOf(goal)).toBeNull();
-      expect(bigTestWeeks(goal)).toEqual([4, 8, 12]);
       expect(planLengthLabel(goal)).toBe('90-day');
       expect(closingStartDay(goal)).toBe(85);
     }
   });
 
-  it('a 7-week plan: the final test in week 6, week 7 ready, one big test', () => {
+  it('a 7-week plan', () => {
     const goal = { totalWeeks: 7 };
-    expect([planWeeks(goal), finalWeekOf(goal), readyWeekOf(goal)]).toEqual([7, 6, 7]);
-    expect(bigTestWeeks(goal)).toEqual([6]);
-    expect(bigTestWeeks({ totalWeeks: 10 })).toEqual([5, 9]);
-    expect([1, 6, 7].map((week) => nextCheckWeekOf(week, goal))).toEqual([6, 6, 6]);
+    expect(planWeeks(goal)).toBe(7);
     expect(planLengthLabel(goal)).toBe('7-week');
     expect(closingStartDay(goal)).toBe(50);
   });
@@ -54,34 +45,9 @@ describe('plan length', () => {
   });
 });
 
-const target: WeekTarget = { kind: 'number', metric: 'Practice test score', value: 70, unit: 'percent', direction: 'higher_is_better' };
-
 describe('the copy on a shorter plan', () => {
-  it('a light week names its next check; the ready week its final target', () => {
-    expect(nextCheckLine(3, target)).toBe('Next check, week 4: Practice test score: 70 percent');
-    expect(nextCheckLine(3, target, { totalWeeks: 7 })).toBe('Next check, week 6: Practice test score: 70 percent');
-    expect(nextCheckLine(7, target, { totalWeeks: 7 })).toBe('Ready week, your final target: Practice test score: 70 percent');
-    expect(weekTargetText(7, target, { type: 'quiz', instructions: 'x', passIf: 'Done as written', light: true }, undefined, { totalWeeks: 7 })).toBe(
-      'Ready week, your final target: Practice test score: 70 percent'
-    );
-  });
-
-  it('a checkpoint names the final week instead of day 90', () => {
-    const card: Checkpoint = { week: 3, kind: 'lower', target: '70 percent', offered: '66 percent', goal: '70 percent', last: true, toFullGoal: false };
-    expect(checkpointCopy(card).body).toBe("At this pace you'll reach about 66 percent by day 90. Your day-90 target is 70 percent.");
-    expect(checkpointCopy({ ...card, finalWeek: 7 }).body).toBe("At this pace you'll reach about 66 percent by the end of week 7. Your final target is 70 percent.");
-    expect(acceptedLine(card)).toBe('Your day-90 target is now 66 percent.');
-    expect(acceptedLine({ ...card, finalWeek: 7 })).toBe('Your final target is now 66 percent.');
-  });
-
-  it('the honest line names the final week', () => {
-    expect(week12LineText({ safe: '66 percent', goal: null })).toBe('Week 12 aims at 66 percent, a safe step.');
-    expect(week12NoteText({ week12Line: { safe: '66 percent', goal: null }, dayNinetyLine: null, totalWeeks: 7 })).toBe('Week 6 aims at 66 percent, a safe step.');
-    expect(dayNinetyLineText({ target: '66 percent', goal: '70 percent', finalWeek: 7 })).toBe('Final target: 66 percent. Your goal: 70 percent.');
-  });
-
-  it('the end screen counts a shorter plan\'s weeks', () => {
-    const result = { kind: 'deliverable', weeksFinished: 5, totalWeeks: 6 } as JourneyResult;
+  it("the end screen counts a shorter plan's weeks", () => {
+    const result = { kind: 'other', weeksFinished: 5, totalWeeks: 6, sessionsDone: 0, sessionsPlanned: 0 } as JourneyResult;
     expect(journeyHeadline(result)).toBe('You finished 5 of 6 weeks.');
     expect(journeyHeadline({ ...result, totalWeeks: undefined })).toBe('You finished 5 of 12 weeks.');
   });

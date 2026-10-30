@@ -42,7 +42,7 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
   const pathway = findPathwayByTitle(goal.rawGoal);
 
   const choose = (mode: NextPlanMode) => {
-    if (needsLevel(result, mode)) setLevelFor(mode);
+    if (needsLevel(result)) setLevelFor(mode);
     else launchNextPlan(goal, mode);
   };
 
@@ -86,7 +86,7 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
 
           {/* Next plan (NP-1, NP-2): what they did, and the goal they worked toward. */}
           <p className="mt-2 text-h2 font-medium text-text">
-            {headline ?? (planWeeks(goal) === 12 ? '90 days done.' : `${planWeeks(goal)} weeks done.`)}
+            {headline ?? 'You made it.'}
           </p>
           {outcome && <p className="mt-2 max-w-xl text-body-lg text-text">{outcome}</p>}
 

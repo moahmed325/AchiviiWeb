@@ -529,7 +529,7 @@ describe('Today', () => {
     expect(screen.getByRole('button', { name: 'Start' })).toBeVisible();
   });
 
-  it('renders test day benchmark card with instructions and pass mark without fake score inputs', async () => {
+  it("an older goal's stored test day shows as an ordinary session: no badge and no check card (no weekly tests)", async () => {
     const testTask: DailyTask = { ...tasks[2], isTestDay: true };
     const goalWithTest = {
       ...GOAL,
@@ -538,11 +538,7 @@ describe('Today', () => {
           weekNumber: 1,
           phase: 'Aerobic base',
           theme: 'Easy miles',
-          test: {
-            type: '5K',
-            instructions: 'Run 5K at maximum sustainable effort on a flat course.',
-            passIf: 'finish in under 25:00',
-          },
+          test: { type: '5K', instructions: 'Run 5K at maximum sustainable effort on a flat course.', passIf: 'finish in under 25:00' },
         },
       ],
       dailyTasks: tasks.map((t) => (t.id === 't3' ? testTask : t)),
@@ -551,16 +547,36 @@ describe('Today', () => {
     mocked.fetchActiveGoal.mockResolvedValueOnce(goalWithTest);
     await renderToday();
 
-    expect(screen.getByText('Test day')).toBeVisible();
-    // ND-30: a plain heading, never the stored test type ("5K Benchmark", "typing_test Benchmark").
-    expect(screen.getByRole('heading', { level: 3, name: "Today's check" })).toBeVisible();
-    expect(screen.queryByText(/Benchmark/)).not.toBeInTheDocument();
-    expect(screen.getByText('Run 5K at maximum sustainable effort on a flat course.')).toBeVisible();
-    expect(screen.getByText('Pass if finish in under 25:00.')).toBeVisible();
+    expect(screen.queryByText('Test day')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: "Today's check" })).not.toBeInTheDocument();
+    expect(screen.queryByText('Run 5K at maximum sustainable effort on a flat course.')).not.toBeInTheDocument();
+  });
 
-    // Honesty rule (OD-1a): No score inputs, sliders, or pass/fail submit forms
-    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/score/i)).not.toBeInTheDocument();
+  it('after a done session, one optional tap for how it felt saves it; the tap goes when the session is marked not done', async () => {
+    const user = userEvent.setup();
+    // As the server does: each write starts from the stored row; marking a session not done clears its feel.
+    const stored = new Map(tasks.map((t) => [t.id, t]));
+    mocked.updateDailyTask.mockImplementation(async (id, updates) => {
+      const next = { ...stored.get(id)!, ...updates, ...(updates.status === 'pending' ? { feel: null } : {}) } as DailyTask;
+      stored.set(id, next);
+      return next;
+    });
+    await renderToday();
+    expect(screen.queryByRole('group', { name: 'How did it feel?' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Mark complete' }));
+    const group = screen.getByRole('group', { name: 'How did it feel?' });
+    await user.click(within(group).getByRole('radio', { name: 'Too hard' }));
+    expect(mocked.updateDailyTask).toHaveBeenLastCalledWith('t3', { feel: 'too_hard' }, 't');
+    expect(await screen.findByText(/Thanks. Next week takes it into account./)).toBeVisible();
+    expect(within(group).getByRole('radio', { name: 'Too hard' })).toBeChecked();
+
+    // "Add a note" opens the day's notes.
+    await user.click(screen.getByRole('button', { name: 'Add a note' }));
+    expect(screen.getByLabelText('Notes for this step')).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: 'Mark not done' }));
+    expect(screen.queryByRole('group', { name: 'How did it feel?' })).not.toBeInTheDocument();
   });
 
   it('no longer shows the old generic recovery callout when yesterday was left pending', async () => {
@@ -973,9 +989,9 @@ describe('Today', () => {
     await renderToday();
 
     expect(screen.getByText('DAYS 85–90 · THE CLOSING STRETCH')).toBeVisible();
-    expect(screen.getByRole('heading', { level: 2, name: 'The Final Evaluation & Arrival' })).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Look back and arrive' })).toBeVisible();
     expect(
-      screen.getByText(/The 84 planned deliberate practice days are complete/i)
+      screen.getByText(/The 84 planned practice days are complete/i)
     ).toBeVisible();
     expect(screen.getByRole('link', { name: 'Review 90-day staircase' })).toHaveAttribute('href', '/roadmap');
     expect(

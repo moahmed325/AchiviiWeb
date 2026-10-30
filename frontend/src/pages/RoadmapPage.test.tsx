@@ -8,7 +8,6 @@ import { toJourneyData } from '../lib/journeyAdapter';
 
 const ROADMAP: GoalRoadmap = {
   finalGoal: 'Run 10K under 50 minutes',
-  finalTest: '10K race',
   startingPoint: { value: 0, description: '' },
   method: { name: 'M', creator: 'C', summary: 'S', whyChosen: 'W', runnerUp: null, safety: 5, rules: [] },
   phases: [

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { DailyTask, Goal, GoalRoadmap, RoadmapWeek } from '../../types';
 import { WeekBreakdownList } from './WeekBreakdownList';
-import { BenchmarkResultsCard } from './BenchmarkResultsCard';
 import { AdaptationHistoryList } from './AdaptationHistoryList';
 
 const createSampleTasks = (): DailyTask[] => {
@@ -77,7 +76,6 @@ const createSampleWeeks = (): RoadmapWeek[] => [
 
 const ROADMAP: GoalRoadmap = {
   finalGoal: 'Run 10K under 50 minutes',
-  finalTest: '10K time trial',
   startingPoint: { value: 0, description: '' },
   method: { name: 'M', creator: 'C', summary: 'S', whyChosen: 'W', runnerUp: null, safety: 5, rules: [] },
   phases: [
@@ -127,61 +125,6 @@ describe('Progress Components (M8.2 — Completion and Milestones)', () => {
 
     // Week 3 upcoming
     expect(screen.getByText('Dynamic Speed')).toBeInTheDocument();
-  });
-
-  it('BenchmarkResultsCard renders benchmark targets, user results, and honest non-punitive badges (M8.3-R1)', () => {
-    const tasks = createSampleTasks();
-    const weeks: RoadmapWeek[] = [
-      {
-        id: 'rw-1',
-        goalId: 'g-1',
-        weekNumber: 1,
-        phase: 'Foundation',
-        theme: 'Core Posture',
-        objective: 'Establish posture',
-        keyMilestone: 'Consistent form',
-        targetIntensity: 3,
-        plannedMinutes: 225,
-        status: 'completed',
-        target: { kind: 'number', metric: 'Continuous tempo', value: 60, unit: 'bpm', direction: 'higher_is_better' },
-        test: { type: 'count', instructions: 'Play 5 sets unbroken', passIf: '60 bpm clean' },
-        testResult: { value: 62, unit: 'bpm', passed: true, note: 'Felt very natural' },
-        created_at: '',
-      },
-      {
-        id: 'rw-2',
-        goalId: 'g-1',
-        weekNumber: 2,
-        phase: 'Foundation',
-        theme: 'Tempo & Control',
-        objective: 'Increase tempo',
-        keyMilestone: 'Zero errors',
-        targetIntensity: 3,
-        plannedMinutes: 225,
-        status: 'active',
-        target: { kind: 'number', metric: 'Speed', value: 80, unit: 'bpm', direction: 'higher_is_better' },
-        test: { type: 'count', instructions: 'Play at 80 bpm', passIf: '80 bpm clean' },
-        testResult: { value: 72, unit: 'bpm', passed: false, note: 'Tension in left hand' },
-        created_at: '',
-      },
-    ];
-    const goal = createSampleGoal(tasks, weeks);
-
-    render(<BenchmarkResultsCard goal={goal} />);
-
-    expect(screen.getByRole('heading', { level: 2, name: /Benchmark results/i })).toBeInTheDocument();
-
-    // Week 1 passed
-    expect(screen.getByText(/Continuous tempo: 60 bpm/i)).toBeInTheDocument();
-    expect(screen.getByText('62 bpm')).toBeInTheDocument();
-    expect(screen.getByText(/Benchmark achieved/i)).toBeInTheDocument();
-    expect(screen.getByText(/Felt very natural/i)).toBeInTheDocument();
-
-    // Week 2 not passed: non-punitive styling
-    expect(screen.getByText(/Speed: 80 bpm/i)).toBeInTheDocument();
-    expect(screen.getByText('72 bpm')).toBeInTheDocument();
-    expect(screen.getByText(/In progress · Reinforcing/i)).toBeInTheDocument();
-    expect(screen.getByText(/Tension in left hand/i)).toBeInTheDocument();
   });
 
   it('AdaptationHistoryList renders reflections, score, and genuine server aiAdaptationInsight (M8.3-R2)', () => {
@@ -246,37 +189,6 @@ describe('Progress Components (M8.2 — Completion and Milestones)', () => {
     ).toBeInTheDocument();
   });
 
-  it('BenchmarkResultsCard renders upcoming benchmark badge and pass criteria when no tests completed yet (M8.4)', () => {
-    const tasks = createSampleTasks();
-    const weeks: RoadmapWeek[] = [
-      {
-        id: 'rw-1',
-        goalId: 'g-1',
-        weekNumber: 1,
-        phase: 'Foundation',
-        theme: 'Core Posture',
-        objective: 'Establish posture',
-        keyMilestone: 'Consistent form',
-        targetIntensity: 3,
-        plannedMinutes: 225,
-        status: 'active',
-        target: { kind: 'number', metric: 'Continuous tempo', value: 60, unit: 'bpm', direction: 'higher_is_better' },
-        test: { type: 'count', instructions: 'Play 5 sets unbroken without pausing', passIf: '60 bpm clean for 3 mins' },
-        testResult: null,
-        created_at: '',
-      },
-    ];
-    const goal = { ...createSampleGoal(tasks, weeks), currentWeek: 1 };
-
-    render(<BenchmarkResultsCard goal={goal} />);
-
-    expect(screen.getByRole('heading', { level: 2, name: /Benchmark results/i })).toBeInTheDocument();
-    expect(screen.getByText(/Week 1/i)).toBeInTheDocument();
-    expect(screen.getByText('Upcoming')).toBeInTheDocument();
-    expect(screen.getByText(/Target: Continuous tempo: 60 bpm/i)).toBeInTheDocument();
-    expect(screen.getByText(/Pass criteria: 60 bpm clean for 3 mins/i)).toBeInTheDocument();
-    expect(screen.getByText('Play 5 sets unbroken without pausing')).toBeInTheDocument();
-  });
 });
 
 // Weekly update M1.4 (WU-33 (3), (4)): a week whose every practice day was not offered has no score, shown as not
@@ -392,12 +304,6 @@ describe('Progress with jumped weeks (weekly update M1.5b, WU-40 (1))', () => {
     expect(screen.getByText('100%')).toBeInTheDocument(); // week 1
     expect(screen.queryByText('0%')).not.toBeInTheDocument();
     expect(screen.getAllByText('Done')).toHaveLength(1);
-  });
-
-  it('BenchmarkResultsCard has no line for a jumped week', () => {
-    render(<BenchmarkResultsCard goal={jumpedGoal()} />);
-    expect(screen.getByText(/under 30 minutes/)).toBeInTheDocument();
-    expect(screen.queryByText(/under 28 minutes/)).not.toBeInTheDocument();
   });
 
   it('AdaptationHistoryList shows them as "Paused" with no score, and the line after "Keep going" has its date', () => {

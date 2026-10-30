@@ -80,7 +80,6 @@ describe('Desktop Journey Composition (M6.3)', () => {
 
   const roadmap3Phases: GoalRoadmap = {
     finalGoal: 'Sub-50 10K Finisher',
-    finalTest: 'Run 10K time trial in under 50 minutes',
     startingPoint: { value: 60, description: 'Current 10K: 60 mins' },
     method: {
       name: 'Classic Periodization',
@@ -143,10 +142,6 @@ describe('Desktop Journey Composition (M6.3)', () => {
           plannedMinutes: 150,
           status: 'pending',
           created_at: '2026-09-01',
-          target: {
-            kind: 'deliverable',
-            description: 'Run 18km weekly volume',
-          },
         },
       ];
 
@@ -229,8 +224,6 @@ describe('Desktop Journey Composition (M6.3)', () => {
         applyReconciliation: vi.fn(),
         reloadPlan: vi.fn(),
         closingWeek: false,
-        heldClose: null,
-        answerHeldClose: vi.fn(),
         pendingChoice: null,
         answerChoice: vi.fn(),
         closeFailed: false,
@@ -280,8 +273,6 @@ describe('Desktop Journey Composition (M6.3)', () => {
         applyReconciliation: vi.fn(),
         reloadPlan: vi.fn(),
         closingWeek: false,
-        heldClose: null,
-        answerHeldClose: vi.fn(),
         pendingChoice: null,
         answerChoice: vi.fn(),
         closeFailed: false,
@@ -313,8 +304,6 @@ describe('Desktop Journey Composition (M6.3)', () => {
         applyReconciliation: vi.fn(),
         reloadPlan: vi.fn(),
         closingWeek: false,
-        heldClose: null,
-        answerHeldClose: vi.fn(),
         pendingChoice: null,
         answerChoice: vi.fn(),
         closeFailed: false,

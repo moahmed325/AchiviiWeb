@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import * as api from '../../lib/api';
 import type { DailyTask, Goal, RoadmapWeek, WeeklyReviewResponse } from '../../types';
 import { WeeklyReviewModal } from './WeeklyReviewModal';
-import { loadReviewDraft, loadTestResultDraft } from '../../lib/reviewDraft';
+import { loadReviewDraft } from '../../lib/reviewDraft';
 
 vi.mock('../../lib/api', async (importOriginal) => ({
   ApiError: (await importOriginal<typeof import('../../lib/api')>()).ApiError,
@@ -44,12 +44,6 @@ const createSampleWeek = (overrides?: Partial<RoadmapWeek>): RoadmapWeek => ({
   plannedMinutes: 240,
   status: 'active',
   created_at: '',
-  target: { kind: 'deliverable', description: 'Clean practice log' },
-  test: {
-    type: 'count',
-    instructions: 'Complete 5 unbroken sequences with precision',
-    passIf: '5 sets unbroken',
-  },
   ...overrides,
 });
 
@@ -82,7 +76,6 @@ const createSampleGoal = (tasks: DailyTask[], weekOverrides?: Partial<RoadmapWee
         plannedMinutes: 240,
         status: 'pending',
         created_at: '',
-        target: { kind: 'deliverable', description: 'Recording at 60 bpm' },
       },
     ],
     dailyTasks: tasks,
@@ -162,17 +155,9 @@ describe('WeeklyReviewModal Component (M7.2 & M7.3 Review Flow UI)', () => {
     expect(screen.queryByText(/punish/i)).not.toBeInTheDocument();
   });
 
-  it('renders weekly target deliverable, test instructions, and focus theme when present', () => {
+  it('renders the focus theme, and no target or test (no weekly tests, 2026-10-30)', () => {
     const tasks = createSampleTasks(4, 6);
-    const goal = createSampleGoal(tasks, {
-      theme: 'Hand Independence & Fingering',
-      target: { kind: 'deliverable', description: 'Record 2-minute study' },
-      test: {
-        type: 'count',
-        instructions: 'Play Etude without pause at 80 bpm',
-        passIf: '0 stops or memory slips',
-      },
-    });
+    const goal = createSampleGoal(tasks, { theme: 'Hand Independence & Fingering' });
 
     render(
       <WeeklyReviewModal
@@ -186,10 +171,8 @@ describe('WeeklyReviewModal Component (M7.2 & M7.3 Review Flow UI)', () => {
 
     expect(screen.getByText('Focus')).toBeVisible();
     expect(screen.getByText('Hand Independence & Fingering')).toBeVisible();
-    expect(screen.getByText('Target')).toBeVisible();
-    expect(screen.getAllByText('Record 2-minute study')[0]).toBeVisible();
-    expect(screen.getByText('Weekly test')).toBeVisible();
-    expect(screen.getAllByText('Play Etude without pause at 80 bpm')[0]).toBeVisible();
+    expect(screen.queryByText('Target')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Weekly test|test result/i)).not.toBeInTheDocument();
   });
 
   it('captures reflection, transitions to Adaptation Moment step, and finishes review on continue', async () => {
@@ -665,152 +648,6 @@ describe('WeeklyReviewModal Component (M7.2 & M7.3 Review Flow UI)', () => {
     expect(screen.queryByText(/punish/i)).not.toBeInTheDocument();
   });
 
-  it('submits review with benchmark testResult, persists draft, and reveals target comparison in adaptation moment (M7.5)', async () => {
-    const user = userEvent.setup();
-    const tasks = createSampleTasks(6, 6);
-    const goal = createSampleGoal(tasks, {
-      target: { kind: 'number', metric: 'Touch Typing Speed', value: 40, unit: 'wpm', direction: 'higher_is_better' },
-      test: { type: 'typing_test', instructions: '1-minute test on Aesop', passIf: '40 wpm' },
-    });
-
-    const mockResponse: WeeklyReviewResponse = {
-      review: {
-        id: 'rev-m75',
-        goalId: 'g-1',
-        weekNumber: 1,
-        tasksPlanned: 6,
-        tasksCompleted: 6,
-        scorePercentage: 100,
-        reflection: 'Pacing was rhythmic and smooth.',
-        aiAdaptationInsight: 'Consistency is locked in.',
-        created_at: '',
-      },
-      scorePercentage: 100,
-      nextWeekNumber: 2,
-      nextWeekTasks: [],
-      testResult: { value: 45, unit: 'wpm', passed: true, note: 'Hit 45 cleanly' },
-    };
-
-    mockedApi.submitWeeklyReview.mockResolvedValueOnce(mockResponse);
-
-    render(
-      <WeeklyReviewModal
-        isOpen={true}
-        onClose={vi.fn()}
-        goal={goal}
-        token="test-token"
-        onGoalUpdated={vi.fn()}
-      />
-    );
-
-    // Benchmark input is visible
-    const resultInput = screen.getByLabelText('Your result');
-    await user.type(resultInput, '45');
-
-    // Context note
-    const noteInput = screen.getByLabelText(/Observation or context/i);
-    await user.type(noteInput, 'Hit 45 cleanly');
-
-    // Draft was persisted
-    const savedDraft = loadTestResultDraft('g-1', 1);
-    expect(savedDraft).toMatchObject({
-      value: 45,
-      unit: 'wpm',
-      passed: true,
-      note: 'Hit 45 cleanly',
-    });
-
-    // Enter reflection
-    const reflectionTextarea = screen.getByPlaceholderText(/Morning sessions went well/i);
-    await user.type(reflectionTextarea, 'Pacing was rhythmic and smooth.');
-
-    // Submit review
-    const submitBtn = screen.getByRole('button', { name: 'Start Week 2' });
-    await user.click(submitBtn);
-
-    // Verify submitWeeklyReview was called with testResult
-    expect(mockedApi.submitWeeklyReview).toHaveBeenCalledWith(
-      1,
-      'Pacing was rhythmic and smooth.',
-      'test-token',
-      expect.objectContaining({
-        value: 45,
-        unit: 'wpm',
-        passed: true,
-        note: 'Hit 45 cleanly',
-      })
-    );
-
-    // Target comparison card rendered in Adaptation Moment
-    await waitFor(() => {
-      expect(screen.getByTestId('adaptation-target-comparison')).toBeVisible();
-    });
-    expect(screen.getByText('45 wpm')).toBeVisible();
-    expect(screen.getByText('Touch Typing Speed: 40 wpm')).toBeVisible();
-    expect(screen.getByText('Target Met')).toBeVisible();
-
-    // Drafts cleared after submission
-    expect(loadTestResultDraft('g-1', 1)).toBeNull();
-    expect(loadReviewDraft('g-1', 1)).toBe('');
-  });
-
-  describe('pre-filled from a result logged earlier (missed sessions M4.1 R3)', () => {
-    const STORED = { value: 'Completed 4 sets', passed: false, note: 'Fourth set rushed' };
-    const response = (testResult: WeeklyReviewResponse['testResult']): WeeklyReviewResponse => ({
-      review: { id: 'r', goalId: 'g-1', weekNumber: 1, tasksPlanned: 6, tasksCompleted: 6, scorePercentage: 100, reflection: '', aiAdaptationInsight: '', created_at: '' },
-      scorePercentage: 100,
-      nextWeekNumber: 2,
-      nextWeekTasks: [],
-      testResult,
-    });
-    const renderModal = (goal: Goal, isOpen = true) =>
-      render(<WeeklyReviewModal isOpen={isOpen} onClose={vi.fn()} goal={goal} token="test-token" onGoalUpdated={vi.fn()} />);
-
-    it('starts the test step from the stored result, before the local draft, and submits it', async () => {
-      const user = userEvent.setup();
-      localStorage.setItem('achivii_test_result_draft_g-1_w1', JSON.stringify({ value: 'old draft', passed: true }));
-      mockedApi.submitWeeklyReview.mockResolvedValueOnce(response(STORED));
-      renderModal(createSampleGoal(createSampleTasks(6, 6), { testResult: STORED }));
-
-      expect(screen.getByLabelText('Your result')).toHaveValue('Completed 4 sets');
-      expect(screen.getByLabelText(/Observation or context/i)).toHaveValue('Fourth set rushed');
-      await user.click(screen.getByRole('button', { name: 'Start Week 2' }));
-      expect(mockedApi.submitWeeklyReview).toHaveBeenCalledWith(1, '', 'test-token', STORED);
-    });
-
-    it('B-3: clearing a stored result sends null, which deletes it', async () => {
-      const user = userEvent.setup();
-      mockedApi.submitWeeklyReview.mockResolvedValueOnce(response(null));
-      renderModal(createSampleGoal(createSampleTasks(6, 6), { testResult: STORED }));
-      await user.click(screen.getByRole('button', { name: 'Clear benchmark entry' }));
-      await user.click(screen.getByRole('button', { name: 'Start Week 2' }));
-      expect(mockedApi.submitWeeklyReview).toHaveBeenCalledWith(1, '', 'test-token', null);
-    });
-
-    it('with nothing stored and nothing entered, sends no result at all', async () => {
-      const user = userEvent.setup();
-      mockedApi.submitWeeklyReview.mockResolvedValueOnce(response(null));
-      renderModal(createSampleGoal(createSampleTasks(6, 6)));
-      await user.click(screen.getByRole('button', { name: 'Start Week 2' }));
-      expect(mockedApi.submitWeeklyReview).toHaveBeenCalledWith(1, '', 'test-token');
-    });
-
-    it('falls back to the local draft when nothing is stored', () => {
-      localStorage.setItem('achivii_test_result_draft_g-1_w1', JSON.stringify({ value: 'my draft', passed: true }));
-      renderModal(createSampleGoal(createSampleTasks(6, 6)));
-      expect(screen.getByLabelText('Your result')).toHaveValue('my draft');
-    });
-
-    it('takes a result stored after it mounted (logged from the late-test card)', () => {
-      const tasks = createSampleTasks(6, 6);
-      const { rerender } = renderModal(createSampleGoal(tasks), false);
-      rerender(
-        <WeeklyReviewModal isOpen={true} onClose={vi.fn()} goal={createSampleGoal(tasks, { testResult: STORED })} token="test-token" onGoalUpdated={vi.fn()} />
-      );
-      expect(screen.getByLabelText('Your result')).toHaveValue('Completed 4 sets');
-    });
-  });
-
   it('a week already closed (409 week_closed) says the review is saved, and reloads the goal on close (B-59)', async () => {
     const user = userEvent.setup();
     const goal = createSampleGoal(createSampleTasks(5, 6));
@@ -925,64 +762,3 @@ describe('WeeklyReviewModal Component (M7.2 & M7.3 Review Flow UI)', () => {
 
 // Plan safety limits M1.3 (PSL-9, PSL-12 (4)): the review shows the honest line under next week's target when week 12 is
 // next, and compares a result with the target the server sent (an older goal's lowered target).
-describe('the review and lowered targets (plan safety limits M1.3)', () => {
-  const distance = (value: number) => ({ kind: 'number' as const, metric: 'Long run distance', value, unit: 'km', direction: 'higher_is_better' as const });
-  const response = (weekNumber: number, nextWeekNumber: number): WeeklyReviewResponse => ({
-    review: { id: 'rev', goalId: 'g-1', weekNumber, tasksPlanned: 6, tasksCompleted: 6, scorePercentage: 100, reflection: 'Good.', aiAdaptationInsight: 'Steady.', created_at: '' },
-    scorePercentage: 100,
-    nextWeekNumber,
-    nextWeekTasks: [],
-  });
-  const week11Goal = (week12Line: Goal['week12Line']) => {
-    const goal = createSampleGoal(createSampleTasks(6, 6).map((task) => ({ ...task, weekNumber: 11 })), {
-      weekNumber: 11,
-      target: distance(14.6),
-      test: { type: 'timer', instructions: 'Run it.', passIf: 'Long run distance: 14.6 km' },
-    });
-    return {
-      ...goal,
-      currentWeek: 11,
-      week12Line,
-      roadmapWeeks: [goal.roadmapWeeks![0], { ...goal.roadmapWeeks![1], id: 'rw-12', weekNumber: 12, target: distance(16) }],
-    } as Goal;
-  };
-  const reviewWeek11 = async (week12Line: Goal['week12Line']) => {
-    const user = userEvent.setup();
-    mockedApi.submitWeeklyReview.mockResolvedValueOnce(response(11, 12));
-    render(<WeeklyReviewModal isOpen={true} onClose={vi.fn()} goal={week11Goal(week12Line)} token="test-token" onGoalUpdated={vi.fn()} />);
-    await user.type(screen.getByPlaceholderText(/Morning sessions went well/i), 'Good.');
-    await user.click(screen.getByRole('button', { name: 'Start Week 12' }));
-    await waitFor(() => expect(screen.getByText('Upcoming Week')).toBeVisible());
-  };
-
-  it('week 12 next: the full line under its target', async () => {
-    await reviewWeek11({ safe: '16 km', goal: '21 km' });
-    expect(screen.getByText('Long run distance: 16 km')).toBeVisible();
-    expect(screen.getByText('Week 12 aims at 16 km, a safe step. Your 21 km goal is the next step.')).toBeVisible();
-  });
-
-  it('week 12 next: the short line', async () => {
-    await reviewWeek11({ safe: '16 km', goal: null });
-    expect(screen.getByText('Week 12 aims at 16 km, a safe step.')).toBeVisible();
-  });
-
-  it('week 12 next and nothing lowered: no line', async () => {
-    await reviewWeek11(null);
-    expect(screen.queryByText(/Week 12 aims at/)).not.toBeInTheDocument();
-  });
-
-  it('a result that meets the lowered target (7 km) but not the stored one (10 km) is suggested and sent as passed', async () => {
-    const user = userEvent.setup();
-    mockedApi.submitWeeklyReview.mockResolvedValueOnce(response(1, 2));
-    // The goal as presentGoal sends it: week 1's stored 10 km lowered to 7 km.
-    const goal = createSampleGoal(createSampleTasks(6, 6), {
-      target: distance(7),
-      test: { type: 'timer', instructions: 'Run it.', passIf: 'Long run distance: 7 km' },
-    });
-    render(<WeeklyReviewModal isOpen={true} onClose={vi.fn()} goal={goal} token="test-token" onGoalUpdated={vi.fn()} />);
-    await user.type(screen.getByLabelText('Your result'), '8');
-    await user.type(screen.getByPlaceholderText(/Morning sessions went well/i), 'Good.');
-    await user.click(screen.getByRole('button', { name: 'Start Week 2' }));
-    expect(mockedApi.submitWeeklyReview).toHaveBeenCalledWith(1, 'Good.', 'test-token', expect.objectContaining({ value: 8, passed: true }));
-  });
-});

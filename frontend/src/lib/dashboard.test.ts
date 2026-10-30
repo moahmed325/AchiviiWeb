@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { DailyTask, Goal, RoadmapWeek } from '../types';
-import { dateOfDay, goalTrend, greetingFor, journeyDays, milestones, nextTestDay, practiceTimeLabel, practiceTotals } from './dashboard';
+import type { DailyTask, Goal } from '../types';
+import { dateOfDay, greetingFor, journeyDays, practiceTimeLabel, practiceTotals } from './dashboard';
 
 const NOW = new Date('2026-10-29T10:00:00Z');
 // Day 10 of 90 on NOW: the target date is 81 days later (`dayNumber` counts 91 minus the days remaining).
@@ -76,76 +76,7 @@ describe('practiceTotals (ND-29)', () => {
   });
 });
 
-const week = (weekNumber: number, overrides: Partial<RoadmapWeek> = {}): RoadmapWeek => ({
-  id: 'w' + weekNumber, goalId: 'g', weekNumber, phase: 'Base', theme: '', objective: '', keyMilestone: '', targetIntensity: 1,
-  plannedMinutes: 0, status: 'pending', created_at: '', test: { type: 'timer', instructions: '', passIf: '' }, ...overrides,
-});
-const minutes = (value: number) => ({ kind: 'number' as const, metric: '10K time', value, unit: 'min', direction: 'lower_is_better' as const });
-const roadmap = (start: number | null) => ({ startingPoint: { value: start, description: '' } }) as Goal['roadmap'];
-
-describe('goalTrend (ND-29)', () => {
-  it('a time to beat: the gap closed, the latest result, and a new best', () => {
-    const trend = goalTrend({
-      roadmap: roadmap(60),
-      roadmapWeeks: [
-        week(12, { target: minutes(50) }),
-        week(1, { target: minutes(59), testResult: { value: 58, passed: true } }),
-        week(2, { target: minutes(58), testResult: { value: '56', passed: true } }),
-      ],
-    });
-    expect(trend).toMatchObject({ metric: '10K time', start: 60, target: 50, targetWeek: 12, latest: 56, newBest: true });
-    expect(trend?.points).toEqual([{ week: 1, value: 58 }, { week: 2, value: 56 }]);
-    expect(trend?.gapClosed).toBeCloseTo(0.4);
-  });
-
-  it('a slower result is not a new best; light tests, paused weeks and words never count', () => {
-    const trend = goalTrend({
-      roadmap: roadmap(60),
-      roadmapWeeks: [
-        week(1, { target: minutes(59), testResult: { value: 55, passed: true } }),
-        week(2, { target: minutes(58), testResult: { value: 57, passed: true } }),
-        week(3, { target: minutes(57), test: { type: 'timer', instructions: '', passIf: '', light: true }, testResult: { value: 'Done', passed: true } }),
-        week(4, { target: minutes(56), jumped: true, testResult: { value: 40, passed: true } }),
-        week(5, { target: minutes(55), testResult: { value: 'felt fast', passed: true } }),
-        week(12, { target: minutes(50) }),
-      ],
-    });
-    expect(trend?.points.map((point) => point.week)).toEqual([1, 2]);
-    expect(trend?.newBest).toBe(false);
-    expect(trend?.gapClosed).toBeCloseTo(0.3);
-  });
-
-  it('higher is better, no result yet, and an unknown start', () => {
-    const reps = { kind: 'number' as const, metric: 'Push-ups', value: 40, unit: 'reps', direction: 'higher_is_better' as const };
-    expect(goalTrend({ roadmap: roadmap(10), roadmapWeeks: [week(12, { target: reps })] })).toMatchObject({ latest: null, gapClosed: null, newBest: false });
-    const unknownStart = goalTrend({ roadmap: roadmap(null), roadmapWeeks: [week(1, { target: reps, testResult: { value: 12, passed: true } }), week(12, { target: reps })] });
-    expect(unknownStart).toMatchObject({ start: null, latest: 12, gapClosed: null, newBest: false });
-  });
-
-  it('a goal measured by deliverables has no trend; its checks count as milestones', () => {
-    const weeks = [
-      week(1, { target: { kind: 'deliverable', description: 'A brief' }, testResult: { value: 'Done', passed: true } }),
-      week(2, { target: { kind: 'deliverable', description: 'A mock-up' }, testResult: { value: 'Half', passed: false } }),
-      week(3, { target: { kind: 'deliverable', description: 'A test' } }),
-      week(4, { test: { type: 'photo', instructions: '', passIf: '', light: true } }),
-    ];
-    expect(goalTrend({ roadmap: roadmap(null), roadmapWeeks: weeks })).toBeNull();
-    expect(milestones({ roadmapWeeks: weeks })).toEqual({ reached: 1, total: 3 });
-  });
-});
-
-describe('nextTestDay and greetingFor (ND-29)', () => {
-  it('the next open test day from today, never one done or past', () => {
-    const tasks = [
-      task('2026-10-27', { isTestDay: true }),
-      task('2026-10-29', { isTestDay: true, status: 'completed' }),
-      task('2026-11-02', { isTestDay: true }),
-      task('2026-10-31', { isTestDay: true }),
-    ];
-    expect(nextTestDay(tasks, NOW, 'UTC')?.date).toBe('2026-10-31');
-    expect(nextTestDay([], NOW, 'UTC')).toBeNull();
-  });
-
+describe('greetingFor (ND-29)', () => {
   it("greets by the person's own hour", () => {
     expect(greetingFor(NOW, 'UTC')).toBe('Good morning');
     expect(greetingFor(NOW, 'America/Los_Angeles')).toBe('Good evening');

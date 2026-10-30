@@ -10,7 +10,6 @@ import { StrategicRoadmap } from './StrategicRoadmap';
 
 const ROADMAP: GoalRoadmap = {
   finalGoal: 'Run 10K under 50 minutes',
-  finalTest: '10K race',
   startingPoint: { value: 0, description: '' },
   method: { name: 'M', creator: 'C', summary: 'S', whyChosen: 'W', runnerUp: null, safety: 5, rules: [] },
   phases: [
@@ -85,75 +84,26 @@ describe('jumped weeks on the Roadmap (M1.5b, WU-40 (1))', () => {
   });
 });
 
-// Weekly update M2.1 (requirement 8): this week's target in a light week is the next check.
-describe('a light week on the Roadmap (M2.1)', () => {
-  const target = { kind: 'number' as const, metric: '10K time', value: 62, unit: 'minutes', direction: 'lower_is_better' as const };
-  const withWeek6 = (over: Partial<RoadmapWeek>) =>
-    ({ ...goal, currentWeek: 6, roadmapWeeks: goal.roadmapWeeks!.map((w) => (w.weekNumber === 6 ? { ...w, target, ...over } : w)) }) as Goal;
-  const renderRoadmap = (g: Goal) =>
-    render(
-      <MemoryRouter>
-        <StrategicRoadmap journey={toJourneyData(g, '2026-10-12')!} />
-      </MemoryRouter>
-    );
-
-  it('shows "Next check, week 8: {target}" and the light test, no pass mark', () => {
-    renderRoadmap(withWeek6({ test: { type: 'timer', instructions: "Run this week's long run as written.", passIf: 'Done as written', light: true } }));
-    expect(screen.getByText('Next check, week 8: 10K time: 62 minutes or less')).toBeInTheDocument();
-    expect(screen.getByText("Run this week's long run as written.")).toBeInTheDocument();
-    expect(screen.queryByText(/Done as written/)).not.toBeInTheDocument();
-  });
-
-  it('a week without the light key shows its target and pass mark as before', () => {
-    renderRoadmap(withWeek6({ test: { type: 'timer', instructions: 'Run 10 km.', passIf: '62 minutes' } }));
-    expect(screen.getByText('10K time: 62 minutes or less')).toBeInTheDocument();
-    expect(screen.getByText('Pass if 62 minutes.')).toBeInTheDocument();
-    expect(screen.queryByText(/Next check/)).not.toBeInTheDocument();
-  });
-});
-
-// Plan safety limits M1.3 (PSL-9, PSL-12): the honest line under week 12's target when it was lowered to a safe step.
-describe('the honest week 12 line on the Roadmap (M1.3)', () => {
-  const target12 = { kind: 'number' as const, metric: 'Long run distance', value: 16, unit: 'km', direction: 'higher_is_better' as const };
-  const LONG = 'Week 12 aims at 16 km, a safe step. Your 21 km goal is the next step.';
-  const SHORT = 'Week 12 aims at 16 km, a safe step.';
-  const at = (currentWeek: number, week12Line: Goal['week12Line']) =>
-    ({
+// No weekly tests (2026-10-30): this week shows no target or test, even when an older goal stored them.
+describe('no target or test on the Roadmap', () => {
+  it("an older goal's stored target and test are not shown", () => {
+    const stored = {
       ...goal,
-      currentWeek,
-      week12Line,
+      currentWeek: 6,
       roadmapWeeks: goal.roadmapWeeks!.map((w) =>
-        w.weekNumber === 12
-          ? { ...w, status: currentWeek === 12 ? 'active' : 'pending', target: target12, test: { type: 'timer', instructions: 'Run it.', passIf: 'Long run distance: 16 km' } }
-          : { ...w, status: w.weekNumber < currentWeek ? 'completed' : w.weekNumber === currentWeek ? 'active' : 'pending', jumped: false, closedBy: undefined }
+        w.weekNumber === 6
+          ? { ...w, keyMilestone: 'First 8 km', target: { kind: 'number', metric: '10K time', value: 62, unit: 'minutes', direction: 'lower_is_better' }, test: { type: 'timer', instructions: 'Run 10 km.', passIf: '62 minutes' } }
+          : w
       ),
-    }) as Goal;
-  const renderRoadmap = (g: Goal) =>
+    } as unknown as Goal;
     render(
       <MemoryRouter>
-        <StrategicRoadmap journey={toJourneyData(g, '2026-10-12')!} />
+        <StrategicRoadmap journey={toJourneyData(stored, '2026-10-12')!} />
       </MemoryRouter>
     );
-
-  it('week 12 current: the full line under its target and in the Destination', () => {
-    renderRoadmap(at(12, { safe: '16 km', goal: '21 km' }));
-    expect(screen.getByText('Long run distance: 16 km')).toBeInTheDocument();
-    expect(screen.getAllByText(LONG)).toHaveLength(2);
-  });
-
-  it('the short line when the goal text named no number', () => {
-    renderRoadmap(at(12, { safe: '16 km', goal: null }));
-    expect(screen.getAllByText(SHORT)).toHaveLength(2);
-    expect(screen.queryByText(/goal is the next step/)).not.toBeInTheDocument();
-  });
-
-  it('another week current: only the Destination shows it', () => {
-    renderRoadmap(at(6, { safe: '16 km', goal: '21 km' }));
-    expect(screen.getAllByText(LONG)).toHaveLength(1);
-  });
-
-  it('nothing when week12Line is null', () => {
-    renderRoadmap(at(12, null));
-    expect(screen.queryByText(/Week 12 aims at/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/62 minutes/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Run 10 km.')).not.toBeInTheDocument();
+    expect(screen.getByText('First 8 km')).toBeInTheDocument();
+    expect(screen.queryByText(/final benchmark/i)).not.toBeInTheDocument();
   });
 });

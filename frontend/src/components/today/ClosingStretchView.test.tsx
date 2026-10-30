@@ -25,7 +25,13 @@ describe('ClosingStretchView Component (M9.4)', () => {
     currentWeek: 12,
     targetDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // Day 89
     methodologyNotes: 'Structured aerobic conditioning',
-    dailyTasks: [],
+    dailyTasks: [
+      { id: 'd1', weekNumber: 12, dayNumber: 78, status: 'completed', isRestDay: false },
+      { id: 'd2', weekNumber: 12, dayNumber: 79, status: 'completed', isRestDay: false },
+      { id: 'd3', weekNumber: 12, dayNumber: 80, status: 'pending', isRestDay: false },
+      { id: 'd4', weekNumber: 12, dayNumber: 81, status: 'pending', isRestDay: true },
+    ],
+    // An older goal's stored week 12 target and test: never shown (no weekly tests, 2026-10-30).
     roadmapWeeks: [
       {
         id: 'rw12',
@@ -50,7 +56,6 @@ describe('ClosingStretchView Component (M9.4)', () => {
     ],
     roadmap: {
       finalGoal: 'Run official sub-50 10K race',
-      finalTest: 'Run official 10K race under 50 minutes',
       phases: [],
     },
     created_at: new Date().toISOString(),
@@ -75,8 +80,8 @@ describe('ClosingStretchView Component (M9.4)', () => {
     renderComponent();
 
     expect(screen.getByText(/DAYS 85.*90.*THE CLOSING STRETCH/)).toBeVisible();
-    expect(screen.getByRole('heading', { level: 2, name: 'The Final Evaluation & Arrival' })).toBeVisible();
-    expect(screen.getByText(/The 84 planned deliberate practice days are complete/i)).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Look back and arrive' })).toBeVisible();
+    expect(screen.getByText(/The 84 planned practice days are complete/i)).toBeVisible();
     expect(screen.getByText('Closing Stretch Approach')).toBeVisible();
     expect(screen.getByText('Day 85')).toBeVisible();
     expect(screen.getByText('Day 89')).toBeVisible();
@@ -103,50 +108,20 @@ describe('ClosingStretchView Component (M9.4)', () => {
     expect(screen.queryByText(/84 planned/)).toBeNull();
   });
 
-  it('renders capstone evaluation card with target deliverable and instructions (M9.4-R2)', () => {
+  it('shows what they did and their goal, with no final test (no weekly tests)', () => {
     renderComponent();
-
-    expect(screen.getByText('Capstone Benchmark Verification')).toBeVisible();
-    expect(screen.getByRole('heading', { level: 3, name: 'timer' })).toBeVisible();
-    expect(
-      screen.getByText('Run 10 kilometers on a measured course at threshold pace.')
-    ).toBeVisible();
-    expect(screen.getByText(/10K Time: 50 mins/i)).toBeVisible();
-    expect(screen.getByText('Time is strictly under 50:00 minutes')).toBeVisible();
+    expect(screen.getByText('What you did')).toBeVisible();
+    expect(screen.getByText('2 of 3 sessions')).toBeVisible();
     expect(screen.getByText('Run official sub-50 10K race')).toBeVisible();
+    expect(screen.queryByText(/Capstone|Benchmark|Run 10 kilometers|50 mins/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Arrive without test' })).toBeNull();
   });
 
-  it('captures benchmark result toggle, value, notes, and persists reflection draft (M9.4-R2)', async () => {
-    const user = userEvent.setup();
+  it('keeps the reflection draft as it is typed (M9.4-R2)', () => {
     renderComponent();
-
-    // Toggle benchmark achieved / in progress
-    const passButton = screen.getByRole('button', { name: 'Benchmark achieved' });
-    const inProgressButton = screen.getByRole('button', { name: /In progress.*Reinforcing/ });
-
-    expect(passButton).toBeVisible();
-    expect(inProgressButton).toBeVisible();
-
-    await user.click(inProgressButton);
-    expect(inProgressButton).toHaveClass('font-semibold');
-
-    // Value input
-    const valueInput = screen.getByLabelText('Recorded Score or Deliverable Output');
-    await user.clear(valueInput);
-    fireEvent.change(valueInput, { target: { value: '49:15 min' } });
-
-    // Notes input
-    const notesInput = screen.getByLabelText('Evaluation Notes (optional)');
-    fireEvent.change(notesInput, { target: { value: 'Cool morning weather, negative splits.' } });
-
-    // Reflection draft
     const reflectionInput = screen.getByLabelText('Final Journey Reflection');
     fireEvent.change(reflectionInput, { target: { value: 'Ninety days of deliberate practice completely rebuilt my discipline.' } });
-
-    // Verify localStorage draft
-    expect(localStorage.getItem('achivii_closing_reflection_goal-90')).toBe(
-      'Ninety days of deliberate practice completely rebuilt my discipline.'
-    );
+    expect(localStorage.getItem('achivii_closing_reflection_goal-90')).toBe('Ninety days of deliberate practice completely rebuilt my discipline.');
   });
 
   it('restores existing reflection draft from localStorage on mount (M9.4-R2)', () => {
@@ -169,47 +144,16 @@ describe('ClosingStretchView Component (M9.4)', () => {
     const reflectionInput = screen.getByLabelText('Final Journey Reflection');
     fireEvent.change(reflectionInput, { target: { value: 'A quiet, earned arrival.' } });
 
-    const valueInput = screen.getByLabelText('Recorded Score or Deliverable Output');
-    fireEvent.change(valueInput, { target: { value: '48:50 min' } });
-
     const arriveButton = screen.getByRole('button', {
       name: 'Complete my journey',
     });
     await user.click(arriveButton);
 
     await waitFor(() => {
-      expect(mockCompleteGoal).toHaveBeenCalledWith({
-        finalReflection: 'A quiet, earned arrival.',
-        finalTestResult: {
-          value: '48:50 min',
-          unit: undefined,
-          passed: true,
-          note: undefined,
-        },
-      });
+      expect(mockCompleteGoal).toHaveBeenCalledWith({ finalReflection: 'A quiet, earned arrival.' });
     });
 
     expect(localStorage.getItem('achivii_closing_reflection_goal-90')).toBeNull();
-  });
-
-  it('allows early / fallback arrival without recorded test score (M9.4-R3)', async () => {
-    const user = userEvent.setup();
-    mockCompleteGoal.mockResolvedValueOnce({ ...baseGoal, status: 'completed' });
-
-    renderComponent();
-
-    const reflectionInput = screen.getByLabelText('Final Journey Reflection');
-    fireEvent.change(reflectionInput, { target: { value: 'Completed early without test.' } });
-
-    const fallbackButton = screen.getByRole('button', { name: 'Arrive without test' });
-    await user.click(fallbackButton);
-
-    await waitFor(() => {
-      expect(mockCompleteGoal).toHaveBeenCalledWith({
-        finalReflection: 'Completed early without test.',
-        finalTestResult: null,
-      });
-    });
   });
 
   it('handles completion failure with visible alert and allows non-destructive retry (M9.4-R3)', async () => {
@@ -255,52 +199,7 @@ describe('ClosingStretchView Component (M9.4)', () => {
       name: 'Complete my journey',
     });
     expect(arriveButton).toBeDisabled();
-
-    const fallbackButton = screen.getByRole('button', { name: 'Arrive without test' });
-    expect(fallbackButton).toBeDisabled();
   });
 });
 
 // Plan safety limits M1.3 (PSL-9, PSL-12): the honest line under the Summit Target when week 12 was lowered.
-describe('the honest week 12 line in the closing stretch (M1.3)', () => {
-  const goal = {
-    id: 'goal-90',
-    rawGoal: 'Run 10K in under 50 minutes',
-    clarifiedOutcome: 'Run 10K in under 50 minutes',
-    status: 'active',
-    currentWeek: 12,
-    targetDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-    dailyTasks: [],
-    roadmapWeeks: [
-      {
-        id: 'rw12',
-        weekNumber: 12,
-        target: { kind: 'number', metric: '10K time', value: 55.5, unit: 'minutes', direction: 'lower_is_better' },
-        test: { type: 'timer', instructions: 'Run the 10K.', passIf: '10K time: 55.5 minutes or less' },
-      },
-    ],
-    roadmap: { finalGoal: 'Run a 10K in 50 minutes or less', finalTest: 'Run the 10K.', phases: [] },
-  } as unknown as Goal;
-  const renderWith = (week12Line: Goal['week12Line']) =>
-    render(
-      <MemoryRouter>
-        <ClosingStretchView goal={{ ...goal, week12Line }} />
-      </MemoryRouter>
-    );
-
-  it('the full line under the Summit Target', () => {
-    renderWith({ safe: '55.5 minutes', goal: '50 minutes' });
-    expect(screen.getByText('Summit Target:')).toBeVisible();
-    expect(screen.getByText('Week 12 aims at 55.5 minutes, a safe step. Your 50 minutes goal is the next step.')).toBeVisible();
-  });
-
-  it('the short line', () => {
-    renderWith({ safe: '55.5 minutes', goal: null });
-    expect(screen.getByText('Week 12 aims at 55.5 minutes, a safe step.')).toBeVisible();
-  });
-
-  it('nothing when week12Line is null', () => {
-    renderWith(null);
-    expect(screen.queryByText(/Week 12 aims at/)).not.toBeInTheDocument();
-  });
-});

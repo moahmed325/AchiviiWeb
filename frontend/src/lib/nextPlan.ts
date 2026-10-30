@@ -36,7 +36,7 @@ export function nextPlanChoices(result: JourneyResult | null | undefined, isPro:
 }
 
 /** NP-9, NP-10: a goal measured in a number asks for the level now (nothing is measured by the plan any more). */
-export function needsLevel(result: JourneyResult | null | undefined, _mode?: NextPlanMode): boolean {
+export function needsLevel(result: JourneyResult | null | undefined): boolean {
   return result?.kind === 'number' && Boolean(result.unit);
 }
 
