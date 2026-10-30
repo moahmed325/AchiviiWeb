@@ -61,6 +61,9 @@ const richSteps = JSON.stringify([
   },
 ]);
 
+/** ND-30: the rich day's extras share one row, named by what is in it. */
+const MORE = 'The 10-minute version · When and where · Resource';
+
 const richGoal = () => {
   const base = shellGoal();
   return {
@@ -92,21 +95,22 @@ const richGoal = () => {
 };
 
 test.describe('the practice day', () => {
-  test('reads in the BP §09 order: goal, Day N / 90, the step, its duration, Start, the week, the way onward', async ({ page }) => {
+  test('reads in order: Day N, the goal, the step, its duration, its steps, Start, the week (ND-30)', async ({ page }) => {
     await openToday(page);
     const heading = page.getByRole('heading', { level: 1 });
     await expect(heading).toHaveText(SHELL_GOAL_TITLE);
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
-    await expect(main(page).getByText(`90-day outcome: ${STORED_OUTCOME}`)).toBeVisible();
+    // ND-18, ND-30: the stored outcome is not shown on Today.
+    await expect(main(page).getByText(STORED_OUTCOME)).toHaveCount(0);
     const day = page.getByLabel('Day 3 of 90');
     await expect(day).toBeVisible();
-    await expect(main(page).getByText('Week 1 · Foundation · Find the smallest product')).toBeVisible();
+    await expect(main(page).getByText('Day 3 of 90 · Week 1 · Foundation')).toBeVisible();
     const step = page.getByRole('heading', { level: 2, name: TODAY_TITLE });
-    const duration = stepRegion(page).getByText('45 min', { exact: true });
+    const duration = stepRegion(page).getByText('45 min · 2 steps', { exact: true });
+    const steps = stepRegion(page).getByRole('list', { name: 'Steps in this session' });
     const start = page.getByRole('button', { name: 'Start', exact: true });
     const week = page.getByRole('heading', { level: 2, name: 'This week' });
-    const roadmap = main(page).getByRole('link', { name: 'Roadmap' });
-    const order = [heading, day, step, duration, start, week, roadmap];
+    const order = [day, heading, step, duration, steps, start, week];
     const ys = [];
     for (const locator of order) ys.push(await top(locator));
     expect(ys).toEqual([...ys].sort((a, b) => a - b));
@@ -131,18 +135,18 @@ test.describe('the practice day', () => {
     await stepRegion(page).getByRole('button', { name: 'Mark complete' }).click();
     await expect(stepRegion(page).getByRole('button', { name: 'Mark not done' })).toBeVisible();
     await expect(stepRegion(page).getByText('Done', { exact: true })).toBeVisible();
-    await expect(stepRegion(page).getByText('Step completed. Deliberate practice logged for today.')).toBeVisible();
+    await expect(stepRegion(page).getByText('Session 3 is in the books.')).toBeVisible();
     await expect(stepRegion(page).getByText('Tomorrow · Thursday')).toBeVisible();
     expect(calls.taskUpdates).toEqual([{ taskId: 't3', body: { status: 'completed' } }]);
     await expect(main(page).getByText('3 of 6 practice days done')).toBeVisible();
 
     await page.reload();
     await expect(stepRegion(page).getByRole('button', { name: 'Mark not done' })).toBeVisible();
-    await expect(stepRegion(page).getByText('Step completed. Deliberate practice logged for today.')).toBeVisible();
+    await expect(stepRegion(page).getByText('Session 3 is in the books.')).toBeVisible();
     await expect(stepRegion(page).getByText('Tomorrow · Thursday')).toBeVisible();
     await stepRegion(page).getByRole('button', { name: 'Mark not done' }).click();
     await expect(stepRegion(page).getByRole('button', { name: 'Mark complete' })).toBeVisible();
-    await expect(stepRegion(page).getByText('Step completed. Deliberate practice logged for today.')).toHaveCount(0);
+    await expect(stepRegion(page).getByText('Session 3 is in the books.')).toHaveCount(0);
     await expect(stepRegion(page).getByText('Tomorrow · Thursday')).toHaveCount(0);
     expect(calls.taskUpdates.at(-1)).toEqual({ taskId: 't3', body: { status: 'pending' } });
   });
@@ -166,7 +170,7 @@ test.describe('the practice day', () => {
 
     // Complete the step
     await stepRegion(page).getByRole('button', { name: 'Mark complete' }).click();
-    await expect(stepRegion(page).getByText('Step completed. Deliberate practice logged for today.')).toBeVisible();
+    await expect(stepRegion(page).getByText('Session 3 is in the books.')).toBeVisible();
 
     // Next step preview shows Tomorrow · Thursday and allows clicking to view
     await expect(stepRegion(page).getByText('Tomorrow · Thursday')).toBeVisible();
@@ -229,9 +233,10 @@ test.describe('the practice day', () => {
   test('the steps reveal shows instructions and focus cues, with pass mark, pitfall and output visible only when stored', async ({ page }) => {
     // 1. When absent in the mock (default shellGoal)
     await openToday(page);
-    const reveal = stepRegion(page).getByRole('button', { name: 'Show the 2 steps' });
+    // ND-30: the steps are listed; each opens in place.
     await expect(page.getByText('Draw the one screen a user needs first.')).toBeHidden();
-    await reveal.click();
+    await stepRegion(page).getByRole('button', { name: /Sketch the core screen/ }).click();
+    await stepRegion(page).getByRole('button', { name: /List the data it needs/ }).click();
     await expect(page.getByText('Draw the one screen a user needs first.')).toBeVisible();
     await expect(page.getByText('One screen only.')).toBeVisible();
     await expect(page.getByText('Fields, not features.')).toBeVisible();
@@ -243,9 +248,8 @@ test.describe('the practice day', () => {
 
     // 2. When present in the mock (richGoal)
     await openToday(page, { goal: richGoal() });
-    const richReveal = stepRegion(page).getByRole('button', { name: 'Show the 2 steps' });
     await expect(page.getByText('Clean sketch on paper.')).toBeHidden();
-    await richReveal.click();
+    for (const button of await stepRegion(page).getByRole('list', { name: 'Steps in this session' }).getByRole('button').all()) await button.click();
     await expect(page.getByText('Clean sketch on paper.')).toBeVisible();
     await expect(page.getByText('Coloring early.')).toBeVisible();
     await expect(page.getByText('Single-screen wireframe.')).toBeVisible();
@@ -263,13 +267,13 @@ test.describe('the practice day', () => {
     const start = page.getByRole('button', { name: 'Start', exact: true });
     await expect(start).toBeVisible();
 
-    const minimumButton = stepRegion(page).getByRole('button', { name: 'The 10-minute version' });
+    const minimumButton = stepRegion(page).getByRole('button', { name: MORE });
     await expect(minimumButton).toBeVisible();
     await expect(minimumButton).toHaveAttribute('aria-expanded', 'false');
     await expect(page.getByText('Draft thumbnail wireframe')).toBeHidden();
 
     await minimumButton.click();
-    await expect(minimumButton).toHaveAttribute('aria-expanded', 'true');
+    await expect(stepRegion(page).getByRole('button', { name: 'Less' })).toHaveAttribute('aria-expanded', 'true');
     await expect(page.getByText('Draft thumbnail wireframe')).toBeVisible();
     await expect(page.getByText('Sketch only the core hero block.')).toBeVisible();
     await expect(page.getByText('Hero sketched.')).toBeVisible();
@@ -280,8 +284,7 @@ test.describe('the practice day', () => {
 
   test("the week glance picks another day, and that day's step is the one shown", async ({ page }) => {
     await openToday(page);
-    // The seven day cells sit behind "Show week" (73c7b0e); the closed glance is a decorative row.
-    await main(page).getByRole('button', { name: 'Show week' }).click();
+    // ND-30: the week's day marks are the buttons.
     const days = main(page).getByRole('list').last().getByRole('button');
     await expect(days).toHaveCount(7);
     await days.nth(0).click();
@@ -289,14 +292,14 @@ test.describe('the practice day', () => {
     await expect(stepRegion(page, 'Session 1').getByText('Done', { exact: true })).toBeVisible();
     await expect(days.nth(0)).toHaveAttribute('aria-pressed', 'true');
     await days.nth(6).click();
-    await expect(stepRegion(page, 'Session 7').getByText('Rest day')).toBeVisible();
+    await expect(stepRegion(page, 'Session 7').getByText("Sunday's rest")).toBeVisible();
+    await stepRegion(page, 'Session 7').getByRole('button', { name: 'Back to today' }).click();
+    await expect(page.getByRole('heading', { level: 2, name: TODAY_TITLE })).toBeVisible();
   });
 
-  test('the way onward: Roadmap and retirement of full day view link', async ({ page }) => {
+  test('no footer of links (the app navigation has them) and no full day view link (ND-30, OD-3)', async ({ page }) => {
     await openToday(page);
-    await main(page).getByRole('link', { name: 'Roadmap' }).click();
-    await expect(page).toHaveURL('/roadmap');
-    await page.goBack();
+    await expect(main(page).getByRole('navigation')).toHaveCount(0);
     await expect(main(page).getByRole('link', { name: 'Open full day view' })).toHaveCount(0);
   });
 
@@ -309,13 +312,22 @@ test.describe('the practice day', () => {
     await expect(main(page).getByRole('button', { name: /Mark complete|Start/ })).toHaveCount(0);
   });
 
-  test("the Dashboard's action leads into Today for the same step (ND-19)", async ({ page }) => {
+  test("the Dashboard's Start opens the same step's session on Today in one tap (ND-19, ND-29)", async ({ page }) => {
     await openToday(page);
     await page.goto('/dashboard');
-    await main(page).getByRole('link', { name: 'Begin today' }).click();
+    await main(page).getByRole('link', { name: 'Start session' }).click();
     await expect(page).toHaveURL('/');
+    const focus = page.getByRole('dialog');
+    await expect(focus.getByRole('heading', { name: TODAY_TITLE })).toBeVisible();
+    await expect(focus.getByRole('button', { name: /start focused session/i })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(focus).toBeHidden();
     await expect(page.getByRole('heading', { level: 1, name: SHELL_GOAL_TITLE })).toBeVisible();
     await expect(stepRegion(page).getByRole('button', { name: 'Mark complete' })).toBeVisible();
+    // Used once: a reload does not open it again.
+    await page.reload();
+    await expect(stepRegion(page).getByRole('button', { name: 'Mark complete' })).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 
   test('a goal with no tasks this week says so plainly', async ({ page }) => {
@@ -431,12 +443,16 @@ test.describe('layout, keyboard and motion', () => {
     }
   });
 
-  test('keyboard only: the skip link, then Start, then focus mode', async ({ page }) => {
+  test('keyboard only: the skip link, then the steps, then Start, then focus mode', async ({ page }) => {
     await openToday(page);
     await page.keyboard.press('Tab');
     await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(main(page)).toBeFocused();
+    // ND-30: the session's two steps come first; each opens in place.
+    await page.keyboard.press('Tab');
+    await expect(stepRegion(page).getByRole('button', { name: /Sketch the core screen/ })).toBeFocused();
+    await page.keyboard.press('Tab');
     await page.keyboard.press('Tab');
     await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeFocused();
     await page.keyboard.press('Enter');
@@ -446,9 +462,9 @@ test.describe('layout, keyboard and motion', () => {
   test('with reduced motion, nothing on Today animates and everything is shown', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await openToday(page, { goal: richGoal() });
-    await stepRegion(page).getByRole('button', { name: 'Show the 2 steps' }).click();
+    await stepRegion(page).getByRole('button', { name: /Sketch the core screen/ }).click();
     await expect(page.getByText('Draw the one screen a user needs first.')).toBeVisible();
-    await stepRegion(page).getByRole('button', { name: 'The 10-minute version' }).click();
+    await stepRegion(page).getByRole('button', { name: MORE }).click();
     await expect(page.getByText('Draft thumbnail wireframe')).toBeVisible();
     const durations = await main(page).evaluate((el) =>
       [el, ...el.querySelectorAll('*')].flatMap((node) => {

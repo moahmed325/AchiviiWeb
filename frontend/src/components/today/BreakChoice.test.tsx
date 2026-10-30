@@ -203,7 +203,7 @@ describe('the choice card past the limit (WU-38, WU-40)', () => {
     expect(calls).toEqual(['close:check', 'fetch', 'close:keep_going', 'reconcile', 'fetch']);
     expect(mocked.closeWeek).toHaveBeenCalledWith('t', undefined, 'keep_going');
     expect(screen.getByText(/^Welcome back\. Your plan picks up at week 6 and now ends on (?!\{date\}).+\.$/)).toBeVisible();
-    expect(document.querySelector('header')).toHaveTextContent(/^Week 6 · Base · Theme 6/);
+    expect(document.querySelector('header')).toHaveTextContent(/Week 6 · BaseRun a 10K/);
     expect(screen.queryByRole('region', { name: 'Welcome back.' })).not.toBeInTheDocument();
   });
 
@@ -264,7 +264,7 @@ describe('the choice card past the limit (WU-38, WU-40)', () => {
     // The card answers again as before the tap.
     failing = false;
     await user.click(within(await card()).getByRole('button', { name: 'Keep going' }));
-    await waitFor(() => expect(document.querySelector('header')).toHaveTextContent(/^Week 6 · Base · Theme 6/));
+    await waitFor(() => expect(document.querySelector('header')).toHaveTextContent(/Week 6 · BaseRun a 10K/));
     expect(calls).toEqual(['close:check', 'fetch', 'close:keep_going', 'close:keep_going', 'reconcile', 'fetch']);
   });
 
@@ -290,7 +290,7 @@ describe('the choice card past the limit (WU-38, WU-40)', () => {
     failing = false;
     calls = [];
     await user.click(within(alert).getByRole('button', { name: 'Try again' }));
-    await waitFor(() => expect(document.querySelector('header')).toHaveTextContent(/^Week 6 · Base · Theme 6/));
+    await waitFor(() => expect(document.querySelector('header')).toHaveTextContent(/Week 6 · BaseRun a 10K/));
     expect(calls).toEqual(['close:keep_going', 'reconcile', 'fetch']);
   });
 });

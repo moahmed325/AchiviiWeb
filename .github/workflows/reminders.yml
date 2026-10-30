@@ -1,0 +1,35 @@
+name: Missed-day reminders
+
+# ND-28: once an hour, ask the API to send the missed-day reminder emails that are due (each person gets theirs in
+# their own morning). The API sends nothing unless MISSED_DAY_REMINDERS_ENABLED is "true" in Render. Needs the
+# repository secret REMINDERS_CRON_SECRET (the same value as in Render); without it this run does nothing.
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: reminders
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Send due reminders
+        env:
+          SECRET: ${{ secrets.REMINDERS_CRON_SECRET }}
+          API_URL: https://achivii-api.onrender.com
+        run: |
+          if [ -z "$SECRET" ]; then
+            echo "REMINDERS_CRON_SECRET is not set; nothing to do."
+            exit 0
+          fi
+          # The free Render service sleeps when idle; the first request can take about a minute to wake it.
+          curl --fail-with-body --silent --show-error --max-time 180 --retry 2 --retry-delay 30 --retry-all-errors \
+            -X POST "$API_URL/api/reminders/run" \
+            -H "Authorization: Bearer $SECRET"
+          echo

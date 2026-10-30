@@ -135,6 +135,17 @@ export async function updateTimezone(token: string, timezone: string): Promise<U
   return data.user;
 }
 
+/** ND-28: turns the missed-day reminder email on or off. */
+export async function updateReminders(token: string, enabled: boolean): Promise<User> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/reminders`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ enabled }),
+  });
+  const data = await readJson<{ user: User }>(response, 'Failed to change reminders');
+  return data.user;
+}
+
 export async function clarifyGoal(rawGoal: string): Promise<import('../types').GoalClarification> {
   const response = await fetch(`${API_BASE_URL}/api/goal/clarify`, {
     method: 'POST',

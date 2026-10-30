@@ -63,6 +63,22 @@ services:
       # WEEK_CLOSE_ENABLED is also "true". Unset or anything but "true" means off. Dashboard only (sync: false).
       - key: WEEKLY_UPDATE_ENABLED
         sync: false
+      # ND-28: the missed-day reminder email. Unset or anything but "true" means off: nothing is sent. Turn it on
+      # only after the Resend settings below are in place; turning it off is the kill switch. Dashboard only.
+      - key: MISSED_DAY_REMINDERS_ENABLED
+        sync: false
+      # Resend API key and the From address on a domain verified in Resend (e.g. Achivii <reminders@mail.example.com>).
+      - key: RESEND_API_KEY
+        sync: false
+      - key: REMINDER_FROM
+        sync: false
+      # Signs the unsubscribe links in reminder emails (a long random string; changing it breaks old links).
+      - key: REMINDERS_SIGNING_SECRET
+        sync: false
+      # The hourly GitHub Action (.github/workflows/reminders.yml) sends this as a Bearer token; the same value is the
+      # repository secret REMINDERS_CRON_SECRET.
+      - key: REMINDERS_CRON_SECRET
+        sync: false
       # Lemon Squeezy stays in Test Mode until live onboarding is complete.
       # Paste the matching test-mode values from backend/.env when Render prompts
       # during Blueprint creation; never commit their values.

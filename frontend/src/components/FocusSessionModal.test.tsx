@@ -137,7 +137,7 @@ describe('FocusSessionModal', () => {
     expect(screen.getByText('Minimum version')).toBeInTheDocument();
     expect(screen.getByText('10-minute minimum')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /complete minimum/i }));
-    expect(screen.getByText('Minimum complete')).toBeInTheDocument();
+    expect(screen.getByText('10-minute version done')).toBeInTheDocument();
   });
 
   it('tells the caller when the minimum version was completed (ND-3)', async () => {
@@ -207,7 +207,7 @@ describe('FocusSessionModal', () => {
       expect(screen.getByText('10-minute minimum')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /low energy/i })).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: /complete minimum/i }));
-      expect(screen.getByText('Minimum complete')).toBeInTheDocument();
+      expect(screen.getByText('10-minute version done')).toBeInTheDocument();
       await act(async () => fireEvent.click(screen.getByRole('button', { name: /finish & return/i })));
       expect(onComplete).toHaveBeenCalledWith(undefined, { usedMinimumVersion: true });
     });
