@@ -11,7 +11,7 @@ import { NOT_SAVED } from '../../lib/weekClose';
 
 /**
  * The dialog that logs a week's test result without closing any week (`PUT .../test-result`), then refreshes the goal.
- * Shared by the late-test card (missed sessions M4.1) and the re-test entry (weekly update M3.3b, WU-17), which logs
+ * Used by the re-test entry (weekly update M3.3b, WU-17), which logs
  * the re-test as the re-tested week's result. A light week's test is logged as done plus a note (M2.1).
  */
 export const TestResultDialog: React.FC<{

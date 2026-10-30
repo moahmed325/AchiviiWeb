@@ -2,10 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import type { Goal, RoadmapWeek, WeekTarget } from '../../types';
+import type { Goal, WeekTarget } from '../../types';
 import { BreakChoice, CLOSE_FAILED, GETTING_READY, WeekTestFirst } from './WeekClose';
 import { DailyTimeCard, RetestNotice } from './Retest';
-import { LateTestCard } from './LateTestCard';
 import { NOT_SAVED, WEEK_CLOSED_LINES } from '../../lib/weekClose';
 import { RETEST_LINES } from '../../lib/retest';
 import { week12LineText } from '../../lib/week12Line';
@@ -101,11 +100,6 @@ describe('the app lines pass the copy check (M4.1a requirement 2)', () => {
 });
 
 describe("section 6's app lines and step texts, word for word (M4.1b requirement 6, WU-62 (4))", () => {
-  const lightWeek = {
-    weekNumber: 2,
-    target: km(14),
-    test: { type: 'other', instructions: "Log the week's long run as written", passRule: 'Done as written', light: true },
-  } as unknown as RoadmapWeek;
 
   it('the fixed lines', () => {
     expect(GETTING_READY).toBe('Getting your next week ready…');
@@ -154,26 +148,6 @@ describe("section 6's app lines and step texts, word for word (M4.1b requirement
     const alert = await within(dialog).findByRole('alert');
     expect(alert).toHaveTextContent(NOT_SAVED);
     expectClean(alert.textContent ?? '');
-    clean(dialog);
-    warn.mockRestore();
-  });
-
-  it('the late-test entry on a light week: "I did it" and the next check', async () => {
-    const user = userEvent.setup();
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const lateGoal = {
-      id: 'g1',
-      planVersion: 2,
-      currentWeek: 2,
-      roadmapWeeks: [{ ...lightWeek, status: 'active', testResult: null }],
-      dailyTasks: [{ id: 't13', weekNumber: 2, dayNumber: 13, date: '2026-10-17', isTestDay: true }],
-    } as unknown as Goal;
-    render(<LateTestCard goal={lateGoal} now={new Date('2026-10-20T12:00:00Z')} timezone="UTC" />);
-    await user.click(screen.getByRole('button', { name: 'Log my result' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Log my result' });
-    expect(within(dialog).getByText(nextCheckLine(2, km(14)))).toBeInTheDocument();
-    await user.click(within(dialog).getByRole('button', { name: 'I did it' }));
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent(NOT_SAVED);
     clean(dialog);
     warn.mockRestore();
   });

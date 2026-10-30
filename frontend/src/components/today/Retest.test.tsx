@@ -209,7 +209,7 @@ describe('The re-test result entry (AC-4, WU-17)', () => {
     warn.mockRestore();
   });
 
-  it('the late-test card for the open week\'s own test is unchanged', async () => {
+  it('there is no late-test card: the week\'s own test is asked for when the week closes (ND-33)', async () => {
     await renderToday();
     expect(screen.queryByRole('region', { name: "This week's test is still open" })).toBeNull();
   });

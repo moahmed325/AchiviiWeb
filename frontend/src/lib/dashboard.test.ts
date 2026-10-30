@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DailyTask, Goal, RoadmapWeek } from '../types';
-import { dateOfDay, goalTrend, greetingFor, journeyDays, milestones, practiceTimeLabel, practiceTotals } from './dashboard';
+import { dateOfDay, goalTrend, greetingFor, journeyDays, milestones, practiceStreak, practiceTimeLabel, practiceTotals, type MapDay } from './dashboard';
 
 const NOW = new Date('2026-10-29T10:00:00Z');
 // Day 10 of 90 on NOW: the target date is 81 days later (`dayNumber` counts 91 minus the days remaining).
@@ -141,5 +141,19 @@ describe('greetingFor (ND-29)', () => {
     expect(greetingFor(NOW, 'America/Los_Angeles')).toBe('Good evening');
     expect(greetingFor(NOW, 'Asia/Tokyo')).toBe('Good evening');
     expect(greetingFor(new Date('2026-10-29T14:00:00Z'), 'UTC')).toBe('Good afternoon');
+  });
+});
+
+describe('practiceStreak (ND-33)', () => {
+  const run = (states: MapDay['state'][]) => practiceStreak(states.map((state, i) => ({ day: i + 1, date: '', state, isToday: state === 'today' })));
+
+  it('counts done days in a row; rest and unplanned days keep it, a missed day ends it, today to do does not', () => {
+    expect(run(['done', 'done', 'missed', 'done', 'rest', 'done', 'today', 'ahead'])).toEqual({ current: 2, best: 2 });
+    expect(run(['done', 'done', 'done', 'missed', 'done', 'quiet', 'done'])).toEqual({ current: 2, best: 3 });
+    expect(run(['missed', 'today'])).toEqual({ current: 0, best: 0 });
+  });
+
+  it('stops at the first day ahead', () => {
+    expect(run(['done', 'ahead', 'done'])).toEqual({ current: 1, best: 1 });
   });
 });

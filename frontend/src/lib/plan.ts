@@ -114,3 +114,50 @@ export function finishDate(goal: Pick<Goal, 'targetDate'> & Partial<Pick<Goal, '
   const key = dateOfDay(goal, planDays(goal));
   return key ? new Date(`${key}T12:00:00Z`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }) : null;
 }
+
+export interface ComingUpItem {
+  kind: 'check' | 'phase' | 'finish';
+  title: string;
+  detail: string;
+  /** "Sun, Nov 1", "in 3 weeks". */
+  when: string;
+}
+
+const dayLabel = (key: string) =>
+  new Date(`${key}T12:00:00Z`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+/**
+ * ND-33: what comes next on the plan, for the Dashboard: this week's check (while its day is today or ahead), the next
+ * phase, and the finish line. Read only from stored state.
+ */
+export function comingUp(goal: Goal, todayKey: string): ComingUpItem[] {
+  const items: ComingUpItem[] = [];
+  const current = goal.currentWeek || 1;
+  const week = (goal.roadmapWeeks ?? []).find((w) => w.weekNumber === current);
+  const testDay = (goal.dailyTasks ?? []).find((t) => t.weekNumber === current && t.isTestDay && t.date >= todayKey);
+  if (week?.test && testDay) {
+    items.push({
+      kind: 'check',
+      title: `Week ${current} check`,
+      detail: week.target ? shortTarget(week.target) : weekTestText(week.test),
+      when: testDay.date === todayKey ? 'Today' : dayLabel(testDay.date),
+    });
+  }
+  const next = (goal.roadmap?.phases ?? []).find((phase) => phase.startWeek > current);
+  if (next) {
+    const start = dateOfDay(goal, (next.startWeek - 1) * 7 + 1);
+    const weeks = next.startWeek - current;
+    items.push({
+      kind: 'phase',
+      title: `${next.name} begins`,
+      detail: `Week ${next.startWeek}${start ? ' · ' + dayLabel(start) : ''}`,
+      when: weeks === 1 ? 'next week' : `in ${weeks} weeks`,
+    });
+  }
+  const finish = dateOfDay(goal, planDays(goal));
+  if (finish) {
+    const final = goal.roadmap?.finalTest?.trim();
+    items.push({ kind: 'finish', title: 'Finish line', detail: final || 'Your final test', when: dayLabel(finish) });
+  }
+  return items;
+}

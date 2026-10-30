@@ -65,7 +65,10 @@ const renderPage = () =>
     </MemoryRouter>,
   );
 
-describe('the Roadmap (ND-32: the plan at a glance)', () => {
+const weekButton = (n: number) => screen.getByRole('button', { name: new RegExp(`^Week ${n}: `) });
+const weekItem = (n: number) => weekButton(n).closest('li')!;
+
+describe('the Roadmap (ND-33: progress at a glance, the whole plan with its details folded)', () => {
   it('heads with the goal the person chose, never the stored outcome, and where the plan stands', () => {
     renderPage();
     expect(screen.getByRole('heading', { level: 1, name: 'Run a 10K' })).toBeInTheDocument();
@@ -73,40 +76,51 @@ describe('the Roadmap (ND-32: the plan at a glance)', () => {
     expect(screen.getByText(/^Week 6 of 12 · Acceleration · finishes /)).toBeInTheDocument();
   });
 
-  it('shows where the person is against the goal, as times, and one bar for the way covered', () => {
+  it('shows progress: a ring for the way covered, now and the goal as times, the checks as a line, and plain counts', () => {
     renderPage();
-    const progress = screen.getByRole('region', { name: '10K time' });
+    const progress = screen.getByRole('region', { name: 'Your progress' });
+    expect(within(progress).getByRole('progressbar', { name: 'Progress toward your goal' })).toHaveAttribute('aria-valuetext', '11% of the way to 50:00');
     expect(within(progress).getByText('58:54')).toBeInTheDocument();
     expect(within(progress).getByText('50:00')).toBeInTheDocument();
-    expect(within(progress).getByText('Started at 60:00')).toBeInTheDocument();
-    expect(within(progress).getByRole('progressbar', { name: '11% of the way there' })).toHaveAttribute('aria-valuetext', '11% of the way to 50:00');
+    expect(within(progress).getByRole('img', { name: 'Weekly checks: start 60:00, week 1 58:30, week 2 58:54. Goal 50:00.' })).toBeInTheDocument();
+    expect(within(progress).getByText('Weeks done').nextElementSibling).toHaveTextContent('2 / 12');
+    expect(within(progress).getByText('Checks met').nextElementSibling).toHaveTextContent('1 / 2');
   });
 
-  it('shows every week as one cell under its phase: done, paused (never done), this week and ahead', () => {
+  it('shows every phase and every week\'s title; this week is open, the rest are folded', async () => {
     renderPage();
-    for (const phase of ['Foundation', 'Acceleration', 'Mastery']) expect(screen.getByRole('list', { name: phase })).toBeInTheDocument();
-    expect(screen.getByText('Week 1, done')).toBeInTheDocument();
-    for (const n of [3, 4, 5]) expect(screen.getByText(`Week ${n}, paused`)).toBeInTheDocument();
-    expect(screen.getByText('Week 6, this week').closest('li')).toHaveAttribute('aria-current', 'step');
-    expect(screen.getByText('Week 12, ahead')).toBeInTheDocument();
-    // Nothing week by week beyond that: no per-week dates, results or review lines.
-    expect(screen.queryByText('Sep 1 – Sep 7', { exact: false })).not.toBeInTheDocument();
-    expect(screen.queryByText('Week 2 adds a tempo run.')).not.toBeInTheDocument();
+    for (const phase of ['Foundation', 'Acceleration', 'Mastery']) expect(screen.getByRole('heading', { level: 3, name: phase })).toBeInTheDocument();
+    for (let n = 1; n <= 12; n += 1) expect(weekButton(n)).toHaveTextContent('Theme ' + n);
+    expect(weekButton(6)).toHaveAccessibleName('Week 6: Theme 6, this week');
+    expect(weekButton(3)).toHaveAccessibleName('Week 3: Theme 3, paused');
+    expect(weekItem(6)).toHaveAttribute('aria-current', 'step');
+    expect(weekButton(6)).toHaveAttribute('aria-expanded', 'true');
+    expect(within(weekItem(6)).getByText('1 of 2')).toBeVisible();
+    expect(weekButton(1)).toHaveAttribute('aria-expanded', 'false');
+    expect(within(weekItem(1)).getByText('Sep 1 – Sep 7')).not.toBeVisible();
+
+    await userEvent.click(weekButton(1));
+    expect(within(weekItem(1)).getByText('Sep 1 – Sep 7')).toBeVisible();
+    expect(within(weekItem(1)).getByText('59:10 or less')).toBeVisible();
+    expect(within(weekItem(1)).getByText('58:30 · beat by 0:40')).toBeVisible();
+    expect(within(weekItem(1)).getByText('2 of 2')).toBeVisible();
+    expect(within(weekItem(1)).getByText('Week 2 adds a tempo run.')).toBeVisible();
   });
 
-  it("shows this week's focus, target, check and days done", () => {
+  it('a check that missed its target reads "to go", never a failure; a jumped week is "Paused", never done', async () => {
     renderPage();
-    const week = screen.getByRole('region', { name: 'Theme 6' });
-    expect(within(week).getByText('This week · Week 6')).toBeInTheDocument();
-    expect(within(week).getByText('1 of 2 days')).toBeInTheDocument();
-    expect(within(week).getByText('Target')).toBeInTheDocument();
-    expect(within(week).getByText("How it's checked")).toBeInTheDocument();
+    await userEvent.click(weekButton(2));
+    expect(within(weekItem(2)).getByText('58:54 · 0:34 to go')).toBeVisible();
+    for (const n of [3, 4, 5]) {
+      expect(within(weekItem(n)).getByText('Paused')).toBeInTheDocument();
+      expect(within(weekItem(n)).queryByText(/beat by|to go/)).not.toBeInTheDocument();
+    }
   });
 
   it('ends with the finish line and, on request, why the plan works', async () => {
     renderPage();
-    const finish = screen.getByRole('region', { name: /^✦ Finish line/ });
-    expect(within(finish).getByText('Run 10K on a flat course and record your time.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: /^Finish line/ })).toBeInTheDocument();
+    expect(screen.getByText('Run 10K on a flat course and record your time.')).toBeInTheDocument();
     const why = screen.getByRole('button', { name: /Why this plan works/ });
     expect(why).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByText('You have a time goal.')).not.toBeVisible();

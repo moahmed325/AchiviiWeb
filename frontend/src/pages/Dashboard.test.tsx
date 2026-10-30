@@ -49,7 +49,7 @@ const renderWith = (goal: Goal, reconciliation: Reconciliation | null = null) =>
 describe('Dashboard', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('ND-29: today first with one way in, the sessions done, the 90-day map and a status sentence from real state', () => {
+  it('ND-29, ND-33: today first with one way in, the goal ring, the numbers, the 90-day map, what comes next and a status sentence from real state', () => {
     renderWith(buildGoal('pending'));
 
     expect(screen.getByText('1 of 3 sessions done this week. Keep the rhythm.')).toBeInTheDocument();
@@ -59,7 +59,13 @@ describe('Dashboard', () => {
 
     expect(screen.getByText('1 session done, 30 min of practice.')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: '1 of 1 practice days done so far. Day 28 of 90.' })).toBeInTheDocument();
-    expect(screen.getByText('62 days to go')).toBeInTheDocument();
+    // ND-33: the goal ring, the numbers and what comes next.
+    expect(screen.getByRole('progressbar', { name: 'Progress toward your goal' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Your numbers' })).toBeInTheDocument();
+    expect(screen.getByText('Streak')).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: '1 of 3 sessions done this week' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Coming up' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /See the whole roadmap/ })).toHaveAttribute('href', '/roadmap');
 
     expect(screen.getByRole('heading', { level: 2, name: 'Tempo intervals' })).toBeInTheDocument();
     expect(screen.getByText('Key session')).toBeInTheDocument();
