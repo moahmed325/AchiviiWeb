@@ -143,33 +143,6 @@ test.describe('The week close in the app (M1.2b)', () => {
     expect(calls.reconcile).toBe(1);
   });
 
-  test('a review that lost to an automatic close keeps its reflection', async ({ page }, info) => {
-    const done = before();
-    // ND-24: the review opens on the week's last day, so the week is moved back to end today.
-    const lastDay = done.dailyTasks.reduce((last, t) => (t.date > last ? t.date : last), '');
-    const back = (Date.parse(`${lastDay}T00:00:00Z`) - Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`)) / 86_400_000;
-    const moved = (date: string) => new Date(Date.parse(`${date}T00:00:00Z`) - back * 86_400_000).toISOString().slice(0, 10);
-    done.dailyTasks = done.dailyTasks.map((t) => ({ ...t, date: moved(t.date), status: t.isRestDay ? 'pending' : 'completed' }));
-    await mockApi(page, { goal: done });
-    let reflection: unknown = null;
-    await page.route('**/api/goal/weeks/1/review', (route) =>
-      route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: 'This week has already been reviewed.', reason: 'week_closed' }) })
-    );
-    await page.route('**/api/goal/weeks/1/reflection', (route) => {
-      reflection = route.request().postDataJSON();
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ reflection: 'Kept it small' }) });
-    });
-    await signIn(page);
-    await page.goto('/');
-
-    await page.locator('section[aria-labelledby="review-due-heading"]').getByRole('button', { name: 'Start weekly review' }).click();
-    const modal = page.getByRole('dialog');
-    await modal.getByLabel('What worked? What could be better?').fill('Kept it small');
-    await modal.getByRole('button', { name: 'Start Week 2' }).click();
-    await expect(modal.getByText('This week had already closed. Your reflection is saved.')).toBeVisible();
-    expect(reflection).toEqual({ reflection: 'Kept it small' });
-    await evidence(page, info, 'lost-race');
-  });
 
   // Weekly update M1.4 (RULE-13, RULE-14, section 6, WU-33 (4)): back 4 days after week 2 should have started, the
   // close moves the plan 4 days, so week 2 starts today; Today shows the line with the moved end date and today's step.

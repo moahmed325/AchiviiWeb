@@ -175,28 +175,19 @@ test.describe('OD-9 States on Today (M5.7)', () => {
     }
   });
 
-  test('review due: when all week tasks are in the past, renders prominent review due card', async ({ page }) => {
+  test('a week whose days have all passed shows no review to do by hand (weeks close on their own)', async ({ page }) => {
     const base = shellGoal();
     const today = new Date();
     const pastTasks = base.dailyTasks.map((t, idx) => {
       const pastDate = new Date(today.getTime() - (10 - idx) * 86_400_000);
       return { ...t, date: pastDate.toISOString().slice(0, 10) };
     });
-    const reviewGoal = {
-      ...base,
-      dailyTasks: pastTasks,
-    };
-    await mockApi(page, { goal: reviewGoal });
+    await mockApi(page, { goal: { ...base, dailyTasks: pastTasks } });
     await signIn(page);
     await page.goto('/');
-
-    const reviewSection = page.locator('section[aria-labelledby="review-due-heading"]');
-    await expect(reviewSection).toBeVisible();
-    await expect(reviewSection.getByText('Review due')).toBeVisible();
-    await expect(reviewSection.getByRole('button', { name: 'Start weekly review' })).toBeVisible();
-    await reviewSection.getByRole('button', { name: 'Start weekly review' }).click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(page.getByRole('heading', { level: 2, name: 'Week 1 Review' })).toBeVisible();
+    await expect(page.getByRole('main')).toBeVisible();
+    await expect(page.getByText('Review due')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /weekly review/i })).toHaveCount(0);
   });
 
   test('clamped day 90 / after week 12: shows honest 90-day completion without fabricating tasks', async ({ page }) => {
@@ -242,7 +233,6 @@ test.describe('OD-9 States on Today (M5.7)', () => {
 // M3.4: every Today state at the four phone widths: no horizontal overflow, axe clean after the fade-in, and every
 // button in the state's main card at least 44x44 px. The states above check their copy; these check the layout.
 test.describe('Every Today state is clean at 360-412 px (M3.4)', () => {
-  const isoDay = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
   const withTasks = (changes: Record<string, Record<string, unknown>>) => {
     const base = shellGoal();
     return { ...base, dailyTasks: base.dailyTasks.map((t) => (changes[t.id] ? { ...t, ...changes[t.id] } : t)) };
@@ -287,15 +277,6 @@ test.describe('Every Today state is clean at 360-412 px (M3.4)', () => {
       goal: { ...withTasks({ t3: { isTestDay: true } }), roadmapWeeks: [{ weekNumber: 1, phase: 'Foundations', theme: 'Core architecture', test: TEST }] },
       ready: (page) => expect(stepCard(page).getByText('Test day')).toBeVisible(),
       card: stepCard,
-    },
-    {
-      name: 'review due',
-      goal: (() => {
-        const base = shellGoal();
-        return { ...base, dailyTasks: base.dailyTasks.map((t, i) => ({ ...t, date: isoDay(i - 10) })) };
-      })(),
-      ready: (page) => expect(page.getByRole('button', { name: 'Start weekly review' })).toBeVisible(),
-      card: (page) => page.locator('section[aria-labelledby="review-due-heading"]'),
     },
     {
       name: 'late-test card',

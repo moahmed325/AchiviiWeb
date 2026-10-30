@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, fetchActiveGoal, fetchBillingAccountState, submitWeeklyReview } from './api';
+import { ApiError, fetchActiveGoal, fetchBillingAccountState } from './api';
 
 // B-40: every JSON call reads its reply through one helper, so an error page that isn't JSON (a 502 from the host)
 // throws ApiError with the call's own fallback text instead of a raw SyntaxError.
@@ -12,7 +12,6 @@ const htmlPage = () =>
 const reply = (response: Response) => vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
 
 const calls = [
-  { name: 'submitWeeklyReview', call: () => submitWeeklyReview(3, 'Went well', 'token-1'), fallback: 'Failed to submit weekly review' },
   { name: 'fetchActiveGoal', call: () => fetchActiveGoal('token-1'), fallback: 'Failed to fetch active goal' },
   { name: 'fetchBillingAccountState', call: () => fetchBillingAccountState('token-1'), fallback: 'Unable to load billing status' },
 ];
@@ -45,12 +44,6 @@ describe.each(calls)('$name', ({ call, fallback }) => {
 describe('success return values are unchanged', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
-  });
-
-  it('submitWeeklyReview returns the whole body', async () => {
-    const body = { scorePercentage: 80, nextWeekNumber: 4, nextWeekTasks: [] };
-    reply(json(body, 200));
-    await expect(submitWeeklyReview(3, 'Went well', 'token-1')).resolves.toEqual(body);
   });
 
   it('fetchActiveGoal returns activeGoal, including null', async () => {

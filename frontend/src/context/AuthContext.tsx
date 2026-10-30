@@ -4,6 +4,7 @@ import { User } from '../types';
 import { fetchCurrentUser, updateReminders, updateTimezone } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { ACCOUNT_LOAD_FAILED, fromSupabaseAuthError } from '../lib/authFlow';
+import { cleanFirstName, firstNameFrom } from '../lib/firstName';
 
 /**
  * B-44: after Supabase accepted the password, a failed `/me` is our side, not wrong credentials (`/me` answers 401 for
@@ -21,11 +22,13 @@ async function userAfterSignIn(accessToken: string) {
 
 interface AuthContextType {
   user: User | null;
+  /** The name the Dashboard greets by, kept in the Supabase user's metadata (no name: null). */
+  firstName: string | null;
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   /** B-15: `confirm_email` when Supabase asks the person to confirm their email before the first sign-in. */
-  signup: (email: string, password: string) => Promise<'signed_in' | 'confirm_email'>;
+  signup: (email: string, password: string, firstName?: string) => Promise<'signed_in' | 'confirm_email'>;
   /** B-15: leaves for Google's sign-in; the person comes back to /login with the same search. */
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
@@ -33,6 +36,8 @@ interface AuthContextType {
   setTimezone: (timezone: string) => Promise<void>;
   /** ND-28: the missed-day reminder email on or off. */
   setReminders: (enabled: boolean) => Promise<void>;
+  /** Saves the name the Dashboard greets by; an empty one removes it. */
+  setFirstName: (firstName: string) => Promise<void>;
   /** B-15: emails a reset link that opens /reset-password signed in for recovery. */
   requestPasswordReset: (email: string) => Promise<void>;
   /** B-15: sets a new password for the signed-in (recovery) session. */
@@ -43,6 +48,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [firstName, setFirstNameState] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -51,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const applySession = async (session: Session | null) => {
       if (!active) return;
+      setFirstNameState(firstNameFrom(session?.user?.user_metadata));
       if (!session) {
         setUser(null);
         setToken(null);
@@ -109,18 +116,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const accessToken = data.session.access_token;
     const currentUser = await userAfterSignIn(accessToken);
+    setFirstNameState(firstNameFrom(data.session.user?.user_metadata));
     setToken(accessToken);
     setUser(currentUser);
   };
 
-  const signup = async (email: string, password: string) => {
+  const signup = async (email: string, password: string, givenName = '') => {
     if (!supabase) throw new Error('Supabase Auth is not configured.');
     const tz = (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC') || 'UTC';
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { timezone: tz },
+        data: { timezone: tz, ...(cleanFirstName(givenName) ? { first_name: cleanFirstName(givenName) } : {}) },
         // B-15: the confirmation link lands on sign-in, which then sends them on (pathway and next kept).
         emailRedirectTo: `${window.location.origin}/login${window.location.search}`,
       },
@@ -130,6 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const accessToken = data.session.access_token;
     const currentUser = await userAfterSignIn(accessToken);
+    setFirstNameState(firstNameFrom(data.session.user?.user_metadata));
     setToken(accessToken);
     setUser(currentUser);
     return 'signed_in';
@@ -166,16 +175,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(await updateReminders(token, enabled));
   };
 
+  const setFirstName = async (value: string) => {
+    if (!supabase) throw new Error('Supabase Auth is not configured.');
+    const { data, error } = await supabase.auth.updateUser({ data: { first_name: cleanFirstName(value) } });
+    if (error) throw fromSupabaseAuthError(error);
+    setFirstNameState(firstNameFrom(data.user?.user_metadata) ?? null);
+  };
+
   const logout = async () => {
     if (supabase) {
       await supabase.auth.signOut();
     }
     setToken(null);
     setUser(null);
+    setFirstNameState(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, signup, signInWithGoogle, logout, setTimezone, setReminders, requestPasswordReset, updatePassword }}>
+    <AuthContext.Provider value={{ user, firstName, token, loading, login, signup, signInWithGoogle, logout, setTimezone, setReminders, setFirstName, requestPasswordReset, updatePassword }}>
       {children}
     </AuthContext.Provider>
   );
@@ -199,4 +216,13 @@ export function useUserTimezone(): string | undefined {
 /** The access token, or null. Like useUserTimezone it never throws outside an AuthProvider (next plan's Pro check). */
 export function useAuthToken(): string | null {
   return useContext(AuthContext)?.token ?? null;
+}
+
+/**
+ * The name the Dashboard greets by and the way to save it. Like useUserTimezone it never throws outside an
+ * AuthProvider: there is then no name and nothing to save with.
+ */
+export function useFirstName(): { firstName: string | null; setFirstName?: (firstName: string) => Promise<void> } {
+  const context = useContext(AuthContext);
+  return { firstName: context?.firstName ?? null, setFirstName: context?.setFirstName };
 }

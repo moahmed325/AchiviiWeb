@@ -109,21 +109,6 @@ export function weekRows(goal: Goal, journey: JourneyData): WeekRow[] {
   );
 }
 
-export interface StairStep {
-  weekNumber: number;
-  target: number;
-}
-
-/** The weekly number targets the staircase draws, in week order; empty for a goal measured by deliverables. */
-export function stairSteps(goal: Pick<Goal, 'roadmapWeeks'>): StairStep[] {
-  return [...(goal.roadmapWeeks ?? [])]
-    .sort((a, b) => a.weekNumber - b.weekNumber)
-    .flatMap((week) => {
-      const target = numberTarget(week.target);
-      return target ? [{ weekNumber: week.weekNumber, target: target.value }] : [];
-    });
-}
-
 /** The plan's last day as a date ("Sat, Jan 17"), or null. */
 export function finishDate(goal: Pick<Goal, 'targetDate'> & Partial<Pick<Goal, 'startDate' | 'totalWeeks'>>): string | null {
   const key = dateOfDay(goal, planDays(goal));

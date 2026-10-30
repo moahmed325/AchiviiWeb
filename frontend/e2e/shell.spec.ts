@@ -327,7 +327,9 @@ test.describe('pathways, account and offline', () => {
     } else {
       await expect(trigger).toHaveAttribute('aria-expanded', 'true');
       await page.keyboard.press('Tab');
-      // B-108: Edit my schedule comes first in the panel.
+      // ND-32: the first name comes first in the panel (Save stays disabled until it changes), then Edit my schedule (B-108).
+      await expect(page.getByRole('textbox', { name: 'Your first name' })).toBeFocused();
+      await page.keyboard.press('Tab');
       await expect(page.getByRole('button', { name: 'Edit my schedule' })).toBeFocused();
       await page.keyboard.press('Tab');
       await expect(page.getByRole('button', { name: 'Reset 90-Day Plan' })).toBeFocused();
@@ -360,6 +362,8 @@ test.describe('pathways, account and offline', () => {
     }
     expect(order).toEqual(['Skip to content', 'Achivii, home', 'Dashboard', 'Today', 'Roadmap', 'Pathways', 'Coach ✦', 'Account']);
     await page.keyboard.press('Enter');
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('textbox', { name: 'Your first name' })).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(page.getByRole('button', { name: 'Edit my schedule' })).toBeFocused();
     await page.keyboard.press('Tab');

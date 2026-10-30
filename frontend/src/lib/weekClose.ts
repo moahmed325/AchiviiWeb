@@ -62,7 +62,7 @@ export function closeLineWeek(goal: Goal, now: Date = new Date()): { weekNumber:
 
 /**
  * Review fix 4: whether the open week's last stored day is before today in the person's time zone, as
- * `isWeekReviewDue` reads it. Only then can a close be due, so a plan reload asks the server only then.
+ * the old weekly review read it. Only then can a close be due, so a plan reload asks the server only then.
  */
 export function openWeekEnded(goal: Pick<Goal, 'currentWeek' | 'dailyTasks'> | null, now: Date, timezone?: string): boolean {
   const tasks = goal ? currentWeekTasks(goal) : [];

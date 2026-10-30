@@ -14,7 +14,8 @@ const shortDate = (date: string) =>
   new Date(date + 'T12:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
 /**
- * The whole plan as one grid: a column per week, a cell per day. Done days are lit; a day that didn't happen is only
+ * The whole plan as one grid spread across its panel: a column per week, a square cell per day, the start and end dates
+ * beneath. Done days are lit; a day that didn't happen is only
  * an empty cell, never a warning colour. The cells light up in order on arrival (reduced motion: at once, globally).
  */
 export const JourneyMap: React.FC<{ days: MapDay[]; summary: string }> = ({ days, summary }) => {
@@ -22,9 +23,11 @@ export const JourneyMap: React.FC<{ days: MapDay[]; summary: string }> = ({ days
   const columns = Math.max(1, Math.ceil(days.length / 7));
   const style = { '--map-cols': columns } as React.CSSProperties;
   let lit = 0;
+  const first = days[0];
+  const last = days[days.length - 1];
   return (
-    <div className="min-w-0 overflow-x-auto">
-      <div role="img" aria-label={summary} className="dash-map" style={style}>
+    <div className="dash-map-wrap min-w-0" style={style}>
+      <div role="img" aria-label={summary} className="dash-map">
         {days.map((day) => {
           const order = day.state === 'done' ? lit++ : 0;
           return (
@@ -39,6 +42,12 @@ export const JourneyMap: React.FC<{ days: MapDay[]; summary: string }> = ({ days
           );
         })}
       </div>
+      {first && last && (
+        <p aria-hidden="true" className="tabular mt-3 flex justify-between font-ui-mono text-micro text-text-muted">
+          <span>{shortDate(first.date)}</span>
+          <span>{shortDate(last.date)}</span>
+        </p>
+      )}
     </div>
   );
 };

@@ -97,7 +97,7 @@ Backend is ESM with `NodeNext` resolution, so relative imports need the `.js` ex
 - `App.tsx`: `AuthProvider` > `GoalProvider` > `BrowserRouter` > `AppShell`. Secondary pages are lazy-loaded. `ProtectedRoute requireGoal` gates routes on having an active goal.
 - `lib/api.ts` is the fetch client; `resolveApiBaseUrl()` uses `VITE_API_BASE_URL` (falls back to localhost:5000 in dev, the Render URL in production).
 - `context/GoalContext.tsx` holds the active goal; `lib/journeyAdapter.ts` and `hooks/useJourneyData.ts` shape it for the journey and roadmap views.
-- Feature folders under `components/` (`today`, `dashboard`, `focus`, `journey`, `review`, `achievement`, `coach`, `billing`, `onboarding`, `pathways`, `marketing`); shared primitives in `components/ui/`.
+- Feature folders under `components/` (`today`, `dashboard`, `focus`, `review`, `achievement`, `coach`, `billing`, `onboarding`, `pathways`, `marketing`); shared primitives in `components/ui/`.
 - `/__ui` (dev server only) previews every primitive in every state.
 
 ### Frontend rules (from `Design.md`, read it before frontend work)

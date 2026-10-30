@@ -1971,6 +1971,29 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-10-29 | ND-29 Decided by Mo: the Dashboard shows how the person is doing (sessions counted up, goal measure, 90-day map); its Start opens the session on Today in one tap. |
 | 2026-10-29 | ND-30 Decided by Mo: Today puts the step first (one-line header, steps listed, one Start, a real done state, the focus session's end names the session and the week). |
 | 2026-10-30 | ND-31 Decided by Mo: no glow in the app; Roadmap and Progress are one page; a plain Pathways dialog; GitHub-sized map cells and no goal box on the Dashboard; less on Today. |
+| 2026-10-30 | ND-32 Decided by Mo: the Roadmap at a glance (progress card, week cells, this week, finish line); the Dashboard's map spread wide; greeting by first name; no weekly review by hand (weeks close on their own). |
+
+### ND-32 — The Roadmap at a glance, a name in the greeting, no weekly review by hand
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-30 — Mo: the Roadmap "too complicated and feels overwhelming … only keeping the info the users would want to see, nothing excess"; the Dashboard's map "very compacted"; "greet the people by their name"; Today's weekly review: "if we don't need to log the week … remove that" |
+| Decided | 2026-10-30 — Mo |
+
+**Context.** ND-31's Roadmap showed a staircase chart with phase bands, axis labels and a legend, then every week by phase with dates, target, check, result, days done and the review's insight. The Dashboard's map used fixed 12px cells in a corner of its panel. The Dashboard said "Good morning." with no name, and no name was stored. Today still offered "Start weekly review" on a week's last day, although weeks close on their own the morning after (`WEEK_CLOSE_ENABLED`, on in production since 2026-10-19), with the week's test asked on Today first.
+
+**Decision.**
+* **Roadmap, top to bottom:** the goal and "Week N of N · phase · finishes {date}"; one progress card (now and the goal as large numbers, one bar for the share of the way covered, "Started at …"; milestones reached for a goal of deliverables); every week as one cell under its phase (done filled, this week ringed, a jumped week dashed); this week's focus, target, check and days done; the finish line (date and final test); "Why this plan works", closed. No chart, legend, per-week dates, results or review lines.
+* **Dashboard map:** the cells share the panel's width (square, up to 2.75rem), the plan's first and last dates beneath.
+* **Greeting by name:** "Good morning, Mo." The first name is kept in the Supabase user's metadata (`first_name`), asked (optional) at sign-up, editable in Account, offered once on the Dashboard ("Add your name") when missing; a Google sign-in uses Google's given name. Nothing in the database changes.
+* **No weekly review by hand:** Today and the Dashboard no longer offer it. A week closes on its own after its last day; Today's bridge says "Next week opens after {day}."
+
+**Consequences.** `WeeklyReviewModal` and the parts only it used (`ReviewSummaryCard`, `ReviewReflectionStep`, `PhaseGateOutcomeCard`, `AdaptationMomentStep`, `lib/reviewDraft.ts`, `submitWeeklyReview`, `isWeekReviewDue`), `Staircase` and its styles are removed. The test entry (`ReviewTestResultStep`, `LightTestEntry`) stays, used by Today's week-close card and the late-test card. The backend review route stays (B-110). With `WEEK_CLOSE_ENABLED` off, weeks would no longer close at all; it must stay on.
+
+**Related.** ND-24, ND-29, ND-31.
 
 ### PAY-1 — Achivii Pro pricing
 

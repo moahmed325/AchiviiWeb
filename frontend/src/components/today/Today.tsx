@@ -12,7 +12,6 @@ import {
   findNextTask,
   isAheadDay,
   isToday,
-  isWeekReviewDue,
   reviewOpensOn,
   isClosingStretchActive,
   isRestLike,
@@ -31,7 +30,6 @@ import { Badge, Button, ErrorState, Field, IconButton, LoadingState, Skeleton, T
 import { FocusSessionModal, type FocusCompletionOptions } from '../FocusSessionModal';
 import type { SessionProgress } from '../focus/FocusCompletion';
 import { BasisBadge } from '../BasisBadge';
-import { WeeklyReviewModal } from '../review';
 import { ClosingStretchView } from './ClosingStretchView';
 import { LateTestCard } from './LateTestCard';
 import { DailyTimeCard, RetestNotice } from './Retest';
@@ -39,7 +37,7 @@ import { CheckpointCard } from './Checkpoint';
 import { CLOSE_FAILED } from './WeekClose';
 import { closeLineWeek } from '../../lib/weekClose';
 import { fixedDateLine } from '../../lib/fixedDate';
-import { closingStartDay, planDays, planWeeks } from '../../lib/planLength';
+import { planDays } from '../../lib/planLength';
 import { markCloseLineSeen } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTaskActions } from './useTaskActions';
@@ -312,7 +310,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const [selectedId, setSelectedId] = useState<string>();
   const [focusOpen, setFocusOpen] = useState(false);
   const [focusStart, setFocusStart] = useState<'full' | 'minimum'>('full');
-  const [reviewOpen, setReviewOpen] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [openSteps, setOpenSteps] = useState<ReadonlySet<number>>(new Set());
@@ -391,7 +388,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const focusWins = parsedNotes.focusWins;
   const draft = task ? drafts[task.id] : undefined;
   const freeformValue = draft !== undefined ? draft : parsedNotes.freeformNotes;
-  const reviewDue = isWeekReviewDue(tasks, now, timezone);
   const reviewOpensDay = reviewOpensOn(tasks, now, timezone);
   const isClosingStretch = isClosingStretchActive(goal, now, timezone);
   // The miss notice belongs to Today's view of today only, never to another selected day (M3.1 R4).
@@ -524,33 +520,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
 
       {/* Weekly update M3.3b (AC-4): why the week starts with a re-test, and its result entry (self-contained). */}
       <RetestNotice goal={goal} now={now} timezone={timezone} />
-
-      {reviewDue && (
-        <section
-          aria-labelledby="review-due-heading"
-          className="dash-panel animate-rise-in relative mt-10 border-achievement/35 p-6 sm:p-8"
-          style={stagger(120)}
-        >
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <Badge tone="achievement">Review due</Badge>
-              <h2 id="review-due-heading" className="mt-3 text-h3 text-text">
-                Week {goal.currentWeek || 1} is ready for review
-              </h2>
-              <p className="mt-2 max-w-md text-small text-text-secondary">
-                {goal.currentWeek && goal.currentWeek >= planWeeks(goal)
-                  ? `You've reached the end of Week ${planWeeks(goal)}. Complete this review to unlock your final closing stretch${
-                      closingStartDay(goal) <= planDays(goal) ? ` (days ${closingStartDay(goal)}–${planDays(goal)})` : ''
-                    }.`
-                  : "You've reached the end of this week's scheduled practice. Reflect on your progress and adapt next week's path."}
-              </p>
-            </div>
-            <Button type="button" variant="primary" className="shrink-0 sm:min-w-44" onClick={() => setReviewOpen(true)}>
-              Start weekly review
-            </Button>
-          </div>
-        </section>
-      )}
 
       {/* Missed sessions M4.1: the week's test, still open after test day (self-contained). */}
       <LateTestCard goal={goal} now={now} timezone={timezone} />
@@ -822,18 +791,11 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-body font-medium text-text">Week {goal.currentWeek || 1} practice complete.</p>
-                        <p className="mt-0.5 text-small text-text-secondary">
-                          {reviewOpensDay ? `Weekly review opens on ${reviewOpensDay}.` : 'Weekly review ready.'}
-                        </p>
-                      </div>
-                      {!reviewOpensDay && !reviewDue && (
-                        <Button type="button" variant="secondary" size="sm" onClick={() => setReviewOpen(true)}>
-                          Start weekly review
-                        </Button>
-                      )}
+                    <div>
+                      <p className="text-body font-medium text-text">Week {goal.currentWeek || 1} practice complete.</p>
+                      <p className="mt-0.5 text-small text-text-secondary">
+                        {reviewOpensDay ? `Next week opens after ${reviewOpensDay}.` : 'Next week opens tomorrow.'}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -981,17 +943,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         />
       )}
 
-      <WeeklyReviewModal
-        isOpen={reviewOpen}
-        onClose={() => setReviewOpen(false)}
-        goal={goal}
-        token={token || ''}
-        onGoalUpdated={goalContext.updateActiveGoal}
-        onWeekClosed={() => void goalContext.refreshGoal()}
-        onChoiceNeeded={() => void goalContext.reloadPlan()}
-        timezone={timezone}
-        apiStatus={apiStatus}
-      />
     </main>
   );
 };

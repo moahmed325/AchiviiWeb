@@ -327,28 +327,6 @@ export async function updateDailyTask(
   return data.task;
 }
 
-export async function submitWeeklyReview(
-  weekNumber: number,
-  reflection: string,
-  token: string,
-  testResult?: import('../types').WeeklyTestResult | null
-): Promise<import('../types').WeeklyReviewResponse> {
-  const payload: { reflection: string; testResult?: import('../types').WeeklyTestResult | null } = { reflection };
-  if (testResult !== undefined) {
-    payload.testResult = testResult;
-  }
-  const response = await fetch(`${API_BASE_URL}/api/goal/weeks/${weekNumber}/review`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  return readJson(response, 'Failed to submit weekly review');
-}
-
 /**
  * Missed sessions M4.1 (ND-4): logs the week's test result without closing the week (`PUT .../test-result`).
  * Throws `ApiError` with the status and the server's `reason` as `code` (`week_closed`, `week_not_open`, `not_plan_v2`).

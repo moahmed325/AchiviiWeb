@@ -4,19 +4,18 @@ import { Check, ChevronDown, Compass } from 'lucide-react';
 import { useGoal } from '../context/GoalContext';
 import { useUserTimezone } from '../context/AuthContext';
 import { useJourneyData } from '../hooks/useJourneyData';
-import { Badge, Button, cx } from '../components/ui';
-import { Staircase } from '../components/journey/Staircase';
+import { Badge, Button, ProgressBar, VisuallyHidden, cx } from '../components/ui';
 import { goalTrend, milestones } from '../lib/dashboard';
-import { finishDate, formatMetric, stairSteps, weekRows, type WeekRow } from '../lib/plan';
+import { finishDate, formatMetric, weekRows, type WeekRow } from '../lib/plan';
 import { planWeeks } from '../lib/planLength';
 import { fixedDateLine } from '../lib/fixedDate';
 import type { Goal } from '../types';
 import type { JourneyData, JourneyPhase } from '../types/journey';
 
 /**
- * ND-31: one page for the plan and how it is going (the Roadmap and Progress pages merged). The goal, the climb (the
- * weekly targets as a staircase, with each recorded check), every week by phase with its dates, target and what was
- * done, the finish line, and why the plan is built the way it is. Read only; nothing here writes.
+ * ND-32: the plan at a glance, kept calm. Where the plan stands, how far along the goal's measure the person is, every
+ * week as one cell under its phase, this week's target, the finish line, and (on request) why the plan works. Read
+ * only; nothing here writes.
  */
 export const RoadmapPage: React.FC = () => {
   const journey = useJourneyData();
@@ -50,6 +49,8 @@ const RoadmapContent: React.FC<{ journey: JourneyData; goal: Goal }> = ({ journe
   const finish = finishDate(goal);
   const dateLine = fixedDateLine(goal, new Date(), timezone);
   const rows = weekRows(goal, journey);
+  const thisWeek = rows.find((row) => row.state === 'current') ?? null;
+  const finalTest = goal.roadmap?.finalTest?.trim() || null;
 
   return (
     <>
@@ -70,212 +71,138 @@ const RoadmapContent: React.FC<{ journey: JourneyData; goal: Goal }> = ({ journe
         )}
       </header>
 
-      <Climb goal={goal} journey={journey} />
+      <Progress goal={goal} />
+      <Weeks phases={phases} rows={rows} />
+      {thisWeek && <ThisWeek row={thisWeek} />}
 
-      <section aria-labelledby="weeks-heading" className="mt-14">
-        <h2 id="weeks-heading" className="text-h3 text-text">Week by week</h2>
-        <div className="mt-6 flex flex-col gap-10">
-          {phases.map((phase) => (
-            <PhaseBlock key={phase.id} phase={phase} rows={rows.filter((row) => row.phaseId === phase.id)} />
-          ))}
-        </div>
+      <section aria-labelledby="finish-heading" className="animate-rise-in mt-12 border-t border-border pt-8" style={{ animationDelay: '360ms' }}>
+        <h2 id="finish-heading" className="font-ui-mono text-micro uppercase text-achievement">
+          ✦ Finish line{finish ? ' · ' + finish : ''}
+        </h2>
+        {finalTest && <p className="mt-3 max-w-2xl text-body text-text">{finalTest}</p>}
+        {journey.week12Line && <p className="mt-2 max-w-2xl text-small text-text-secondary">{journey.week12Line}</p>}
       </section>
 
-      <FinishLine goal={goal} journey={journey} finish={finish} />
       <WhyThisPlan goal={goal} />
     </>
   );
 };
 
-/** The goal's own measure: the gap closed and the staircase, or the milestones reached for a goal of deliverables. */
-const Climb: React.FC<{ goal: Goal; journey: JourneyData }> = ({ goal, journey }) => {
+/**
+ * How far along the goal's own measure the person is: where they are now against the goal, and one bar for the
+ * share of the way covered. A goal of deliverables shows the milestones reached instead. Nothing when neither exists.
+ */
+const Progress: React.FC<{ goal: Goal }> = ({ goal }) => {
   const trend = goalTrend(goal);
-  const steps = stairSteps(goal);
   const checks = milestones(goal);
 
-  if (trend && steps.length > 0) {
+  if (trend) {
     const { unit } = trend;
-    const latest = trend.latest;
-    const summary =
-      `${trend.metric || 'Target'} by week, from ${trend.start !== null ? formatMetric(trend.start, unit) : 'the start'} to ${formatMetric(trend.target, unit)}.` +
-      (latest !== null ? ` Latest check ${formatMetric(latest, unit)}.` : ' No check recorded yet.');
+    const now = trend.latest ?? trend.start;
+    const share = trend.gapClosed ?? 0;
     return (
-      <section aria-labelledby="climb-heading" className="dash-panel animate-rise-in mt-10 p-6 sm:p-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      <section aria-labelledby="progress-heading" className="dash-panel animate-rise-in mt-10 p-6 sm:p-8" style={{ animationDelay: '120ms' }}>
+        <div className="flex items-center justify-between gap-3">
+          <h2 id="progress-heading" className="font-ui-mono text-micro uppercase text-text-secondary">{trend.metric || 'Your progress'}</h2>
+          {trend.newBest && <Badge tone="achievement">New best</Badge>}
+        </div>
+        <div className="mt-5 flex items-end justify-between gap-6">
           <div>
-            <h2 id="climb-heading" className="font-ui-mono text-micro uppercase text-text-secondary">{trend.metric || 'Your climb'}</h2>
-            {trend.gapClosed !== null ? (
-              <p className="mt-3 flex items-baseline gap-2">
-                <span className="tabular text-5xl font-semibold tracking-[-0.04em] text-text">{Math.round(trend.gapClosed * 100)}%</span>
-                <span className="text-body text-text-secondary">of the gap closed</span>
-              </p>
-            ) : (
-              <p className="mt-3 text-h3 text-text">
-                {trend.start !== null ? formatMetric(trend.start, unit) + ' → ' : ''}
-                {formatMetric(trend.target, unit)}
-              </p>
-            )}
+            <p className="text-small text-text-secondary">{trend.latest !== null ? 'Now' : 'Start'}</p>
+            <p className="tabular mt-1 text-4xl font-semibold tracking-[-0.03em] text-text sm:text-5xl">{now !== null ? formatMetric(now, unit) : '—'}</p>
           </div>
           <div className="text-right">
-            {trend.newBest && <Badge tone="achievement">New best</Badge>}
-            <dl className="mt-2 grid grid-cols-[auto_auto] gap-x-3 gap-y-1 text-small">
-              {trend.start !== null && (
-                <>
-                  <dt className="text-text-secondary">Start</dt>
-                  <dd className="tabular text-text">{formatMetric(trend.start, unit)}</dd>
-                </>
-              )}
-              {latest !== null && (
-                <>
-                  <dt className="text-text-secondary">Latest</dt>
-                  <dd className="tabular text-text">{formatMetric(latest, unit)}</dd>
-                </>
-              )}
-              <dt className="text-text-secondary">Goal</dt>
-              <dd className="tabular text-achievement">{formatMetric(trend.target, unit)}</dd>
-            </dl>
+            <p className="text-small text-text-secondary">Goal</p>
+            <p className="tabular mt-1 text-4xl font-semibold tracking-[-0.03em] text-achievement sm:text-5xl">{formatMetric(trend.target, unit)}</p>
           </div>
         </div>
-        <div className="mt-6">
-          <Staircase
-            steps={steps}
-            start={trend.start}
-            points={trend.points}
-            direction={trend.direction}
-            unit={unit}
-            totalWeeks={planWeeks(goal)}
-            currentWeek={journey.metrics.currentWeek}
-            phases={goal.roadmap?.phases ?? []}
-            summary={summary}
-          />
-        </div>
-        <p className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-small text-text-secondary">
-          <span className="inline-flex items-center gap-2"><span aria-hidden="true" className="stair-key stair-key--line" />Weekly target</span>
-          <span className="inline-flex items-center gap-2"><span aria-hidden="true" className="stair-key stair-key--met" />Check that met it</span>
-          <span className="inline-flex items-center gap-2"><span aria-hidden="true" className="stair-key" />Check that didn't yet</span>
-        </p>
+        <ProgressBar
+          className="mt-6"
+          tone="achievement"
+          value={Math.round(share * 100)}
+          label={trend.gapClosed !== null ? Math.round(share * 100) + '% of the way there' : 'Your first check sets the line'}
+          valueText={Math.round(share * 100) + '% of the way to ' + formatMetric(trend.target, unit)}
+        />
+        {trend.start !== null && trend.latest !== null && (
+          <p className="tabular mt-2 text-small text-text-secondary">Started at {formatMetric(trend.start, unit)}</p>
+        )}
       </section>
     );
   }
 
   if (checks.total === 0) return null;
   return (
-    <section aria-labelledby="climb-heading" className="dash-panel animate-rise-in mt-10 p-6 sm:p-8">
-      <h2 id="climb-heading" className="font-ui-mono text-micro uppercase text-text-secondary">Milestones</h2>
-      <p className="mt-3 flex items-baseline gap-2">
+    <section aria-labelledby="progress-heading" className="dash-panel animate-rise-in mt-10 p-6 sm:p-8" style={{ animationDelay: '120ms' }}>
+      <h2 id="progress-heading" className="font-ui-mono text-micro uppercase text-text-secondary">Milestones</h2>
+      <p className="mt-4 flex items-baseline gap-2">
         <span className="tabular text-5xl font-semibold tracking-[-0.04em] text-text">{checks.reached}</span>
         <span className="text-body text-text-secondary">of {checks.total} reached</span>
       </p>
+      <ProgressBar className="mt-6" tone="achievement" hideLabel label="Milestones reached" value={checks.reached} max={checks.total} valueText={checks.reached + ' of ' + checks.total} />
     </section>
   );
 };
 
-const phaseState = (phase: JourneyPhase) => (phase.status === 'completed' ? 'Done' : phase.status === 'active' ? 'Now' : null);
+const stateWords: Record<WeekRow['state'], string> = { done: 'done', current: 'this week', ahead: 'ahead', paused: 'paused' };
 
-const PhaseBlock: React.FC<{ phase: JourneyPhase; rows: WeekRow[] }> = ({ phase, rows }) => {
-  const state = phaseState(phase);
-  return (
-    <section aria-labelledby={'phase-' + phase.id} className="road-phase" data-status={phase.status}>
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h3 id={'phase-' + phase.id} className="text-body-lg font-medium text-text">{phase.name}</h3>
-        <span className="font-ui-mono text-micro uppercase text-text-secondary">{phase.weeksLabel}</span>
-        {state && <span className={cx('font-ui-mono text-micro uppercase', state === 'Now' ? 'text-achievement' : 'text-text-secondary')}>{state}</span>}
-      </div>
-      {phase.purpose && <p className="mt-1 max-w-2xl text-small text-text-secondary">{phase.purpose}</p>}
-      <ol className="mt-4 border-t border-border">
-        {rows.map((row) => (
-          <WeekLine key={row.weekNumber} row={row} />
-        ))}
-      </ol>
-    </section>
-  );
-};
+/** Every week as one quiet cell, grouped under its phase: done weeks filled, this week ringed, a paused week dashed. */
+const Weeks: React.FC<{ phases: JourneyPhase[]; rows: WeekRow[] }> = ({ phases, rows }) => (
+  <section aria-labelledby="weeks-heading" className="animate-rise-in mt-12" style={{ animationDelay: '220ms' }}>
+    <h2 id="weeks-heading" className="font-ui-mono text-micro uppercase text-text-secondary">Your {rows.length} weeks</h2>
+    <div className="road-phases mt-5">
+      {phases.map((phase) => {
+        const weeks = rows.filter((row) => row.phaseId === phase.id);
+        if (weeks.length === 0) return null;
+        return (
+          <div key={phase.id} className="road-phases__phase" style={{ flexGrow: weeks.length }} data-status={phase.status}>
+            <ol className="road-cells" aria-label={phase.name}>
+              {weeks.map((row) => (
+                <li key={row.weekNumber} className="road-cell" data-state={row.state} aria-current={row.state === 'current' ? 'step' : undefined}>
+                  <span aria-hidden="true">{row.weekNumber}</span>
+                  <VisuallyHidden>{'Week ' + row.weekNumber + ', ' + stateWords[row.state]}</VisuallyHidden>
+                </li>
+              ))}
+            </ol>
+            <p className={cx('mt-3 truncate text-small', phase.status === 'active' ? 'text-text' : 'text-text-secondary')} aria-hidden="true">
+              {phase.name}
+            </p>
+          </div>
+        );
+      })}
+    </div>
+  </section>
+);
 
-const WeekLine: React.FC<{ row: WeekRow }> = ({ row }) => {
-  const current = row.state === 'current';
-  const ahead = row.state === 'ahead';
-  return (
-    <li className="road-week-row" data-state={row.state} aria-current={current ? 'step' : undefined}>
-      <div className="min-w-0">
-        <p className={cx('font-ui-mono text-micro uppercase', current ? 'text-achievement' : 'text-text-secondary')}>
-          Week {row.weekNumber}
-          {row.dates && <span className="ml-2 normal-case tracking-normal">{row.dates}</span>}
+/** The week being lived: what it is about, the number to hit and how it is checked, and the days done so far. */
+const ThisWeek: React.FC<{ row: WeekRow }> = ({ row }) => (
+  <section aria-labelledby="this-week-heading" className="dash-panel animate-rise-in mt-8 p-6 sm:p-8" style={{ animationDelay: '300ms' }}>
+    <div className="flex items-center justify-between gap-3">
+      <p className="font-ui-mono text-micro uppercase text-achievement">This week · Week {row.weekNumber}</p>
+      {row.sessions && (
+        <p className="tabular text-small text-text-secondary">
+          {row.sessions.done} of {row.sessions.planned} days
         </p>
-        <p className={cx('mt-1 text-body', ahead ? 'text-text-secondary' : 'text-text')}>
-          {row.title}
-          {current && <Badge tone="achievement" className="ml-2 align-middle">This week</Badge>}
-        </p>
-        {(row.target || row.test) && (
-          <p className="mt-1 text-small text-text-secondary">
-            {row.target && <>Target {row.target}</>}
-            {row.target && row.test && <span aria-hidden="true"> · </span>}
-            {row.test && <>Check: {row.test}</>}
-          </p>
-        )}
-        {row.insight && row.state === 'done' && <p className="mt-2 max-w-2xl text-small text-text-secondary">{row.insight}</p>}
-      </div>
-      <div className="road-week-row__side">
-        {row.state === 'paused' && <span className="font-ui-mono text-micro uppercase text-text-secondary">Paused</span>}
-        {row.result && (
-          <p className="tabular text-body text-text">
-            {row.result.text}
-            {row.result.met !== null && (
-              <span className={cx('mt-0.5 flex items-center justify-end gap-1 text-small', row.result.met ? 'text-achievement' : 'text-text-secondary')}>
-                {row.result.met && <Check aria-hidden="true" strokeWidth={2} className="size-3.5" />}
-                {row.result.margin
-                  ? row.result.met
-                    ? `beat by ${row.result.margin}`
-                    : `${row.result.margin} to go`
-                  : row.result.met
-                    ? 'met'
-                    : 'not yet'}
-              </span>
-            )}
-          </p>
-        )}
-        {row.sessions && row.state !== 'ahead' && (
-          <p className="tabular text-small text-text-secondary">
-            {row.sessions.done} of {row.sessions.planned} days
-          </p>
-        )}
-      </div>
-    </li>
-  );
-};
-
-const FinishLine: React.FC<{ goal: Goal; journey: JourneyData; finish: string | null }> = ({ goal, journey, finish }) => {
-  const finalTest = goal.roadmap?.finalTest?.trim() || null;
-  const trend = goalTrend(goal);
-  const { closingStretch } = journey;
-  return (
-    <section aria-labelledby="finish-heading" className="road-finish mt-14 p-6 sm:p-8">
-      <p className="font-ui-mono text-micro uppercase text-achievement">✦ Finish line</p>
-      <h2 id="finish-heading" className="mt-3 text-h3 text-text">{goal.rawGoal}</h2>
-      <dl className="mt-5 grid gap-4 text-small sm:grid-cols-3">
-        {finish && (
+      )}
+    </div>
+    <h2 id="this-week-heading" className="mt-3 text-h3 text-text">{row.title}</h2>
+    {(row.target || row.test) && (
+      <dl className="mt-5 grid gap-4 text-small sm:grid-cols-2">
+        {row.target && (
           <div>
-            <dt className="text-text-secondary">Last day</dt>
-            <dd className="mt-1 text-body text-text">{finish}</dd>
+            <dt className="text-text-secondary">Target</dt>
+            <dd className="mt-1 text-body text-text">{row.target}</dd>
           </div>
         )}
-        {trend && (
+        {row.test && (
           <div>
-            <dt className="text-text-secondary">{trend.metric || 'Target'}</dt>
-            <dd className="tabular mt-1 text-body text-text">{formatMetric(trend.target, trend.unit)}</dd>
-          </div>
-        )}
-        {closingStretch.startDay <= closingStretch.endDay && (
-          <div>
-            <dt className="text-text-secondary">Closing stretch</dt>
-            <dd className="mt-1 text-body text-text">Days {closingStretch.startDay}–{closingStretch.endDay}</dd>
+            <dt className="text-text-secondary">How it's checked</dt>
+            <dd className="mt-1 text-body text-text">{row.test}</dd>
           </div>
         )}
       </dl>
-      {finalTest && <p className="mt-5 max-w-2xl text-body text-text-secondary">Final test: {finalTest}</p>}
-      {journey.week12Line && <p className="mt-2 max-w-2xl text-small text-text-secondary">{journey.week12Line}</p>}
-    </section>
-  );
-};
+    )}
+  </section>
+);
 
 /** The method the plan is built on, kept from the moment it was chosen: shown on request. */
 const WhyThisPlan: React.FC<{ goal: Goal }> = ({ goal }) => {
@@ -284,7 +211,7 @@ const WhyThisPlan: React.FC<{ goal: Goal }> = ({ goal }) => {
   if (!method?.name?.trim()) return null;
   const rules = (method.rules ?? []).filter((rule) => rule.trim());
   return (
-    <section className="mt-10 border-t border-border">
+    <section className="mt-8 border-t border-border">
       <button
         type="button"
         aria-expanded={open}

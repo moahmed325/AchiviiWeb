@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatMetric, shortTarget, stairSteps } from './plan';
-import type { RoadmapWeek } from '../types';
+import { formatMetric, shortTarget } from './plan';
 
 describe('formatMetric and shortTarget (ND-31)', () => {
   it('shows a time in minutes as minutes and seconds', () => {
@@ -18,13 +17,5 @@ describe('formatMetric and shortTarget (ND-31)', () => {
     expect(shortTarget({ kind: 'number', metric: '10K time', value: 54.5, unit: 'min', direction: 'lower_is_better' })).toBe('54:30 or less');
     expect(shortTarget({ kind: 'number', metric: 'Push-ups', value: 40, unit: 'reps', direction: 'higher_is_better' })).toBe('40 reps or more');
     expect(shortTarget({ kind: 'deliverable', description: 'A one-page brief' })).toBe('A one-page brief');
-  });
-
-  it('the staircase takes the number targets in week order and skips the rest', () => {
-    const week = (weekNumber: number, target: RoadmapWeek['target']) => ({ weekNumber, target }) as RoadmapWeek;
-    const steps = stairSteps({
-      roadmapWeeks: [week(2, { kind: 'number', metric: 'm', value: 9, unit: 'u', direction: 'higher_is_better' }), week(1, { kind: 'number', metric: 'm', value: 8, unit: 'u', direction: 'higher_is_better' }), week(3, { kind: 'deliverable', description: 'x' })],
-    });
-    expect(steps).toEqual([{ weekNumber: 1, target: 8 }, { weekNumber: 2, target: 9 }]);
   });
 });

@@ -6,6 +6,7 @@ import { useGoal } from '../../context/GoalContext';
 import { Button, Checkbox, Dialog, DialogContent, DialogTrigger, cx } from '../ui';
 import { ResetPlanDialog } from './ResetPlanDialog';
 import { EditScheduleDialog } from './EditScheduleDialog';
+import { NameForm } from '../dashboard/NameForm';
 import { fetchBillingAccountState, BillingAccountState } from '../../lib/api';
 
 /**
@@ -148,6 +149,7 @@ const AccountPanel: React.FC<AccountPanelProps> = ({ context, onEditSchedule, on
       <div className="border-b border-border px-3 pb-4">
         <p className="font-ui-mono text-micro uppercase text-text-secondary">Signed in as</p>
         <p className="mt-1 truncate text-small text-text">{user?.email ?? 'Your account'}</p>
+        <div className="mt-4"><NameForm /></div>
         <TimezoneNotice />
         <RemindersSetting />
         {withGoal && (
