@@ -16,6 +16,7 @@ import {
   type RoadmapInput,
 } from '../src/lib/ai/roadmap.js';
 import { planShape } from '../src/lib/planLength.js';
+import { statedNumbers } from '../src/lib/ai/roadmap.js';
 
 // The roadmap call. No weekly tests (2026-10-30, docs/features/no-weekly-tests/plan.md): each week has a focus inside
 // the method's phases, and the goal may have one measure (with today's level as the starting point). No weekly
@@ -128,6 +129,17 @@ describe('checkRoadmapAnswer', () => {
 
   it('rejects a chosen method that is not a candidate', () => {
     expect(reason(checkRoadmapAnswer(answer({ chosen: 'Something else' }), context))).toMatch(/must be the name of one of the candidates/);
+  });
+
+  it("keeps the number they typed: sent back once, taken on the last attempt; a shorter plan may aim lower", () => {
+    const context = { statedNumbers: statedNumbers('Type 40 words per minute in 90 days') };
+    expect(context.statedNumbers).toEqual(['40']);
+    expect('value' in checkRoadmapAnswer(answer(), context)).toBe(true);
+    const lower = answer({ finalGoal: 'Type 30 words per minute' });
+    expect(reason(checkRoadmapAnswer(lower, context))).toBe('"finalGoal" must keep the number they gave: 40. Keep their ambition exactly.');
+    expect('value' in checkRoadmapAnswer(lower, context, true)).toBe(true);
+    expect('value' in checkRoadmapAnswer(answer({}, 7) as never, { ...context, shape: planShape(7) })).toBe(true);
+    expect(statedNumbers('Swim 1,500 m in 3 months')).toEqual(['1500']);
   });
 
   it('fills the method from the fixed preset method', () => {

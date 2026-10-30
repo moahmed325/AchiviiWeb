@@ -77,10 +77,11 @@ leaves them out (`presentGoal`), and a stored test day is an ordinary session. D
 - **Last week, and the pace (section 7 of the no-weekly-tests plan).** From week 2 the writer gets LAST WEEK
   (`lastWeekOf` in `lib/planV2.ts`): practice sessions done of planned (rest days and days not offered left out),
   the key sessions skipped (a 10-minute version counts as skipped), how many done sessions were tapped too easy,
-  just right or too hard, every day's note word for word ("Tuesday: my knee hurts"), the review's reflection when
-  there is one, and the pace line code picks (`paceOf` in `lib/ai/weekPlan.ts`): 80% or more done and mostly too easy,
+  just right or too hard, every day's note word for word ("Tuesday: my knee hurts"; one line, at most 400 characters), the review's reflection
+  when there is one (at most 1,000), and the pace line code picks (`paceOf` in `lib/ai/weekPlan.ts`): 80% or more done and mostly too easy,
   a bigger step; 80% or more otherwise, move on as the method says; 50% to 79%, or mostly too hard, the same level with
-  a small step; under 50%, repeat last week's level a little lighter. The running week is never rewritten.
+  a small step; under 50%, repeat last week's level a little lighter. A shorter plan's ready week is told to stay
+  lighter whatever last week was. The running week is never rewritten.
 - On a physical goal (a load goal, from the goal's `measure` and the pathway) code holds the week to numbers
   (plan-safety-limits M2.2a, RULE-5): the week's running total against the base week (last week planned, or done
   when under 70% was done) plus 10% or 10 minutes / 1 km, the longest run, at most 2 hard runs, and each step's

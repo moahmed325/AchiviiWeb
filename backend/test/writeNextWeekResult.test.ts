@@ -12,7 +12,7 @@ vi.mock('../src/lib/ai/weekPlan.js', async (importOriginal) => ({
 }));
 
 import { generateWeekPlan } from '../src/lib/ai/weekPlan.js';
-import { lastWeekOf, readFeel, writeNextWeek } from '../src/lib/planV2.js';
+import { WRITER_NOTE_MAX_CHARS, WRITER_REFLECTION_MAX_CHARS, lastWeekOf, readFeel, writeNextWeek } from '../src/lib/planV2.js';
 
 const goal = {
   id: 'g1',
@@ -71,6 +71,16 @@ describe('lastWeekOf', () => {
   it('adds the reflection only when there is one', () => {
     expect(lastWeekOf(WEEK, '  Busy week ')).toMatchObject({ reflection: 'Busy week' });
     expect(lastWeekOf(WEEK, '   ')).not.toHaveProperty('reflection');
+  });
+
+  it('each note and the reflection go on one line, cut to their limit', () => {
+    const long = [day('Monday', { notes: `line one\n\nline two ${'x'.repeat(WRITER_NOTE_MAX_CHARS)}` })];
+    const [note] = lastWeekOf(long).notes;
+    expect(note.startsWith('Monday: line one line two x')).toBe(true);
+    expect(note).not.toContain('\n');
+    expect(note.length).toBe('Monday: '.length + WRITER_NOTE_MAX_CHARS);
+    expect(note.endsWith('…')).toBe(true);
+    expect(lastWeekOf(long, 'y'.repeat(5000)).reflection).toHaveLength(WRITER_REFLECTION_MAX_CHARS);
   });
 
   it('readFeel keeps the three taps and nothing else', () => {

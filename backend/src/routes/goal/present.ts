@@ -59,19 +59,20 @@ export function nextPlanOfGoal(goal: Record<string, unknown>): { journeyResult: 
 
 /**
  * RULE-3 (B-95, B-98): the update status stays inside. No weekly tests (2026-10-30): a goal made before keeps its
- * stored targets, tests and results, which are never sent, so the app shows no test or target anywhere.
+ * stored targets, tests and results, which are never sent, so the app shows no test or target anywhere. Such a week
+ * (one with a stored test) also wrote its target as `objective` and its test as `keyMilestone`; both are sent empty.
  */
 export function withoutStatus(week: unknown): unknown {
   if (!week || typeof week !== 'object') return week;
   const {
     updateStatus: _status,
     target: _target,
-    test: _test,
+    test,
     testResult: _result,
     retestOfWeek: _retest,
     ...rest
   } = week as Record<string, unknown>;
-  return rest;
+  return test ? { ...rest, objective: '', keyMilestone: '' } : rest;
 }
 
 /** The stored roadmap without what only the weekly tests used (an older goal's final test, checkpoints, lowered targets). */

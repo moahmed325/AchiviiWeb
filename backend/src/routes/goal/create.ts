@@ -71,7 +71,7 @@ export async function readNextPlanRequest(userId: string, body: unknown): Promis
 
   const old = await prisma.goal.findFirst({
     where: { id: request.fromGoalId, userId },
-    include: { roadmapWeeks: { orderBy: { weekNumber: 'asc' } }, dailyTasks: true },
+    include: { roadmapWeeks: { orderBy: { weekNumber: 'asc' } }, dailyTasks: { select: { status: true, isRestDay: true, notOffered: true } } },
   });
   if (!old) return { status: 404, error: 'That plan was not found.' };
   if (old.status !== (mode === 'fresh' ? 'active' : 'completed')) {

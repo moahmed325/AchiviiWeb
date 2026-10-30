@@ -7,7 +7,6 @@ import type { WeekTarget } from '../ai/roadmap.js';
 
 export type TargetFamily = 'running_distance' | 'running_time' | 'lift_load' | 'body_weight' | 'body_fat' | 'calorie_deficit';
 
-type NumberTarget = Extract<WeekTarget, { kind: 'number' }>;
 
 /** What the family reading needs to know about the goal. */
 export interface FamilyContext {

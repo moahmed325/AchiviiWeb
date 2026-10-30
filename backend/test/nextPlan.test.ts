@@ -140,5 +140,8 @@ describe('the roadmap check holds the level they gave (NP-3)', () => {
     expect(sameUnit('km', 'Kilometres')).toBe(true);
     expect(sameUnit('reps', 'rep')).toBe(true);
     expect(sameUnit('kg', 'lb')).toBe(false);
+    expect(sameUnit('ms', 'm')).toBe(false);
+    expect(sameUnit('s', 'ms')).toBe(false);
+    expect(sameUnit('mins', 'minutes')).toBe(true);
   });
 });

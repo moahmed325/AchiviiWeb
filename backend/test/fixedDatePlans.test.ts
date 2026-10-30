@@ -166,6 +166,14 @@ describe('the week call on a shorter plan', () => {
     expect(weekSystem(7)).toContain('following a 7-week plan');
   });
 
+  it('the ready week is told to stay lighter whatever last week was, never a bigger step', () => {
+    const lastWeek = { done: 5, planned: 5, keySessionsSkipped: [], feel: { too_easy: 5, just_right: 0, too_hard: 0 }, notes: [] };
+    const ready = buildWeekPrompt({ ...input, lastWeek }, weekLayout('steady', input.weekStart));
+    expect(ready).toContain('Pace this week: This is the easier week before their date: keep it lighter than last week');
+    expect(ready).not.toContain('bigger step');
+    expect(buildWeekPrompt({ ...input, weekNumber: 6, lastWeek }, weekLayout('steady', input.weekStart))).toContain('bigger step');
+  });
+
   it("no other week has the line, and a 12-week plan's system text is as before", () => {
     expect(buildWeekPrompt({ ...input, weekNumber: 6 }, weekLayout('steady', input.weekStart))).not.toContain('Ready week');
     expect(buildWeekPrompt({ ...input, weekNumber: 12, totalWeeks: 12 }, weekLayout('steady', input.weekStart))).not.toContain('Ready week');

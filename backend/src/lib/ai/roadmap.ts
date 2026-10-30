@@ -106,6 +106,18 @@ const ANSWER_LABELS: Record<string, string> = {
   obstacle: 'Biggest obstacle',
 };
 
+/** The numbers in a text ("1,500 m in 25:30" → 1500, 25, 30). */
+const numbersIn = (text: string): string[] => text.replace(/(\d),(\d{3})/g, '$1$2').match(/\d+(?:\.\d+)?/g) ?? [];
+
+/**
+ * The numbers the person typed in their goal that set how far it goes ("Run 10 km", "Read 12 books"): every number but
+ * the length of time ("in 90 days", "3 months"), which the plan's own length decides.
+ */
+export function statedNumbers(rawGoal: string): string[] {
+  const withoutTime = rawGoal.replace(/\d+(?:[.,]\d+)?\s*(?:days?|weeks?|months?|years?)\b/gi, ' ');
+  return [...new Set(numbersIn(withoutTime))];
+}
+
 /** One unit written several ways. Never a conversion: kg and lb stay apart, as do km and miles. */
 const SAME_UNIT: readonly (readonly string[])[] = [
   ['km', 'kms', 'kilometre', 'kilometres', 'kilometer', 'kilometers'],
@@ -117,9 +129,12 @@ const SAME_UNIT: readonly (readonly string[])[] = [
   ['percent', '%', 'percentage'],
 ];
 
-/** The same unit, written either way ("km" and "kilometres", "rep" and "reps"). */
+/** The same unit, written either way ("km" and "kilometres", "rep" and "reps"); "s" and "ms" stay as they are. */
 export function sameUnit(a: string, b: string): boolean {
-  const one = (unit: string) => unit.trim().toLowerCase().replace(/s$/, '');
+  const one = (unit: string) => {
+    const lower = unit.trim().toLowerCase();
+    return lower.length > 3 ? lower.replace(/s$/, '') : lower;
+  };
   const x = one(a);
   const y = one(b);
   if (x === y) return true;
@@ -404,6 +419,8 @@ export interface RoadmapCheckContext {
   fixedMethod?: FixedMethod;
   /** Next plan (NP-3): `RoadmapInput.measuredStart`. */
   measuredStart?: { value: number; unit: string } | null;
+  /** The numbers the person typed in their goal (`statedNumbers`); `finalGoal` must keep them. */
+  statedNumbers?: string[];
   /** B-109: the plan's length; missing is a 12-week plan. */
   shape?: PlanShape;
 }
@@ -416,6 +433,11 @@ export function checkRoadmapAnswer(data: RawRoadmapAnswer, context: RoadmapCheck
   const shape = context.shape ?? DEFAULT_SHAPE;
   const finalGoal = text(data.finalGoal);
   if (!finalGoal) return { reason: '"finalGoal" is empty.' };
+  // The person's own number is kept (soft: sent back once). A shorter plan may aim at a safe point on the way instead.
+  const missing = shape.readyWeek === null ? (context.statedNumbers ?? []).filter((n) => !numbersIn(finalGoal).includes(n)) : [];
+  if (missing.length > 0 && !lastAttempt) {
+    return { reason: `"finalGoal" must keep the number they gave: ${missing.join(', ')}. Keep their ambition exactly.` };
+  }
 
   const safety = num(data.safety);
   if (safety === null || safety < 1 || safety > 5) return { reason: '"safety" must be a number from 1 to 5.' };
@@ -534,7 +556,7 @@ export async function generateRoadmap(input: RoadmapInput): Promise<RoadmapResul
     roadmapSystem(shape.weeks),
     ROADMAP_RESPONSE_SCHEMA,
     (data, lastAttempt) => {
-      const verdict = checkRoadmapAnswer(data, { fixedMethod, shape, measuredStart: input.measuredStart ?? null }, lastAttempt);
+      const verdict = checkRoadmapAnswer(data, { fixedMethod, shape, measuredStart: input.measuredStart ?? null, statedNumbers: statedNumbers(input.rawGoal) }, lastAttempt);
       lowSafety = 'reason' in verdict && verdict.reason.startsWith('"safety" is');
       return verdict;
     },

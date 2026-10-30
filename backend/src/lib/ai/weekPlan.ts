@@ -168,6 +168,8 @@ const PACE_LINE: Record<Pace, string> = {
   repeat: 'They did under half of last week: repeat last week\'s level, a little lighter, so they can get back into it. Nothing new this week.',
 };
 
+const READY_PACE_LINE = 'This is the easier week before their date: keep it lighter than last week, whatever last week was like.';
+
 export interface WeekCallInput {
   finalGoal: string;
   answers: PlanAnswer[];
@@ -322,7 +324,9 @@ function lastWeekBlock(input: WeekCallInput): string {
   ];
   if (last.notes.length) lines.push('Their notes (take them into account, e.g. an injury, a busy day or something they enjoyed):', ...last.notes.map((note) => `- ${note}`));
   if (last.reflection) lines.push(`Their weekly review: "${last.reflection}"`);
-  lines.push(`Pace this week: ${PACE_LINE[paceOf(last)]}`);
+  // A shorter plan's ready week (B-109) is lighter whatever the pace: its own line says so (`readyWeekLine`).
+  const ready = planShape(input.totalWeeks).readyWeek === input.weekNumber;
+  lines.push(`Pace this week: ${ready ? READY_PACE_LINE : PACE_LINE[paceOf(last)]}`);
   return lines.join('\n');
 }
 
@@ -812,7 +816,7 @@ export function checkWeekAnswer(
         withMinutes(cleanStep(step, false) as ParsedStep, Math.min(REST_STEP_MAX_MINUTES, step.durationMinutes || REST_STEP_MAX_MINUTES))
       );
       // Checked as ranked, so each miss holds the step number the day returns.
-      if (loadGoal) loadMisses.push(...stepLoadMisses(slot.dayNumber, rankSteps(light), false, loadGoal, true));
+      if (loadGoal) loadMisses.push(...stepLoadMisses(slot.dayNumber, rankSteps(light), loadGoal, true));
       days.push({
         dayNumber: slot.dayNumber,
         date: slot.date,
@@ -831,8 +835,6 @@ export function checkWeekAnswer(
       continue;
     }
 
-    // No weekly tests (2026-10-30): no step is the week's test, so none is let through as one.
-    const hasTest = false;
     if (steps.length === 0 || (steps.length < MIN_STEPS && !lastAttempt)) {
       const stop = dayExit(`${label} is a practice day and needs 2 to 4 steps; got ${steps.length}.`, slot, raw, steps);
       if (stop) return stop;
@@ -880,9 +882,9 @@ export function checkWeekAnswer(
     const minutes = input.dailyMinutes;
     const detailedSteps = fitStepMinutes(rankSteps(steps), minutes);
     if (loadGoal) {
-      const misses = stepLoadMisses(slot.dayNumber, detailedSteps, hasTest, loadGoal);
+      const misses = stepLoadMisses(slot.dayNumber, detailedSteps, loadGoal);
       // The 10-minute version needs a load exactly when the day's priority-1 step does; the fallback is code-made.
-      const minimumMissing = modelMinimum ? missingLoad(minimumVersion.load, leadLoadNeed(detailedSteps, hasTest, loadGoal)) : null;
+      const minimumMissing = modelMinimum ? missingLoad(minimumVersion.load, leadLoadNeed(detailedSteps, loadGoal)) : null;
       if (minimumMissing) {
         misses.push({ day: slot.dayNumber, name: `${label} 10-minute version "${minimumVersion.title}"`, stepNumber: null, title: minimumVersion.title, missing: minimumMissing });
       }
@@ -984,9 +986,6 @@ interface Breach {
   rule: SafetyRule;
   matched: string;
   reason: string;
-  /** PSL-3: a rule the stored test itself breaks, on the test step (or a sentence copied from it): logged, not refused. */
-  allowed: boolean;
-  testStep: boolean;
   day?: WeekDayPlan;
   step?: DetailedStep;
   value?: number;
@@ -997,9 +996,8 @@ interface Breach {
  * B-63: the breaches in the high-load steps (a step of a high-load goal, or any step flagged highLoad), the
  * 10-minute version included, as retry reasons. Each hit is logged once as a `[Safety]` line.
  * Plan safety limits M2.2a (RULE-5, RULE-6): on a load goal, also every step's and 10-minute version's load numbers
- * (`stepLoadBreaches`), and the week's running total, longest run and hard runs (`weekBreaches`). A load breach of a rule
- * the stored test's own text breaks is allowed on the test step (PSL-3), never in a light week; one on the test step
- * counts for M1.5b's light-step swap, and a week breach never lets the swap happen.
+ * (`stepLoadBreaches`), and the week's running total, longest run and hard runs (`weekBreaches`). No weekly tests
+ * (2026-10-30): nothing a stored test says is let through, and there is no light-step swap.
  */
 export function safetyBreaches(days: WeekDayPlan[], input: WeekCallInput, lastAttempt = false, log = true): string[] {
   return safetyBreachList(days, input, lastAttempt, log).map((item) => item.reason);
@@ -1014,19 +1012,12 @@ function safetyBreachList(days: WeekDayPlan[], input: WeekCallInput, lastAttempt
   const experiencedLifter = liftCapsRelaxed(input);
   const scan = { light: isLightWeek(input), experiencedLifter };
   const profileHighLoad = (input.recovery?.kinds ?? []).some((kind) => kind.highLoad === true);
-  // The test step runs the roadmap's test as written (a goal stored before B-63 was never checked): what the test itself
-  // says is logged, never refused, or that week could never be written.
-  // No weekly tests (2026-10-30): no stored test's own text is let through any more.
-  const testText: Array<{ rule: SafetyRule; matched: string }> = [];
-  /** On the test step a rule the test itself breaks is allowed; elsewhere only a sentence copied from the test. */
-  const fromTest = (rule: SafetyRule, matched: string | null, testStep: boolean) =>
-    testText.some((item) => item.rule === rule && (testStep || (matched !== null && (matched.includes(item.matched) || item.matched.includes(matched)))));
   for (const day of days) {
     const steps = [...day.detailedSteps, ...(day.minimumVersion ? [day.minimumVersion] : [])];
     for (const step of steps) {
       const name = step === day.minimumVersion ? `Day ${day.dayNumber} 10-minute version "${step.title}"` : `Day ${day.dayNumber} step "${step.title}"`;
+      // B-78: a goal that is high-load only through its profile has a step still titled as a test scanned too.
       const testStep = step !== day.minimumVersion && TEST_STEP.test(step.title);
-      // B-78: a goal that is high-load only through its profile has its test step scanned too.
       if (scan.light || input.highLoadGoal || step.highLoad === true || (testStep && profileHighLoad)) {
         for (const hit of stepSafetyHits(step, input.weekNumber, scan)) {
           hits.push({
@@ -1036,8 +1027,6 @@ function safetyBreachList(days: WeekDayPlan[], input: WeekCallInput, lastAttempt
             rule: hit.rule,
             matched: hit.matched,
             reason: `SAFETY: ${name} says "${hit.matched}". The limit is ${SAFETY_LIMIT_TEXT[hit.rule]}; rewrite it within the limit.`,
-            testStep,
-            allowed: fromTest(hit.rule, hit.matched, testStep),
           });
         }
       }
@@ -1050,23 +1039,19 @@ function safetyBreachList(days: WeekDayPlan[], input: WeekCallInput, lastAttempt
           rule: breach.rule,
           matched: breach.matched,
           reason: `SAFETY: ${name}: ${breach.text} Rewrite it within the limit.`,
-          testStep,
-          // A number is no sentence: only on the test step itself is a rule of the test let through.
-          allowed: testStep && fromTest(breach.rule, null, true),
           value: breach.value,
           limit: breach.limit,
         });
       }
     }
   }
-  const refused = hits.filter((item) => !item.allowed);
   const week = input.loadGoal ? weekLoadBreaches(days, input) : [];
-  if (log) for (const hit of hits) logBreach(hit, input, lastAttempt, hit.allowed ? 'test_text' : lastAttempt ? 'failed' : 'retry');
+  if (log) for (const hit of hits) logBreach(hit, input, lastAttempt, lastAttempt ? 'failed' : 'retry');
   if (log) for (const breach of week) logBreach(breach, input, lastAttempt, lastAttempt ? 'failed' : 'retry');
-  return [...refused, ...week];
+  return [...hits, ...week];
 }
 
-function logBreach(breach: Breach, input: WeekCallInput, lastAttempt: boolean, outcome: 'retry' | 'failed' | 'test_text' | 'light_test' | 'light_retest'): void {
+function logBreach(breach: Breach, input: WeekCallInput, lastAttempt: boolean, outcome: 'retry' | 'failed'): void {
   safetyLog(input, {
     goalId: input.goalId ?? null,
     week: input.weekNumber,
@@ -1103,8 +1088,6 @@ function weekLoadBreaches(days: WeekDayPlan[], input: WeekCallInput): Breach[] {
     rule: breach.rule,
     matched: breach.matched,
     reason: breach.run ? `SAFETY: ${breach.run.name}: ${breach.text} Rewrite the week within the limit.` : `SAFETY: ${breach.text} Rewrite the week within the limit.`,
-    allowed: false,
-    testStep: false,
     value: breach.value,
     limit: breach.limit,
   }));
@@ -1151,20 +1134,20 @@ interface LoadMiss {
 
 /**
  * RULE-4, PSL-8: the steps of one day (ranked, as returned) that need a load and lack it, plus any step whose load
- * names running without `hardRun`. `hasTest`: the model wrote the day's test step.
+ * names running without `hardRun`.
  */
-function stepLoadMisses(day: number, steps: DetailedStep[], hasTest: boolean, loadGoal: LoadGoal, restDay = false): LoadMiss[] {
+function stepLoadMisses(day: number, steps: DetailedStep[], loadGoal: LoadGoal, restDay = false): LoadMiss[] {
   return steps.flatMap((step) => {
     // B-90: a rest-day step has lost its kind (MR-15), so on a running goal one that names running is asked for a run load.
     const restRun = restDay && loadGoal.running && RUNNING_WORDS.test(`${step.title} ${step.instructions ?? ''}`);
-    const missing = missingLoad(step.load, restRun ? 'run' : loadNeed(step, hasTest && TEST_STEP.test(step.title), loadGoal));
+    const missing = missingLoad(step.load, restRun ? 'run' : loadNeed(step, false, loadGoal));
     return missing ? [{ day, name: `Day ${day} step "${step.title}"`, stepNumber: step.stepNumber, title: step.title, missing }] : [];
   });
 }
 
-function leadLoadNeed(steps: DetailedStep[], hasTest: boolean, loadGoal: LoadGoal) {
+function leadLoadNeed(steps: DetailedStep[], loadGoal: LoadGoal) {
   const lead = steps.find((step) => step.priority === 1);
-  return lead ? loadNeed(lead, hasTest && TEST_STEP.test(lead.title), loadGoal) : null;
+  return lead ? loadNeed(lead, false, loadGoal) : null;
 }
 
 /**

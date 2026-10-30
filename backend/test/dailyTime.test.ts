@@ -33,6 +33,8 @@ const week = (weekNumber: number, status: string, extra: Record<string, unknown>
   weekNumber,
   status,
   executionScore: null,
+  objective: '5 km',
+  keyMilestone: 'An old stored test. Pass if: old',
   target: { kind: 'number', metric: 'Old target', value: 5, unit: 'km', direction: 'higher_is_better' },
   test: { type: 'skill', instructions: 'An old stored test', passIf: 'old' },
   testResult: null,
@@ -160,6 +162,8 @@ describe('Daily time in goal responses (weekly update M3.3b)', () => {
         expect(goal.roadmapWeeks.some((w: Record<string, unknown>) => key in w), key).toBe(false);
       }
       expect(store.goal.roadmapWeeks[2].testResult).not.toBeNull();
+      // Such a week stored its target as the objective and its test as the milestone: both go out empty.
+      expect(goal.roadmapWeeks.every((w: Record<string, unknown>) => w.objective === '' && w.keyMilestone === '')).toBe(true);
     });
 
     it('an old roadmap is sent without its final test, checkpoints and lowered targets', async () => {

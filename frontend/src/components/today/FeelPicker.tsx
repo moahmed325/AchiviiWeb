@@ -25,7 +25,8 @@ export const FeelPicker: React.FC<{ task: DailyTask; onAddNote: () => void }> = 
   const value = pending ?? task.feel ?? undefined;
 
   const choose = async (next: string) => {
-    if (!isFeel(next) || next === task.feel) return;
+    // One save at a time, so two quick taps can never finish in the other order.
+    if (!isFeel(next) || next === task.feel || pending) return;
     setPending(next);
     setError(null);
     const result = await saveFeel(task, next);
@@ -35,7 +36,13 @@ export const FeelPicker: React.FC<{ task: DailyTask; onAddNote: () => void }> = 
 
   return (
     <div className="mt-7 max-w-md">
-      <SegmentedControl legend="How did it feel?" options={[...FEEL_OPTIONS]} value={value} onChange={choose} error={error ?? undefined} />
+      <SegmentedControl
+        legend="How did it feel?"
+        options={FEEL_OPTIONS.map((option) => ({ ...option, disabled: pending !== null && option.value !== pending }))}
+        value={value}
+        onChange={choose}
+        error={error ?? undefined}
+      />
       <p role="status" className="mt-3 text-small text-text-secondary">
         {task.feel && !pending ? (
           <>

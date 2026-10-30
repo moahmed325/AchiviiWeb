@@ -71,15 +71,16 @@ export function roadmapWeekRows(goalId: string, roadmap: Roadmap, dailyMinutes: 
   }));
 }
 
-/** `notOfferedBefore` (WU-13, M1.4): every row dated before this local date ('YYYY-MM-DD') is stored not offered. */
 /**
- * A written day's id, given before it is saved (`WeekDayPlan.taskId`): the goal's id and the day of the plan. Unique
- * (one row per goal and day) and the same every time the week is written, so a retried write names the same days.
+ * A written day's id, given before it is saved (`WeekDayPlan.taskId`): the goal's id and the day of the plan
+ * (`dayInWeek` is the week's day 1 to 7). Unique (one row per goal and day) and the same every time the week is
+ * written, so a retried write names the same days.
  */
-export function dayTaskId(goalId: string, weekNumber: number, dayOfWeek: number): string {
-  return `${goalId}-d${(weekNumber - 1) * 7 + dayOfWeek}`;
+export function dayTaskId(goalId: string, weekNumber: number, dayInWeek: number): string {
+  return `${goalId}-d${(weekNumber - 1) * 7 + dayInWeek}`;
 }
 
+/** `notOfferedBefore` (WU-13, M1.4): every row dated before this local date ('YYYY-MM-DD') is stored not offered. */
 export function dailyTaskRows(goalId: string, weekNumber: number, days: WeekDayPlan[], notOfferedBefore?: string) {
   return days.map((day) => ({
     ...(day.taskId ? { id: day.taskId } : {}),
@@ -360,10 +361,20 @@ export function readFeel(value: unknown): Feel | null {
   return typeof value === 'string' && (FEELS as readonly string[]).includes(value) ? (value as Feel) : null;
 }
 
+/** Longest note and reflection the week writer is sent, each on one line; longer ones are cut with "…". */
+export const WRITER_NOTE_MAX_CHARS = 400;
+export const WRITER_REFLECTION_MAX_CHARS = 1000;
+
+/** One line, at most `max` characters: a note can never add lines or headings of its own to the prompt. */
+function promptText(text: string, max: number): string {
+  const line = text.replace(/\s+/g, ' ').trim();
+  return line.length > max ? `${line.slice(0, max - 1).trimEnd()}…` : line;
+}
+
 /**
  * No weekly tests (2026-10-30, docs/features/no-weekly-tests/plan.md section 7): the finished week as the next week is
  * written from it. WU-13: a day not offered is not part of how the week went. The taps count done sessions only; each
- * note keeps its day ("Tuesday: my knee hurt").
+ * note keeps its day ("Tuesday: my knee hurt"), on one line and cut to `WRITER_NOTE_MAX_CHARS`.
  */
 export function lastWeekOf(tasks: readonly DailyTask[], reflection?: string): LastWeekSummary {
   const practice = tasks.filter((task) => !task.isRestDay && !task.notOffered);
@@ -373,7 +384,7 @@ export function lastWeekOf(tasks: readonly DailyTask[], reflection?: string): La
     const tapped = readFeel((task as DailyTask & { feel?: unknown }).feel);
     if (tapped) feel[tapped] += 1;
   }
-  const notes = tasks.flatMap((task) => (task.notes?.trim() ? [`${task.dayOfWeek}: ${task.notes.trim()}`] : []));
+  const notes = tasks.flatMap((task) => (task.notes?.trim() ? [`${task.dayOfWeek}: ${promptText(task.notes, WRITER_NOTE_MAX_CHARS)}`] : []));
   return {
     done: done.length,
     planned: practice.length,
@@ -383,7 +394,7 @@ export function lastWeekOf(tasks: readonly DailyTask[], reflection?: string): La
       .map((task) => `${task.dayOfWeek}: ${task.title}`),
     feel,
     notes,
-    ...(reflection?.trim() ? { reflection: reflection.trim() } : {}),
+    ...(reflection?.trim() ? { reflection: promptText(reflection, WRITER_REFLECTION_MAX_CHARS) } : {}),
   };
 }
 
