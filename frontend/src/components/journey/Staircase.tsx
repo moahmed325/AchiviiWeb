@@ -3,12 +3,18 @@ import type { RoadmapPhase } from '../../types';
 import type { TrendPoint } from '../../lib/dashboard';
 import { formatMetric, type StairStep } from '../../lib/plan';
 
-const W = 640;
+const DEFAULT_W = 640;
 const H = 230;
 const L = 52;
 const R = 18;
 const T = 26;
 const B = 34;
+
+/** A phase name cut to the width its weeks have (11px mono is about 6.7px a character), with an ellipsis when cut. */
+const fitText = (text: string, width: number) => {
+  const chars = Math.max(1, Math.floor(width / 6.7));
+  return text.length <= chars ? text : text.slice(0, Math.max(1, chars - 1)).trimEnd() + '…';
+};
 
 export interface StaircaseProps {
   steps: StairStep[];
@@ -28,6 +34,16 @@ export interface StaircaseProps {
  * check is a dot: filled when it met that week's target, hollow when it didn't. No glow; the steps draw in once.
  */
 export const Staircase: React.FC<StaircaseProps> = ({ steps, start, points, direction, unit, totalWeeks, currentWeek, phases, summary }) => {
+  // Drawn at the width it is shown at, so its labels stay full size on a phone instead of shrinking with the chart.
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [W, setW] = React.useState(DEFAULT_W);
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(([entry]) => setW(Math.max(280, Math.round(entry.contentRect.width))));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const values = [...steps.map((s) => s.target), ...points.map((p) => p.value), ...(start !== null ? [start] : [])];
   const lo = Math.min(...values);
   const hi = Math.max(...values);
@@ -53,11 +69,14 @@ export const Staircase: React.FC<StaircaseProps> = ({ steps, start, points, dire
   const nowX = xAt(currentWeek - 0.5);
 
   return (
+    <div ref={ref}>
     <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={summary} className="stair block h-auto w-full">
       {phases.map((phase, i) => (
         <g key={phase.name + phase.startWeek}>
           {i % 2 === 1 && <rect x={xAt(phase.startWeek - 1)} y={T - 10} width={(phase.endWeek - phase.startWeek + 1) * col} height={H - T - B + 10} className="stair__band" />}
-          <text x={xAt(phase.startWeek - 1) + 6} y={H - 12} className="stair__phase">{phase.name}</text>
+          <text x={xAt(phase.startWeek - 1) + 6} y={H - 12} className="stair__phase">
+            {fitText(phase.name, (phase.endWeek - phase.startWeek + 1) * col - 12)}
+          </text>
         </g>
       ))}
 
@@ -98,5 +117,6 @@ export const Staircase: React.FC<StaircaseProps> = ({ steps, start, points, dire
         );
       })}
     </svg>
+    </div>
   );
 };
