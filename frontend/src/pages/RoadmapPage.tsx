@@ -62,6 +62,12 @@ const RoadmapContent: React.FC<{ journey: JourneyData; goal: Goal }> = ({ journe
           {finish ? ' · finishes ' + finish : ''}
         </p>
         {dateLine && <p className="mt-1 text-small text-text-secondary">{dateLine}</p>}
+        {/* Next plan (NP-8): the plan this one follows. */}
+        {goal.previousPlan && (
+          <p className="mt-1 text-small text-text-secondary">
+            Plan {goal.previousPlan.number}. Plan {goal.previousPlan.number - 1}: {goal.previousPlan.summary}.
+          </p>
+        )}
       </header>
 
       <Climb goal={goal} journey={journey} />

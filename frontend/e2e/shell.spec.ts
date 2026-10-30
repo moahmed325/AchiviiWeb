@@ -345,10 +345,11 @@ test.describe('pathways, account and offline', () => {
     await mockApi(page, { goal: shellGoal() });
     await freePlan(page);
     await signIn(page);
-    await page.goto('/roadmap');
+    // A page with a control in it, so leaving the Account panel by Tab lands in the page (ND-31: the Roadmap has none here).
+    await page.goto('/dashboard');
     await expect(page.locator('main#main')).toBeVisible();
     const order: string[] = [];
-    for (let i = 0; i < 9; i += 1) {
+    for (let i = 0; i < 8; i += 1) {
       await page.keyboard.press('Tab');
       order.push(
         await page.evaluate(() => {
