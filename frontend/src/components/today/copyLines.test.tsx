@@ -106,7 +106,8 @@ describe("section 6's app lines and step texts, word for word (M4.1b requirement
     expect(await screen.findByText(NOT_SAVED)).toBeInTheDocument();
     unmount();
     render(<FeelPicker task={{ ...done, feel: 'too_hard' } as DailyTask} onAddNote={() => {}} />);
-    expect(screen.getByRole('status')).toHaveTextContent('Thanks. Next week takes it into account. Add a note');
+    expect(screen.getByRole('status')).toHaveTextContent('Thanks. Next week takes it into account.');
+    expect(screen.getByRole('button', { name: 'Add a note' })).toBeInTheDocument();
     expectClean(screen.getByRole('status').textContent ?? '');
   });
 });

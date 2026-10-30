@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { DailyTask, Feel } from '../../types';
-import { SegmentedControl, TextLink } from '../ui';
+import { Button, SegmentedControl } from '../ui';
 import { NOT_SAVED } from '../../lib/weekClose';
 import { useTaskActions } from './useTaskActions';
 
@@ -43,20 +43,16 @@ export const FeelPicker: React.FC<{ task: DailyTask; onAddNote: () => void }> = 
         onChange={choose}
         error={error ?? undefined}
       />
-      <p role="status" className="mt-3 text-small text-text-secondary">
-        {task.feel && !pending ? (
-          <>
-            Thanks. Next week takes it into account.{' '}
-            <TextLink asChild>
-              <button type="button" onClick={onAddNote}>
-                Add a note
-              </button>
-            </TextLink>
-          </>
-        ) : (
-          'Optional. Next week is planned from what you did and how it felt.'
+      <div className="mt-3 flex flex-wrap items-center gap-x-3">
+        <p role="status" className="text-small text-text-secondary">
+          {task.feel && !pending ? 'Thanks. Next week takes it into account.' : 'Optional. Next week is planned from what you did and how it felt.'}
+        </p>
+        {task.feel && !pending && (
+          <Button type="button" variant="quiet" size="sm" className="-ml-4" onClick={onAddNote}>
+            Add a note
+          </Button>
         )}
-      </p>
+      </div>
     </div>
   );
 };

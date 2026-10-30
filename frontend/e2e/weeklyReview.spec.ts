@@ -94,10 +94,9 @@ test.describe('Weekly Review Flow (M7.2)', () => {
     await expect(dialog.getByText('Great week! Next week will build on this momentum.')).toBeVisible();
     await expect(dialog.getByText('Focus')).toBeVisible();
     await expect(dialog.getByText('Form & Consistency')).toBeVisible();
-    await expect(dialog.getByText('Target', { exact: true })).toBeVisible();
-    await expect(dialog.getByText('First working milestone deliverable').first()).toBeVisible();
-    await expect(dialog.getByText('Weekly test')).toBeVisible();
-    await expect(dialog.getByText('Execute 5 continuous practice rounds').first()).toBeVisible();
+    // No weekly tests (ND-31): no target or test in the review, even when an older week stored them.
+    await expect(dialog.getByText('Target', { exact: true })).toHaveCount(0);
+    await expect(dialog.getByText('Weekly test')).toHaveCount(0);
 
     // Reflection input field
     const textarea = dialog.getByPlaceholder(/Morning sessions went well/i);
