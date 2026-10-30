@@ -1,7 +1,7 @@
 # Plan v2 spec
 
 Custom goal → 12-week plan (or a shorter one before a fixed date), one week written at a time from what the person
-did. **No weekly tests (2026-10-30, `docs/features/no-weekly-tests/plan.md`, decisions.md ND-31):** there are no weekly
+did. **No weekly tests (2026-10-30, `docs/features/no-weekly-tests/plan.md`, decisions.md ND-33):** there are no weekly
 targets, tests, checkpoints or final test, and no weekly update call. Each week has a focus inside the method's
 phases; the next week is written from last week's sessions done, how they felt and the person's notes.
 
@@ -36,7 +36,7 @@ its code were removed. A goal that is not plan v2 gets a refusal (`not_plan_v2`)
 **Goals made before the weekly tests went** keep their stored `RoadmapWeek.target`, `test`, `testResult`,
 `retestOfWeek`, `updateStatus` and `Goal.roadmap.finalTest`, `checkpoints`, `loweredTargets`. Nothing reads or writes
 them any more (the safety limits read an old week's number target when the goal has no `measure`), the goal response
-leaves them out (`presentGoal`), and a stored test day is an ordinary session. Dropping the columns is backlog B-110.
+leaves them out (`presentGoal`), and a stored test day is an ordinary session. Dropping the columns is backlog B-111.
 
 ## Decisions
 

@@ -10,7 +10,6 @@ import {
   findNextTask,
   isAheadDay,
   isToday,
-  isWeekReviewDue,
   reviewOpensOn,
   isClosingStretchActive,
   isRestLike,
@@ -29,14 +28,13 @@ import { Badge, Button, ErrorState, Field, IconButton, LoadingState, Skeleton, T
 import { FocusSessionModal, type FocusCompletionOptions } from '../FocusSessionModal';
 import type { SessionProgress } from '../focus/FocusCompletion';
 import { BasisBadge } from '../BasisBadge';
-import { WeeklyReviewModal } from '../review';
 import { ClosingStretchView } from './ClosingStretchView';
 import { DailyTimeCard } from './DailyTimeCard';
 import { FeelPicker } from './FeelPicker';
 import { CLOSE_FAILED } from './WeekClose';
 import { closeLineWeek } from '../../lib/weekClose';
 import { fixedDateLine } from '../../lib/fixedDate';
-import { closingStartDay, planDays, planWeeks } from '../../lib/planLength';
+import { planDays } from '../../lib/planLength';
 import { markCloseLineSeen } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTaskActions } from './useTaskActions';
@@ -251,7 +249,7 @@ const WeekGlance: React.FC<{
   const { practiceDays, practiceDone } = weekProgress(tasks);
   const complete = practiceDays > 0 && practiceDone >= practiceDays;
   return (
-    <section aria-labelledby="week-heading" className="dash-panel animate-rise-in relative mt-6 p-5 sm:p-8" style={stagger(240)}>
+    <section aria-labelledby="week-heading" className="animate-rise-in relative mt-8 px-1" style={stagger(240)}>
       <div className="flex items-baseline justify-between gap-4">
         <h2 id="week-heading" className="font-ui-mono text-micro uppercase text-text-secondary">
           This week
@@ -260,8 +258,7 @@ const WeekGlance: React.FC<{
           {complete ? 'Every session done' : `${practiceDone} of ${practiceDays} practice ${practiceDays === 1 ? 'day' : 'days'} done`}
         </p>
       </div>
-      {/* The day buttons reach into the card's side padding on a phone, so each stays a 44 px target at 360 px. */}
-      <ul className="-mx-5 mt-4 grid grid-cols-7 sm:mx-0 sm:mt-5 sm:gap-1">
+      <ul className="-mx-1 mt-3 grid grid-cols-7 sm:gap-1">
         {tasks.map((task) => {
           const selected = task.id === selectedId;
           const today = isToday(task, now, timezone);
@@ -310,7 +307,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const [selectedId, setSelectedId] = useState<string>();
   const [focusOpen, setFocusOpen] = useState(false);
   const [focusStart, setFocusStart] = useState<'full' | 'minimum'>('full');
-  const [reviewOpen, setReviewOpen] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [openSteps, setOpenSteps] = useState<ReadonlySet<number>>(new Set());
@@ -364,7 +360,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const intention = parseIntention(shown?.implementationIntention);
   const week = currentRoadmapWeek(goal);
   const day = dayNumber(goal, now, timezone);
-  const journeyPercent = Math.min(100, Math.max(2, Math.round((day / planDays(goal)) * 100)));
   // A day not offered is never done here (the server never classifies it done).
   const done = task?.status === 'completed' && !task.notOffered;
   const nextTask = task ? findNextTask(tasks, task.id) : null;
@@ -390,7 +385,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const focusWins = parsedNotes.focusWins;
   const draft = task ? drafts[task.id] : undefined;
   const freeformValue = draft !== undefined ? draft : parsedNotes.freeformNotes;
-  const reviewDue = isWeekReviewDue(tasks, now, timezone);
   const reviewOpensDay = reviewOpensOn(tasks, now, timezone);
   const isClosingStretch = isClosingStretchActive(goal, now, timezone);
   // The miss notice belongs to Today's view of today only, never to another selected day (M3.1 R4).
@@ -472,7 +466,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
 
   return (
     <main id="main" className="ui-root relative mx-auto w-full max-w-3xl flex-1 px-gutter py-10 text-left sm:py-14">
-      <div aria-hidden="true" className="dash-glow" />
       <PathwayNotice />
 
       {apiStatus === 'offline' && (
@@ -494,11 +487,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
           {week?.phase && !isClosingStretch && <> · {week.phase}</>}
         </p>
         <h1 className="mt-3 max-w-2xl break-words text-h3 text-text-secondary">{goal.rawGoal}</h1>
-        <div aria-hidden="true" className="today-thread mt-5">
-          <div className="dash-journey" style={{ '--dash-progress': `${journeyPercent}%` } as React.CSSProperties}>
-            <div className="dash-journey__fill" />
-          </div>
-        </div>
         {/* B-106: a goal with a fixed date shows it next to the plan's end. */}
         {dateLine && <p className="mt-3 text-small text-text-secondary">{dateLine}</p>}
         {goal.basis?.label && (
@@ -524,32 +512,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         </Callout>
       )}
 
-      {reviewDue && (
-        <section
-          aria-labelledby="review-due-heading"
-          className="dash-panel animate-rise-in relative mt-10 border-achievement/35 p-6 sm:p-8"
-          style={stagger(120)}
-        >
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <Badge tone="achievement">Review due</Badge>
-              <h2 id="review-due-heading" className="mt-3 text-h3 text-text">
-                Week {goal.currentWeek || 1} is ready for review
-              </h2>
-              <p className="mt-2 max-w-md text-small text-text-secondary">
-                {goal.currentWeek && goal.currentWeek >= planWeeks(goal)
-                  ? `You've reached the end of Week ${planWeeks(goal)}. Complete this review to unlock your final closing stretch${
-                      closingStartDay(goal) <= planDays(goal) ? ` (days ${closingStartDay(goal)}–${planDays(goal)})` : ''
-                    }.`
-                  : "You've reached the end of this week's scheduled practice. Reflect on your progress and adapt next week's path."}
-              </p>
-            </div>
-            <Button type="button" variant="primary" className="shrink-0 sm:min-w-44" onClick={() => setReviewOpen(true)}>
-              Start weekly review
-            </Button>
-          </div>
-        </section>
-      )}
 
       {/* Weekly update M3.3b (AC-5): the daily-time question after two hard weeks, once. */}
       <DailyTimeCard check={goal.dailyTimeCheck} />
@@ -801,18 +763,11 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-body font-medium text-text">Week {goal.currentWeek || 1} practice complete.</p>
-                        <p className="mt-0.5 text-small text-text-secondary">
-                          {reviewOpensDay ? `Weekly review opens on ${reviewOpensDay}.` : 'Weekly review ready.'}
-                        </p>
-                      </div>
-                      {!reviewOpensDay && !reviewDue && (
-                        <Button type="button" variant="secondary" size="sm" onClick={() => setReviewOpen(true)}>
-                          Start weekly review
-                        </Button>
-                      )}
+                    <div>
+                      <p className="text-body font-medium text-text">Week {goal.currentWeek || 1} practice complete.</p>
+                      <p className="mt-0.5 text-small text-text-secondary">
+                        {reviewOpensDay ? `Next week opens after ${reviewOpensDay}.` : 'Next week opens tomorrow.'}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -960,17 +915,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         />
       )}
 
-      <WeeklyReviewModal
-        isOpen={reviewOpen}
-        onClose={() => setReviewOpen(false)}
-        goal={goal}
-        token={token || ''}
-        onGoalUpdated={goalContext.updateActiveGoal}
-        onWeekClosed={() => void goalContext.refreshGoal()}
-        onChoiceNeeded={() => void goalContext.reloadPlan()}
-        timezone={timezone}
-        apiStatus={apiStatus}
-      />
     </main>
   );
 };

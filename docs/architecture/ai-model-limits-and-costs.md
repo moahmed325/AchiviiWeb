@@ -17,7 +17,7 @@ Written 2026-10-15 for Mo (B-28). Prices and limits change often. Check the two 
 | Closes a week, by review or automatically (next week) | 1 | about 3 (the week call retries once, and busy errors are retried) |
 | Anything else (Today, Focus, ticking steps, missed days) | 0 | 0 |
 
-Since 2026-10-28 `CUSTOM_RECOVERY_PROFILES_ENABLED` is on, so a custom goal makes the profile call. The weekly update call went with the weekly tests on 2026-10-30 (ND-31), so a week close makes only the week call. The last week has no week after it, so its close makes no call.
+Since 2026-10-28 `CUSTOM_RECOVERY_PROFILES_ENABLED` is on, so a custom goal makes the profile call. The weekly update call went with the weekly tests on 2026-10-30 (ND-33), so a week close makes only the week call. The last week has no week after it, so its close makes no call.
 
 So, roughly: **a new user costs about 3 calls on day 1 (4 for a custom goal), and then about 1 call a week.**
 

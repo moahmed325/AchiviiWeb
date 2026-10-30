@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { mockApi, signIn } from './mockApi';
 import { shellGoal } from './shellFixtures';
 
-// Next plan (docs/features/next-plan): the end screen leads with what they did (NP-1, NP-2; no weekly tests, ND-31); with
+// Next plan (docs/features/next-plan): the end screen leads with what they did (NP-1, NP-2; no weekly tests, ND-33); with
 // Pro it offers the next plan, which asks a measured goal's level now and opens goal creation starting from it (NP-3,
 // NP-6, NP-10); without Pro there is no next plan and no Pro line (NP-7); the new plan's Progress names the plan it
 // follows (NP-8).
@@ -68,9 +68,9 @@ test('free: no next plan and no Pro line on the end screen', async ({ page }) =>
   await expect(page.getByText(/\bPro\b/)).toHaveCount(0);
 });
 
-test('the next plan’s Progress names the plan it follows', async ({ page }) => {
+test('the next plan’s Roadmap names the plan it follows (ND-31: Progress is part of it)', async ({ page }) => {
   await mockApi(page, { goal: { ...shellGoal(), previousPlan: { goalId: 'old', number: 2, mode: 'keep_going', summary: '3 km → 8 km' } } });
   await signIn(page);
-  await page.goto('/progress');
+  await page.goto('/roadmap');
   await expect(page.getByText('Plan 2. Plan 1: 3 km → 8 km.')).toBeVisible();
 });

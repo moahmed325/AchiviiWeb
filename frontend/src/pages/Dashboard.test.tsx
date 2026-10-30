@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Dashboard } from './Dashboard';
 import { useGoal } from '../context/GoalContext';
@@ -109,18 +109,7 @@ describe('Dashboard', () => {
     expect(screen.getByText(/2 steps/)).toBeInTheDocument();
   });
 
-  it("this week's panel: sessions done of planned, the focus and the goal; no target or measured number (no weekly tests)", () => {
-    const goal = buildGoal('pending');
-    goal.roadmap = { finalGoal: 'Run 10 km without stopping', startingPoint: { value: 3, description: '' }, phases: [] } as unknown as Goal['roadmap'];
-    renderWith(goal);
-
-    const panel = screen.getByRole('region', { name: 'This week' });
-    expect(within(panel).getByText(/of \d+/)).toBeInTheDocument();
-    expect(within(panel).getByText('Building Volume')).toBeInTheDocument();
-    expect(within(panel).getByText('Your goal: Run 10 km without stopping')).toBeInTheDocument();
-    expect(screen.queryByText(/gap to your goal|New best|Next check|milestones reached/)).not.toBeInTheDocument();
-  });
-
+  // ND-31: the Dashboard has no goal box; the goal's own page is the Roadmap (RoadmapPage.test.tsx).
   it('celebrates a finished day, counts it, and leads back to Today without starting anything', () => {
     renderWith(buildGoal('completed'));
 

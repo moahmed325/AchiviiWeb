@@ -372,7 +372,7 @@ const retestGoal = () => {
 test.describe('the daily-time card (weekly update M3.3b)', () => {
   test('after two hard weeks: Make it shorter, then 45 min', async ({ page }) => {
     const calls = await openToday(page, { goal: retestGoal() });
-    // No weekly tests (ND-31): no re-test line or entry.
+    // No weekly tests (ND-33): no re-test line or entry.
     await expect(page.getByRole('button', { name: 'Log re-test result' })).toHaveCount(0);
     const card = page.getByRole('region', { name: 'Does 60 minutes a day still work?' });
     await card.scrollIntoViewIfNeeded();

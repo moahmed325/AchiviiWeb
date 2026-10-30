@@ -54,7 +54,7 @@ const entryNames = async (page: Page) =>
     .evaluateAll((items) => items.map((item) => (item.textContent ?? '').replace(/\s+/g, ' ').trim()));
 
 test.describe('entries', () => {
-  test('with a goal: Dashboard (Home on mobile), Today, Roadmap, Progress, Pathways, Coach and Account, and nothing else', async ({
+  test('with a goal: Dashboard (Home on mobile), Today, Roadmap, Pathways, Coach and Account (ND-31), and nothing else', async ({
     page,
     isMobile,
   }) => {
@@ -66,11 +66,10 @@ test.describe('entries', () => {
 
     const names = await entryNames(page);
     const home = isMobile ? 'Home' : 'Dashboard';
-    expect(names.map((name) => name.replace(/e2e@example\.com$/, ''))).toEqual([home, 'Today', 'Roadmap', 'Progress', 'Pathways', 'Coach ✦', 'Account']);
+    expect(names.map((name) => name.replace(/e2e@example\.com$/, ''))).toEqual([home, 'Today', 'Roadmap', 'Pathways', 'Coach ✦', 'Account']);
     await expect(primary(page).getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
     await expect(primary(page).getByRole('link', { name: home })).not.toHaveAttribute('aria-current');
     await expect(primary(page).getByRole('link', { name: 'Roadmap' })).not.toHaveAttribute('aria-current');
-    await expect(primary(page).getByRole('link', { name: 'Progress' })).not.toHaveAttribute('aria-current');
     await expect(primary(page).getByText(/Journey|coming soon/i)).toHaveCount(0);
     await expect(page.getByText(/Achivii ©/)).toHaveCount(0);
     await expect(page.getByRole('banner')).toHaveCount(0);
@@ -86,7 +85,7 @@ test.describe('entries', () => {
     }
   });
 
-  test('without a goal: no Dashboard, Roadmap or Progress, and / still invites a pathway', async ({ page }) => {
+  test('without a goal: no Dashboard or Roadmap, and / still invites a pathway', async ({ page }) => {
     await mockApi(page, { goal: null });
     await signIn(page);
     await page.goto('/');
@@ -328,7 +327,9 @@ test.describe('pathways, account and offline', () => {
     } else {
       await expect(trigger).toHaveAttribute('aria-expanded', 'true');
       await page.keyboard.press('Tab');
-      // B-108: Edit my schedule comes first in the panel.
+      // ND-32: the first name comes first in the panel (Save stays disabled until it changes), then Edit my schedule (B-108).
+      await expect(page.getByRole('textbox', { name: 'Your first name' })).toBeFocused();
+      await page.keyboard.press('Tab');
       await expect(page.getByRole('button', { name: 'Edit my schedule' })).toBeFocused();
       await page.keyboard.press('Tab');
       await expect(page.getByRole('button', { name: 'Reset 90-Day Plan' })).toBeFocused();
@@ -346,10 +347,11 @@ test.describe('pathways, account and offline', () => {
     await mockApi(page, { goal: shellGoal() });
     await freePlan(page);
     await signIn(page);
-    await page.goto('/roadmap');
+    // A page with a control in it, so leaving the Account panel by Tab lands in the page (ND-31: the Roadmap has none here).
+    await page.goto('/dashboard');
     await expect(page.locator('main#main')).toBeVisible();
     const order: string[] = [];
-    for (let i = 0; i < 9; i += 1) {
+    for (let i = 0; i < 8; i += 1) {
       await page.keyboard.press('Tab');
       order.push(
         await page.evaluate(() => {
@@ -358,8 +360,10 @@ test.describe('pathways, account and offline', () => {
         }),
       );
     }
-    expect(order).toEqual(['Skip to content', 'Achivii, home', 'Dashboard', 'Today', 'Roadmap', 'Progress', 'Pathways', 'Coach ✦', 'Account']);
+    expect(order).toEqual(['Skip to content', 'Achivii, home', 'Dashboard', 'Today', 'Roadmap', 'Pathways', 'Coach ✦', 'Account']);
     await page.keyboard.press('Enter');
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('textbox', { name: 'Your first name' })).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(page.getByRole('button', { name: 'Edit my schedule' })).toBeFocused();
     await page.keyboard.press('Tab');

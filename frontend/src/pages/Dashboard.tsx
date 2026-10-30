@@ -2,13 +2,12 @@ import React from 'react';
 import { ArrowRight, Check, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useGoal } from '../context/GoalContext';
-import { useUserTimezone } from '../context/AuthContext';
+import { useFirstName, useUserTimezone } from '../context/AuthContext';
 import {
   currentRoadmapWeek,
   currentWeekTasks,
   dayNumber,
   isClosingStretchActive,
-  isWeekReviewDue,
   missNotice,
   selectTodayTask,
   weekProgress,
@@ -20,7 +19,7 @@ import { doneDaysOf, visibleDay } from '../lib/stepLines';
 import { GettingReady } from '../components/today/WeekClose';
 import { Momentum } from '../components/dashboard/Momentum';
 import { JourneyMap } from '../components/dashboard/JourneyMap';
-import { GoalProgress } from '../components/dashboard/GoalProgress';
+import { NameForm } from '../components/dashboard/NameForm';
 import { planDays } from '../lib/planLength';
 
 export const DashboardSkeleton: React.FC = () => (
@@ -91,12 +90,14 @@ const EmptyShell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 
 /**
  * ND-29: the Dashboard answers "how am I doing" (ND-19 keeps it an overview; Today is where a step is done). Today's
- * session sits first with one way in; below it, the whole plan as a map of days and this week's progress. Every
+ * session sits first with one way in; below it, the whole plan as a map of days (the goal's own measure is on the Plan page). Every
  * number is real stored state, and the page writes nothing.
  */
 export const Dashboard: React.FC = () => {
   const { activeGoal, loadingGoal, goalLoadFailed, refreshGoal, reconciliation, closingWeek } = useGoal();
   const timezone = useUserTimezone();
+  const { firstName, setFirstName } = useFirstName();
+  const [naming, setNaming] = React.useState(false);
   const [now] = React.useState(() => new Date());
   if (closingWeek) return <GettingReady />;
   if (loadingGoal) return <DashboardSkeleton />;
@@ -119,7 +120,6 @@ export const Dashboard: React.FC = () => {
   const { practiceDays, practiceDone } = weekProgress(tasks);
   const isDone = task?.status === 'completed';
   const isRest = Boolean(task?.isRestDay) && !isDone;
-  const reviewDue = (isDone || isRest || !task) && isWeekReviewDue(tasks, now, timezone);
   const dateLabel = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', timeZone: timezone });
   const stagger = (ms: number): React.CSSProperties => ({ animationDelay: ms + 'ms' });
 
@@ -139,52 +139,54 @@ export const Dashboard: React.FC = () => {
   const daysLeft = Math.max(0, totalDays - day);
   const mapSummary = totals.daysDone + ' of ' + totals.daysSoFar + ' practice days done so far. Day ' + day + ' of ' + totalDays + '.';
 
-  // GoalProgress has nothing to show for a week with no focus and no practice day.
-  const goalPanel = Boolean(week?.theme) || practiceDays > 0;
-
-  const eyebrow = reviewDue ? 'Weekly review' : isDone ? 'Done for today' : isRest ? 'Rest day' : 'Today';
-  const heading = reviewDue
-    ? 'Your week is ready to review.'
-    : isDone
+  const eyebrow = isDone ? 'Done for today' : isRest ? 'Rest day' : 'Today';
+  const heading = isDone
       ? 'Today is done.'
       : isRest
         ? 'Rest is part of the plan.'
         : task?.title || 'Your next session is ready.';
-  const support = reviewDue
-    ? 'Two minutes looking back shapes next week.'
-    : isDone
+  const support = isDone
       ? 'Session ' + totals.sessionsDone + ' is in the books. Come back tomorrow.'
       : isRest
         ? 'Nothing is due today. Let the work settle in.'
         : task?.whyToday;
-  const cta = reviewDue ? 'Review the week' : isDone || isRest ? 'See today' : gentle ? 'Start the 10-minute version' : 'Start session';
-  const startsSession = !reviewDue && !isDone && !isRest && Boolean(task);
+  const cta = isDone || isRest ? 'See today' : gentle ? 'Start the 10-minute version' : 'Start session';
+  const startsSession = !isDone && !isRest && Boolean(task);
 
   return (
     <main id="main" className="ui-root relative mx-auto w-full max-w-5xl flex-1 px-gutter py-10 sm:py-16">
-      <div aria-hidden="true" className="dash-glow" />
 
       <header className="animate-rise-in relative grid items-end gap-8 sm:grid-cols-[1fr_auto]" style={stagger(0)}>
         <div className="min-w-0">
           <p className="font-ui-mono text-micro uppercase text-achievement">{dateLabel}</p>
-          <h1 className="mt-4 text-h1 text-text">{greetingFor(now, timezone)}.</h1>
+          <h1 className="mt-4 text-h1 text-text">
+            {greetingFor(now, timezone)}
+            {firstName ? ', ' + firstName : ''}.
+          </h1>
+          {!firstName && setFirstName && (
+            naming ? (
+              <div className="mt-4 max-w-sm"><NameForm label="What should we call you?" onSaved={() => setNaming(false)} /></div>
+            ) : (
+              <Button variant="quiet" size="sm" className="-ml-4 mt-2" onClick={() => setNaming(true)}>Add your name</Button>
+            )
+          )}
           <p className="mt-5 max-w-xl text-body-lg text-text">{status}</p>
           <p className="mt-2 line-clamp-2 max-w-xl text-small text-text-secondary">{activeGoal.rawGoal}</p>
         </div>
         <Momentum goalId={activeGoal.id} sessions={totals.sessionsDone} minutes={totals.minutesPractised} />
       </header>
 
-      <div className={'relative mt-12 grid gap-5' + (goalPanel ? ' lg:grid-cols-[1.4fr_1fr]' : '')}>
+      <div className="relative mt-12">
         <section
           aria-labelledby="next-heading"
-          className={'dash-card dash-card--glow animate-rise-in flex flex-col p-7 sm:p-10' + (isDone ? ' today-done' : '')}
+          className={'dash-card animate-rise-in flex flex-col p-7 sm:p-10' + (isDone ? ' today-done' : '')}
           style={stagger(120)}
         >
           <div className="flex items-center justify-between gap-3">
             <p className="font-ui-mono text-micro uppercase text-achievement">{eyebrow}</p>
             {startsSession && task?.isKeySession ? <Badge tone="achievement">Key session</Badge> : null}
           </div>
-          {isDone && !reviewDue && (
+          {isDone && (
             <span className="dash-done-mark mt-6" aria-hidden="true">
               <Check strokeWidth={2.25} className="size-6" />
             </span>
@@ -200,7 +202,7 @@ export const Dashboard: React.FC = () => {
           <div className="mt-auto flex flex-wrap items-center gap-3 pt-8">
             <Button
               asChild
-              variant={startsSession || reviewDue ? 'gold' : 'secondary'}
+              variant={startsSession ? 'gold' : 'secondary'}
               size="lg"
               trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-5" />}
             >
@@ -209,14 +211,9 @@ export const Dashboard: React.FC = () => {
           </div>
         </section>
 
-        {goalPanel && (
-          <div className="animate-rise-in flex min-w-0" style={stagger(220)}>
-            <GoalProgress goal={activeGoal.roadmap?.finalGoal ?? activeGoal.clarifiedOutcome} focus={week?.theme} done={practiceDone} planned={practiceDays} />
-          </div>
-        )}
       </div>
 
-      <section aria-labelledby="map-heading" className="dash-panel animate-rise-in relative mt-5 grid gap-8 p-7 sm:p-8 md:grid-cols-[minmax(0,14rem)_1fr] md:items-center" style={stagger(320)}>
+      <section aria-labelledby="map-heading" className="dash-panel animate-rise-in relative mt-5 grid gap-8 p-7 sm:p-8 md:grid-cols-[12rem_minmax(0,1fr)] md:items-center md:gap-12" style={stagger(320)}>
         <div>
           <h2 id="map-heading" className="font-ui-mono text-micro uppercase text-text-secondary">Your {totalDays} days</h2>
           <p className="mt-5 flex items-baseline gap-2">
@@ -229,7 +226,7 @@ export const Dashboard: React.FC = () => {
             <span className="block">{daysLeft > 1 ? daysLeft + ' days to go' : daysLeft === 1 ? '1 day to go' : 'Final day'}</span>
           </p>
         </div>
-        <JourneyMap days={days} phases={activeGoal.roadmap?.phases ?? []} summary={mapSummary} />
+        <div className="flex justify-center md:justify-end"><JourneyMap days={days} summary={mapSummary} /></div>
       </section>
     </main>
   );

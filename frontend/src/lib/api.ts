@@ -328,24 +328,6 @@ export async function updateDailyTask(
   return data.task;
 }
 
-export async function submitWeeklyReview(
-  weekNumber: number,
-  reflection: string,
-  token: string
-): Promise<import('../types').WeeklyReviewResponse> {
-  const payload = { reflection };
-  const response = await fetch(`${API_BASE_URL}/api/goal/weeks/${weekNumber}/review`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  return readJson(response, 'Failed to submit weekly review');
-}
-
 export async function resetActiveGoal(token: string): Promise<boolean> {
   const response = await fetch(`${API_BASE_URL}/api/goal/active`, {
     method: 'DELETE',
