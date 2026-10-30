@@ -5,7 +5,7 @@ import { useGoal } from '../context/GoalContext';
 import { useUserTimezone } from '../context/AuthContext';
 import { dayNumber, isRestLike } from '../lib/today';
 import { LoadingState, Skeleton, Button } from '../components/ui';
-import { WeekBreakdownList, BenchmarkResultsCard, AdaptationHistoryList } from '../components/progress';
+import { WeekBreakdownList, AdaptationHistoryList } from '../components/progress';
 import { planLengthLabel, planWeeks } from '../lib/planLength';
 
 const ProgressSkeleton: React.FC = () => (
@@ -150,7 +150,6 @@ export const ProgressPage: React.FC = () => {
         {showDetails && (
           <div className="mt-7 space-y-10">
             <WeekBreakdownList goal={activeGoal} />
-            <BenchmarkResultsCard goal={activeGoal} />
             <AdaptationHistoryList goal={activeGoal} />
           </div>
         )}

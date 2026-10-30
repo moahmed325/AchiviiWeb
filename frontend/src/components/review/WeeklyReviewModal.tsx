@@ -1,25 +1,16 @@
 import React, { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
-import type { Goal, WeeklyReviewResponse, WeeklyTestResult } from '../../types';
+import type { Goal, WeeklyReviewResponse } from '../../types';
 import { ApiError, saveClosedWeekReflection, submitWeeklyReview } from '../../lib/api';
-import {
-  clearReviewDraft,
-  loadReviewDraft,
-  loadTestResultDraft,
-  saveReviewDraft,
-  saveTestResultDraft,
-} from '../../lib/reviewDraft';
+import { clearReviewDraft, loadReviewDraft, saveReviewDraft } from '../../lib/reviewDraft';
 import { Dialog, DialogContent } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { ReviewSummaryCard } from './ReviewSummaryCard';
-import { ReviewTestResultStep } from './ReviewTestResultStep';
 import { ReviewReflectionStep } from './ReviewReflectionStep';
 import { AdaptationMomentStep } from './AdaptationMomentStep';
-import { week12NoteText } from '../../lib/week12Line';
 import { isRestLike, reviewOpensOn } from '../../lib/today';
-import { isLightTest } from '../../lib/lightTest';
 import { WEEK_CLOSED_LINES } from '../../lib/weekClose';
-import { finalWeekOf, planWeeks } from '../../lib/planLength';
+import { planWeeks } from '../../lib/planLength';
 
 export interface WeeklyReviewModalProps {
   isOpen: boolean;
@@ -40,9 +31,8 @@ export type ReviewModalStep = 'review' | 'adaptation';
 
 /**
  * Weekly Review Modal (Phase 7 — BP §17–19, §33, VDS §26, OD-1a).
- * Guides user through "How did this week go?", captures weekly reflection and
- * optional benchmark test result with target comparison, persists drafts across
- * reloads/dismissals, handles 503/offline retry recovery, presents the post-submission
+ * Guides user through "How did this week go?", captures the weekly reflection (next week's writer reads it; no
+ * weekly tests since 2026-10-30), persists drafts across reloads/dismissals, handles 503/offline retry recovery, presents the post-submission
  * Adaptation Moment showing that next week was rebuilt from actual execution,
  * and handles encouraging phase-gate milestones.
  */
@@ -78,19 +68,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
   const [reflection, setReflection] = useState(() =>
     goal?.id ? loadReviewDraft(goal.id, currentWeekNum) : ''
   );
-  // M4.1: a result logged earlier (stored on the week) comes first, then the local draft.
-  const storedTestResult = activeWeek?.testResult ?? null;
-  const [testResult, setTestResult] = useState<WeeklyTestResult | null>(() =>
-    storedTestResult ?? (goal?.id ? loadTestResultDraft(goal.id, currentWeekNum) : null)
-  );
-  const [prevStored, setPrevStored] = useState(storedTestResult);
   const [prevOpen, setPrevOpen] = useState(isOpen);
-
-  // A result logged after this modal mounted (the late-test card) replaces what the step holds.
-  if (storedTestResult !== prevStored) {
-    setPrevStored(storedTestResult);
-    if (storedTestResult) setTestResult(storedTestResult);
-  }
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   // B-59: the server answered 409 `week_closed`; nothing is left to submit, and the goal is reloaded on close.
@@ -98,7 +76,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
   const [adaptationData, setAdaptationData] = useState<WeeklyReviewResponse | null>(null);
   const [updatedGoal, setUpdatedGoal] = useState<Goal | null>(null);
 
-  // Sync draft reflection and test result when modal opens
+  // Sync the draft reflection when the modal opens
   if (isOpen !== prevOpen) {
     setPrevOpen(isOpen);
     if (isOpen && goal?.id) {
@@ -106,12 +84,6 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
         const saved = loadReviewDraft(goal.id, currentWeekNum);
         if (saved) {
           setReflection(saved);
-        }
-      }
-      if (!testResult) {
-        const savedTest = storedTestResult ?? loadTestResultDraft(goal.id, currentWeekNum);
-        if (savedTest) {
-          setTestResult(savedTest);
         }
       }
     }
@@ -124,13 +96,6 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
     }
   };
 
-  const handleTestResultChange = (val: WeeklyTestResult | null) => {
-    setTestResult(val);
-    if (goal?.id) {
-      saveTestResultDraft(goal.id, currentWeekNum, val);
-    }
-  };
-
   const handleFinish = () => {
     if (updatedGoal) {
       onGoalUpdated(updatedGoal);
@@ -139,7 +104,6 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
     // Reset modal state
     setStep('review');
     setReflection('');
-    setTestResult(null);
     setReviewError(null);
     setAdaptationData(null);
     setUpdatedGoal(null);
@@ -161,13 +125,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
     setReviewError(null);
 
     try {
-      // B-3: a result logged earlier that was cleared here is sent as null, which deletes it.
-      const cleared = !testResult && storedTestResult !== null;
-      const response = testResult
-        ? await submitWeeklyReview(currentWeekNum, reflection, token, testResult)
-        : cleared
-          ? await submitWeeklyReview(currentWeekNum, reflection, token, null)
-          : await submitWeeklyReview(currentWeekNum, reflection, token);
+      const response = await submitWeeklyReview(currentWeekNum, reflection, token);
 
       const updatedRoadmap = roadmapWeeks.map((w) => {
         if (w.weekNumber === currentWeekNum) {
@@ -176,7 +134,6 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
             status: 'completed' as const,
             // WU-33 (3): a review row of 0 planned has no score; the week keeps none.
             executionScore: response.review?.tasksPlanned === 0 ? undefined : response.scorePercentage,
-            testResult: cleared ? null : (response.testResult ?? testResult ?? w.testResult),
           };
         }
         if (response.nextWeekNumber && w.weekNumber === response.nextWeekNumber) {
@@ -200,7 +157,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
       setUpdatedGoal(nextGoal);
       setAdaptationData(response);
 
-      // Clear draft reflection and testResult upon successful submission and transition to adaptation
+      // Clear the draft reflection upon successful submission and transition to adaptation
       if (goal?.id) {
         clearReviewDraft(goal.id, currentWeekNum);
       }
@@ -330,20 +287,6 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
               completedSessions={completedDaysThisWeek.length}
               totalActiveSessions={activeDaysThisWeek.length}
               theme={activeWeek?.theme}
-              target={activeWeek?.target}
-              test={activeWeek?.test}
-              weekNumber={currentWeekNum}
-              totalWeeks={goal.totalWeeks}
-            />
-
-            <ReviewTestResultStep
-              target={activeWeek?.target}
-              test={activeWeek?.test}
-              testResult={testResult}
-              onChange={handleTestResultChange}
-              disabled={isSubmitting}
-              weekNumber={currentWeekNum}
-              totalWeeks={goal.totalWeeks}
             />
 
             {opensOn && !weekClosed && (
@@ -366,12 +309,6 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
             aiAdaptationInsight={adaptationData?.review.aiAdaptationInsight}
             nextWeekTasks={adaptationData?.nextWeekTasks}
             nextWeekTheme={nextRoadmapWeek?.theme}
-            nextWeekTarget={nextRoadmapWeek?.target}
-            currentWeekTarget={activeWeek?.target}
-            testResult={adaptationData?.testResult ?? testResult}
-            currentWeekLight={isLightTest(activeWeek?.test)}
-            nextWeekLight={isLightTest(nextRoadmapWeek?.test)}
-            nextWeekLine={nextWeekNum === finalWeekOf(goal) ? week12NoteText(goal) : null}
             totalWeeks={goal.totalWeeks}
             milestoneGateTransition={adaptationData?.milestoneGateTransition}
             onContinue={handleFinish}

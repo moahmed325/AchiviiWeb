@@ -11,11 +11,11 @@ export interface NextPlanLevelDialogProps {
 }
 
 /**
- * Next plan (NP-9, NP-10): asks a number goal's level now, after a long break or when nothing was measured. The last
- * result is filled in, so someone at the same level only presses Continue.
+ * Next plan (NP-9, NP-10): asks a goal measured in a number for the level now. No weekly tests (2026-10-30): nothing is
+ * measured by the plan, so nothing is filled in.
  */
 export const NextPlanLevelDialog: React.FC<NextPlanLevelDialogProps> = ({ open, onOpenChange, result, onContinue }) => {
-  const [text, setText] = useState(() => (result.reachedValue === null ? '' : String(result.reachedValue)));
+  const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const submit = (event: React.FormEvent) => {

@@ -1,13 +1,10 @@
 import React from 'react';
-import { ArrowRight, Sparkles, Target } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { cx } from '../ui/cx';
 import { PhaseGateOutcomeCard } from './PhaseGateOutcomeCard';
-import type { DailyTask, WeekTarget, WeeklyTestResult } from '../../types';
+import type { DailyTask } from '../../types';
 import type { MilestoneGateTransition } from '../../types';
-import { formatTarget } from '../../lib/formatters';
 import { isRestLike } from '../../lib/today';
-import { nextCheckLine } from '../../lib/lightTest';
 import { planWeeks } from '../../lib/planLength';
 
 export interface AdaptationMomentStepProps {
@@ -16,15 +13,6 @@ export interface AdaptationMomentStepProps {
   aiAdaptationInsight?: string | null;
   nextWeekTasks?: DailyTask[];
   nextWeekTheme?: string | null;
-  nextWeekTarget?: WeekTarget | null;
-  currentWeekTarget?: WeekTarget | null;
-  testResult?: WeeklyTestResult | null;
-  /** M2.1: this week's test was light: its result shows as "Done", never against the target. */
-  currentWeekLight?: boolean;
-  /** M2.1: next week is a light week: its target shows as the next check. */
-  nextWeekLight?: boolean;
-  /** Plan safety limits M1.3 (PSL-9): the honest line under next week's target, given only when next week is week 12. */
-  nextWeekLine?: string | null;
   milestoneGateTransition?: MilestoneGateTransition | null;
   onContinue: () => void;
   /** B-109: the plan's weeks (a shorter plan's ready week reads as its final target); missing is 12. */
@@ -34,8 +22,8 @@ export interface AdaptationMomentStepProps {
 /**
  * Adaptation Moment Step (Phase 7 — BP §17–19, §33, §43, VDS §19, §26).
  * Visibly demonstrates to the user that next week has been shaped from their actual execution.
- * Strictly adheres to Future Honesty: displays only genuine server insight, benchmark target
- * comparison, and upcoming focus.
+ * Strictly adheres to Future Honesty: displays only genuine server insight and the upcoming focus (no weekly tests,
+ * 2026-10-30: no target or result).
  */
 export const AdaptationMomentStep: React.FC<AdaptationMomentStepProps> = ({
   currentWeekNumber,
@@ -43,12 +31,6 @@ export const AdaptationMomentStep: React.FC<AdaptationMomentStepProps> = ({
   aiAdaptationInsight,
   nextWeekTasks,
   nextWeekTheme,
-  nextWeekTarget,
-  currentWeekTarget,
-  testResult,
-  currentWeekLight = false,
-  nextWeekLight = false,
-  nextWeekLine = null,
   milestoneGateTransition,
   onContinue,
   totalWeeks,
@@ -78,70 +60,6 @@ export const AdaptationMomentStep: React.FC<AdaptationMomentStepProps> = ({
         <PhaseGateOutcomeCard gate={milestoneGateTransition} />
       )}
 
-      {/* M2.1: a light test's result, never set against the target. */}
-      {testResult && currentWeekLight && (
-        <div data-testid="adaptation-light-result" className="rounded-card border border-border bg-surface p-4 text-small space-y-2.5">
-          <div className="flex items-center justify-between gap-3">
-            <span className="flex items-center gap-1.5 font-ui-mono text-micro uppercase tracking-wider text-text-secondary">
-              <Target aria-hidden="true" strokeWidth={1.5} className="size-3.5 text-accent shrink-0" />
-              <span>Light test</span>
-            </span>
-            <span className="font-semibold text-text">Done</span>
-          </div>
-          {testResult.note && (
-            <div className="border-t border-border/50 pt-2 text-micro text-text-secondary italic">
-              "{testResult.note}"
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Benchmark Target Comparison (OD-1a, BP §17, §33) */}
-      {testResult && !currentWeekLight && (
-        <div
-          data-testid="adaptation-target-comparison"
-          className="rounded-card border border-border bg-surface p-4 text-small space-y-2.5"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 font-ui-mono text-micro uppercase tracking-wider text-text-secondary">
-              <Target aria-hidden="true" strokeWidth={1.5} className="size-3.5 text-accent shrink-0" />
-              <span>Benchmark Comparison</span>
-            </div>
-            <span
-              className={cx(
-                'text-micro font-semibold uppercase tracking-wider',
-                testResult.passed ? 'text-accent' : 'text-caution'
-              )}
-            >
-              {testResult.passed ? 'Target Met' : 'In Progress'}
-            </span>
-          </div>
-
-          <div className="flex items-start justify-between gap-3 pt-0.5">
-            <span className="text-text-secondary shrink-0">Recorded Result</span>
-            <span className="font-semibold text-text text-right tabular-nums">
-              {testResult.value}
-              {testResult.unit ? ` ${testResult.unit}` : ''}
-            </span>
-          </div>
-
-          {currentWeekTarget && (
-            <div className="flex items-start justify-between gap-3 border-t border-border/50 pt-2">
-              <span className="text-text-secondary shrink-0">Week Target</span>
-              <span className="font-medium text-text text-right tabular-nums">
-                {formatTarget(currentWeekTarget)}
-              </span>
-            </div>
-          )}
-
-          {testResult.note && (
-            <div className="border-t border-border/50 pt-2 text-micro text-text-secondary italic">
-              "{testResult.note}"
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Server Adaptation Insight (BP §33, §43) */}
       {aiAdaptationInsight && (
         <div className="rounded-card border border-border bg-surface p-4 text-small">
@@ -168,16 +86,6 @@ export const AdaptationMomentStep: React.FC<AdaptationMomentStepProps> = ({
               <span className="font-medium text-text text-right">{nextWeekTheme}</span>
             </div>
           )}
-
-          {nextWeekTarget && nextWeekLight && nextWeekNumber !== null ? (
-            <p className="font-medium text-text">{nextCheckLine(nextWeekNumber, nextWeekTarget, { totalWeeks })}</p>
-          ) : nextWeekTarget && (
-            <div className="flex items-start justify-between gap-3">
-              <span className="text-text-secondary shrink-0">Target</span>
-              <span className="font-medium text-text text-right">{formatTarget(nextWeekTarget)}</span>
-            </div>
-          )}
-          {nextWeekTarget && nextWeekLine && <p className="text-text-secondary">{nextWeekLine}</p>}
 
           {plannedSessions > 0 && (
             <div className="flex items-start justify-between gap-3">

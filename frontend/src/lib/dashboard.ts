@@ -1,6 +1,5 @@
-import type { DailyTask, Goal, RoadmapWeek, WeekTarget } from '../types';
+import type { DailyTask, Goal } from '../types';
 import { addDaysToDateKey } from './dateUtils';
-import { isLightTest } from './lightTest';
 import { isRestLike, todayKey } from './today';
 import { planDays } from './planLength';
 
@@ -97,89 +96,6 @@ export function practiceTimeLabel(minutes: number): string {
   if (minutes < 60) return minutes + ' min';
   const hours = Math.round((minutes / 60) * 10) / 10;
   return (Number.isInteger(hours) ? String(hours) : hours.toFixed(1)) + (hours === 1 ? ' hour' : ' hours');
-}
-
-export interface TrendPoint {
-  week: number;
-  value: number;
-}
-
-/** A goal with a number to reach: the start, each recorded check, and the plan's final target. */
-export interface GoalTrend {
-  metric: string;
-  unit: string;
-  direction: 'higher_is_better' | 'lower_is_better';
-  start: number | null;
-  target: number;
-  targetWeek: number;
-  points: TrendPoint[];
-  latest: number | null;
-  /** The share of the distance from the start to the target covered by the latest result, 0–1; null without both. */
-  gapClosed: number | null;
-  /** The latest result beats every earlier one, and the start. */
-  newBest: boolean;
-}
-
-const numberTarget = (week: RoadmapWeek): Extract<WeekTarget, { kind: 'number' }> | null =>
-  week.target?.kind === 'number' && Number.isFinite(week.target.value) ? week.target : null;
-
-/** Null for a goal measured by deliverables (no week has a number target). Light tests and paused weeks never count. */
-export function goalTrend(goal: Pick<Goal, 'roadmap' | 'roadmapWeeks'>): GoalTrend | null {
-  const weeks = [...(goal.roadmapWeeks ?? [])].sort((a, b) => a.weekNumber - b.weekNumber);
-  const finalWeek = [...weeks].reverse().find((week) => numberTarget(week));
-  const final = finalWeek ? numberTarget(finalWeek) : null;
-  if (!finalWeek || !final) return null;
-
-  const points: TrendPoint[] = weeks
-    .filter((week) => week.testResult && !week.jumped && !isLightTest(week.test))
-    .map((week) => ({ week: week.weekNumber, value: Number(week.testResult!.value) }))
-    .filter((point) => Number.isFinite(point.value));
-
-  const rawStart = goal.roadmap?.startingPoint?.value;
-  const start = typeof rawStart === 'number' && Number.isFinite(rawStart) ? rawStart : null;
-  const latest = points.length > 0 ? points[points.length - 1].value : null;
-  const better = (a: number, b: number) => (final.direction === 'lower_is_better' ? a < b : a > b);
-
-  const gapClosed =
-    start !== null && latest !== null && final.value !== start
-      ? Math.min(1, Math.max(0, (latest - start) / (final.value - start)))
-      : null;
-  const earlier = [...points.slice(0, -1).map((point) => point.value), ...(start !== null ? [start] : [])];
-  const newBest = latest !== null && earlier.length > 0 && earlier.every((value) => better(latest, value));
-
-  return {
-    metric: final.metric,
-    unit: final.unit,
-    direction: final.direction,
-    start,
-    target: final.value,
-    targetWeek: finalWeek.weekNumber,
-    points,
-    latest,
-    gapClosed,
-    newBest,
-  };
-}
-
-export interface Milestones {
-  reached: number;
-  total: number;
-}
-
-/** A goal measured by deliverables: the weekly checks (not light ones) and how many were passed. */
-export function milestones(goal: Pick<Goal, 'roadmapWeeks'>): Milestones {
-  const checks = (goal.roadmapWeeks ?? []).filter((week) => week.test && !week.jumped && !isLightTest(week.test));
-  return { reached: checks.filter((week) => week.testResult?.passed).length, total: checks.length };
-}
-
-/** The next open test day, today included. */
-export function nextTestDay(tasks: readonly DailyTask[], now: Date, timezone?: string): DailyTask | null {
-  const today = todayKey(now, timezone);
-  return (
-    [...tasks]
-      .filter((task) => task.isTestDay && task.status === 'pending' && !isRestLike(task) && task.date >= today)
-      .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null
-  );
 }
 
 /** "Good morning" by the hour where the person is, not where the browser is. */

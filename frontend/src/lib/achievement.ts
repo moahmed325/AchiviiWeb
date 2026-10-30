@@ -1,8 +1,6 @@
-import type { Goal, DailyTask, RoadmapWeek, AchievementSummary, FinalTestEvaluation } from '../types';
+import type { Goal, DailyTask, RoadmapWeek, AchievementSummary } from '../types';
 import { isRestLike } from './today';
-import { isLightTest } from './lightTest';
-import { formatTarget } from './formatters';
-import { finalWeekOf, planDays, planWeeks } from './planLength';
+import { planDays, planWeeks } from './planLength';
 
 /**
  * Derives verified, real achievement summary metrics from stored goal records.
@@ -30,12 +28,6 @@ export function computeAchievementSummary(goal: Goal): AchievementSummary {
   const completedWeeks = weeks.filter((w) => w.status === 'completed' && !w.jumped).length;
   const totalWeeks = Math.max(planWeeks(goal), weeks.length);
 
-  // Benchmarks from roadmapWeeks. M1.5b: a jumped week had no test to run, so it is no benchmark.
-  // M2.1 (WU-43 (2)): a light week's test is done plus a note, not a benchmark against the target.
-  const weeksWithTests = weeks.filter((w) => !w.jumped && !isLightTest(w.test) && (w.test != null || w.testResult != null));
-  const benchmarksAchieved = weeks.filter((w) => !isLightTest(w.test) && w.testResult?.passed === true).length;
-  const totalBenchmarks = weeksWithTests.length;
-
   const completedAt = goal.completedAt || goal.updated_at || new Date().toISOString();
 
   return {
@@ -48,8 +40,6 @@ export function computeAchievementSummary(goal: Goal): AchievementSummary {
     adherenceRate,
     completedWeeks,
     totalWeeks,
-    benchmarksAchieved,
-    totalBenchmarks,
     completedAt,
   };
 }
@@ -92,49 +82,4 @@ export function formatAchievementDate(isoString?: string | null): string {
   } catch {
     return 'Completed';
   }
-}
-
-/**
- * Extracts final capstone test evaluation from Week 12 or stored roadmap.
- */
-export function extractFinalTestEvaluation(goal: Goal): FinalTestEvaluation | null {
-  const weeks: RoadmapWeek[] = goal.roadmapWeeks || [];
-  // B-109: a shorter plan's final test is in its week before the ready week.
-  const week12 = weeks.find((w) => w.weekNumber === finalWeekOf(goal)) || weeks[weeks.length - 1];
-
-  const roadmapFinalTest = goal.roadmap?.finalTest;
-
-  if (!week12?.test && !roadmapFinalTest && !week12?.testResult) {
-    return null;
-  }
-
-  const testType = week12?.test?.type || 'Capstone Benchmark Verification';
-  // B-84: formatTarget names the direction ("52 minutes or less" for a time).
-  const targetDeliverable = week12?.target
-    ? formatTarget(week12.target)
-    : typeof roadmapFinalTest === 'string'
-      ? roadmapFinalTest
-      : undefined;
-
-  const instructions =
-    week12?.test?.instructions ||
-    (typeof roadmapFinalTest === 'string'
-      ? roadmapFinalTest
-      : 'Complete your final capstone verification test under standard conditions.');
-
-  const passCriteria =
-    week12?.test?.passIf ||
-    (week12?.target
-      ? week12.target.kind === 'number'
-        ? `Target: ${week12.target.direction === 'lower_is_better' ? '≤' : '≥'} ${week12.target.value} ${week12.target.unit}`
-        : week12.target.description
-      : undefined);
-
-  return {
-    testType,
-    targetDeliverable,
-    instructions,
-    passCriteria,
-    result: week12?.testResult || null,
-  };
 }

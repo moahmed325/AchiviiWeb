@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { Check, ChevronDown, Lock, Sparkles, Target } from 'lucide-react';
+import { Check, ChevronDown, Lock, Sparkles } from 'lucide-react';
 import type { JourneyData, JourneyPhase, JourneyWeek } from '../../types/journey';
-import { weekTargetText, weekTestText } from '../../lib/lightTest';
 import { Badge, StepMarker } from '../ui';
-import { finalWeekOf } from '../../lib/planLength';
 
 export interface StrategicRoadmapProps { journey: JourneyData; }
 
@@ -38,11 +36,9 @@ export const StrategicRoadmap: React.FC<StrategicRoadmapProps> = ({ journey }) =
             isOpen={Boolean(expanded[phase.id])}
             onToggle={() => toggle(phase.id)}
             delay={index * 90}
-            week12Line={journey.week12Line ?? null}
-            totalWeeks={metrics.totalWeeks}
           />
         ))}
-        <Destination closingStretch={closingStretch} goal={journey.rawGoal} delay={phases.length * 90} week12Line={journey.week12Line ?? null} />
+        <Destination closingStretch={closingStretch} goal={journey.rawGoal} delay={phases.length * 90} />
       </div>
     </section>
   );
@@ -54,13 +50,9 @@ interface PhaseRowProps {
   isOpen: boolean;
   onToggle: () => void;
   delay: number;
-  /** M1.3 (PSL-9): shown under week 12's target when it is the current week. */
-  week12Line: string | null;
-  /** B-109: the plan's weeks (its final week holds the note; its ready week reads as the final target). */
-  totalWeeks: number;
 }
 
-const PhaseRow: React.FC<PhaseRowProps> = ({ phase, currentWeek, isOpen, onToggle, delay, week12Line, totalWeeks }) => {
+const PhaseRow: React.FC<PhaseRowProps> = ({ phase, currentWeek, isOpen, onToggle, delay }) => {
   const activeWeek = phase.weeks.find((week) => week.isCurrentWeek);
   const isActive = phase.status === 'active';
   const isComplete = phase.status === 'completed';
@@ -117,7 +109,7 @@ const PhaseRow: React.FC<PhaseRowProps> = ({ phase, currentWeek, isOpen, onToggl
             {!isActive && phase.purpose && <p className="max-w-2xl text-body leading-7 text-text-secondary">{phase.purpose}</p>}
             {activeWeek && isActive ? (
               <>
-                <CurrentWeek week={activeWeek} week12Line={week12Line} totalWeeks={totalWeeks} />
+                <CurrentWeek week={activeWeek} />
                 {comingUp.length > 0 && <WeekList title="Coming up" weeks={comingUp} currentWeek={currentWeek} />}
               </>
             ) : (
@@ -130,7 +122,7 @@ const PhaseRow: React.FC<PhaseRowProps> = ({ phase, currentWeek, isOpen, onToggl
   );
 };
 
-const CurrentWeek: React.FC<{ week: JourneyWeek; week12Line: string | null; totalWeeks: number }> = ({ week, week12Line, totalWeeks }) => (
+const CurrentWeek: React.FC<{ week: JourneyWeek }> = ({ week }) => (
   <div>
     <div className="flex flex-wrap items-baseline justify-between gap-2">
       <div>
@@ -139,16 +131,12 @@ const CurrentWeek: React.FC<{ week: JourneyWeek; week12Line: string | null; tota
       </div>
       <span className="font-ui-mono text-micro uppercase tracking-[0.14em] text-text-secondary">Week {week.weekNumber}</span>
     </div>
-    <div className="mt-5 grid gap-3 sm:grid-cols-2">
-      {week.target && <Detail label="Target" icon={<Target aria-hidden="true" strokeWidth={1.5} className="size-3.5" />} value={weekTargetText(week.weekNumber, week.target, week.test, undefined, { totalWeeks })} note={week.weekNumber === finalWeekOf({ totalWeeks }) ? week12Line : null} />}
-      {(week.test || week.keyMilestone) && (
-        <Detail
-          label={week.test ? 'Test' : 'Milestone'}
-          icon={<Sparkles aria-hidden="true" strokeWidth={1.5} className="size-3.5" />}
-          value={week.test ? weekTestText(week.test) : week.keyMilestone || ''}
-        />
-      )}
-    </div>
+    {/* No weekly tests (2026-10-30): no target or test; a milestone shows when the week has one. */}
+    {week.keyMilestone && (
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <Detail label="Milestone" icon={<Sparkles aria-hidden="true" strokeWidth={1.5} className="size-3.5" />} value={week.keyMilestone} />
+      </div>
+    )}
   </div>
 );
 
@@ -191,7 +179,7 @@ const Detail: React.FC<{ label: string; icon: React.ReactNode; value: string; no
 
 /** The climax of the path: the one star at the end of the rail. */
 /** Named with the goal the user chose, as on Today and the Roadmap header (ND-18). */
-const Destination: React.FC<{ closingStretch: JourneyData['closingStretch']; goal: string; delay: number; week12Line: string | null }> = ({ closingStretch, goal, delay, week12Line }) => (
+const Destination: React.FC<{ closingStretch: JourneyData['closingStretch']; goal: string; delay: number }> = ({ closingStretch, goal, delay }) => (
   <div className="road-row road-row--end animate-rise-in" data-status={closingStretch.status} style={{ animationDelay: delay + 'ms' }}>
     <span className="road-node road-node--destination" aria-hidden="true"><StepMarker state="destination" size="lg" /></span>
     <div className="dash-card p-6 sm:p-8">
@@ -203,8 +191,7 @@ const Destination: React.FC<{ closingStretch: JourneyData['closingStretch']; goa
         )}
       </div>
       <h3 className="mt-5 max-w-[30ch] text-2xl font-semibold leading-tight tracking-[-0.02em] text-text sm:text-3xl">{goal}</h3>
-      <p className="mt-4 max-w-xl text-body leading-7 text-text-secondary">Your final benchmark: {closingStretch.finalTest}</p>
-      {week12Line && <p className="mt-2 max-w-xl text-small leading-6 text-text-secondary">{week12Line}</p>}
+      <p className="mt-4 max-w-xl text-body leading-7 text-text-secondary">The last days are for looking back on what you did and arriving.</p>
     </div>
   </div>
 );

@@ -56,22 +56,15 @@ const minimum = (dayNumber: number, extra: Record<string, unknown> = {}) => ({
   ...extra,
 });
 
-/** Steady: days 1-3 and 5-6 practice, 4 and 7 rest, day 6 the test. Every step PSL-8 names has its load. */
+/** Steady: days 1-3 and 5-6 practice, 4 and 7 rest. Every step PSL-8 names has its load. */
 function runWeek(change: (days: Array<Record<string, any>>) => void = () => {}): RawWeekAnswer {
   const days: Array<Record<string, any>> = Array.from({ length: 7 }, (_, index) => {
     const dayNumber = index + 1;
     if (dayNumber === 4 || dayNumber === 7) return { dayNumber, isKeySession: false, title: 'Rest and recover', whyToday: 'Recovery.', steps: [] };
-    const steps =
-      dayNumber === 6
-        ? [
-            step('Jog gently before the test', 2, 5, { kind: 'weekly_test' }),
-            step('Weekly test: long run at an easy pace', 1, 30, { kind: 'weekly_test', highLoad: true, load: { runKm: 6, hardRun: false } }),
-            step('Note how the run felt', 3, 5, { kind: 'weekly_test' }),
-          ]
-        : [
-            step(`Easy run ${dayNumber}`, 1, 30, { kind: 'easy_session', highLoad: true, load: easyLoad }),
-            step(`Calf and hip circuit ${dayNumber}`, 2, 10, { kind: 'strength_and_mobility' }),
-          ];
+    const steps = [
+      step(`Easy run ${dayNumber}`, 1, 30, { kind: 'easy_session', highLoad: true, load: easyLoad }),
+      step(`Calf and hip circuit ${dayNumber}`, 2, 10, { kind: 'strength_and_mobility' }),
+    ];
     return { dayNumber, isKeySession: dayNumber === 2, title: `Run day ${dayNumber}`, whyToday: 'Builds easy running time.', steps, minimumVersion: minimum(dayNumber) };
   });
   change(days);
@@ -186,12 +179,10 @@ describe('the schema and the prompt', () => {
     expect(JSON.stringify(WEEK_RESPONSE_SCHEMA)).not.toContain('"load"');
   });
 
-  it('a run10k week 1 prompt differs from main only by the load line (and, since M2.2a, the SAFETY LIMITS block)', () => {
+  it('a run10k week 1 prompt differs from main only by the load line and the SAFETY LIMITS block', () => {
     const prompt = buildWeekPrompt(RUN10K, weekLayout('steady', RUN10K.weekStart));
     expect(prompt).toBe(fixture('weekPrompt.run10k-m2.2a.txt'));
-    // Plan safety limits M2.2a: the M2.1 prompt with the old SAFETY LIMITS block (weekLoadLimits.test.ts checks the new one).
     const block = (text: string) => text.slice(text.indexOf('\n\nSAFETY LIMITS'), text.indexOf('\n\nKINDS OF STEP'));
-    expect(prompt.replace(block(prompt), block(fixture('weekPrompt.run10k-m2.1.txt')))).toBe(fixture('weekPrompt.run10k-m2.1.txt'));
     const added = loadLine({ running: true });
     expect(prompt.split(added)).toHaveLength(2);
     // M2.2a review: without a load goal there is no SAFETY LIMITS block, so the "before" fixture has none (updated on purpose).
@@ -204,9 +195,9 @@ describe('the schema and the prompt', () => {
     expect(buildWeekPrompt(RUN10K_WEEK1, weekLayout('steady', RUN10K_WEEK1.weekStart))).toBe(fixture('weekPrompt.run10k-before-m2.1.txt'));
   });
 
-  it('names the test step only on a running goal', () => {
-    expect(loadLine({ running: true })).toContain('the weekly test step');
-    expect(loadLine({ running: false })).not.toContain('weekly test');
+  it('names the same steps on every load goal, never a test step', () => {
+    expect(loadLine({ running: true })).toBe(loadLine({ running: false }));
+    expect(loadLine({ running: true })).not.toMatch(/weekly test|test step/i);
     const noProfile = buildWeekPrompt({ ...RUN10K, recovery: null }, weekLayout('steady', RUN10K.weekStart));
     expect(noProfile).toContain(`otherwise false\n${loadLine({ running: true })}`);
   });
@@ -274,13 +265,6 @@ describe('a missing load is a retry reason (PSL-8)', () => {
     expect(reason(checkWeekAnswer(answer, custom))).toContain('Day 3 step "Hill strides" needs its load: the numbers that apply.');
   });
 
-  it("the model's test step on a running goal, whatever its flag", () => {
-    const answer = runWeek((days) => {
-      days[5].steps[1] = step('Weekly test: long run at an easy pace', 1, 30, { kind: 'weekly_test', highLoad: false });
-    });
-    expect(reason(checkWeekAnswer(answer, RUN10K))).toContain('Day 6 step "Weekly test: long run at an easy pace" needs its load: runMinutes or runKm, and hardRun.');
-  });
-
   it('a custom body-weight goal on the strength template: its run (conditioning) and lift steps are both asked', () => {
     const custom: WeekCallInput = { ...RUN10K, highLoadGoal: false, recovery: STRENGTH, loadGoal: { running: false } };
     const answer = runWeek((days) => {
@@ -337,8 +321,6 @@ describe('a missing load is a retry reason (PSL-8)', () => {
   it('no retry for a warm-up, a food-logging step or a non-load 10-minute version', () => {
     const answer = runWeek((days) => {
       days[0].steps = [step('Easy run 1', 1, 30, { kind: 'easy_session', load: easyLoad }), step('Plan tomorrow’s meals and protein', 2, 10, { kind: 'strength_and_mobility' })];
-      // The test day's warm-up has no load and is not flagged.
-      days[5].steps[0] = step('Jog gently before the test', 2, 5, { kind: 'weekly_test', highLoad: false });
       // A day whose priority-1 step needs no load: its 10-minute version needs none either.
       days[4].steps = [step('Calf and hip circuit 5', 1, 20, { kind: 'strength_and_mobility' }), step('Easy run 5', 2, 20, { kind: 'easy_session', load: easyLoad })];
       days[4].minimumVersion = step('Short calf circuit', 1, 10);
@@ -347,7 +329,7 @@ describe('a missing load is a retry reason (PSL-8)', () => {
   });
 
   it('no retry for a cycling goal on the endurance template with no family (not a load goal)', () => {
-    const cycling: WeekCallInput = { ...RUN10K_WEEK1, highLoadGoal: false, recovery: RECOVERY_TEMPLATES.endurance, test: { ...RUN10K_WEEK1.test, light: false } };
+    const cycling: WeekCallInput = { ...RUN10K_WEEK1, highLoadGoal: false, recovery: RECOVERY_TEMPLATES.endurance };
     const answer = runWeek((days) => {
       for (const day of days) {
         for (const item of day.steps) delete item.load;
@@ -357,16 +339,6 @@ describe('a missing load is a retry reason (PSL-8)', () => {
     expect(value(checkWeekAnswer(answer, cycling))).toHaveLength(7);
   });
 
-  it('no retry for a code-made test step on a running goal', () => {
-    const answer = runWeek((days) => {
-      days[5].steps = [step('Long easy run to finish the week', 1, 30, { kind: 'weekly_test', load: easyLoad }), step('Note how the run felt', 2, 5, { kind: 'weekly_test' })];
-    });
-    // The missing test is a reason of its own before the last attempt; on it code puts the test step in.
-    const week = value(checkWeekAnswer(answer, RUN10K, true));
-    const made = week[5].detailedSteps.find((item) => item.title.startsWith('Weekly test'))!;
-    expect(made.load).toBeUndefined();
-    expect(safetyLines()).toEqual([]);
-  });
 });
 
 describe('the last attempt keeps a step without its load (RULE-4, AC-4)', () => {
@@ -473,21 +445,6 @@ describe('code never copies or keeps a wrong load', () => {
     const text = describeDay({ title: 'Run day' }, [run], [other]);
     expect(text?.minimumVersion.title).toBe('Short version: Tempo run');
     expect(text?.minimumVersion.load).toBeUndefined();
-  });
-
-  it("the light-week swap drops the refused step's load", () => {
-    const back: WeekCallInput = { ...RUN10K, test: { ...RUN10K.test, light: false }, firstWeekBack: { awayDays: 10, highLoad: true } };
-    const answer = runWeek((days) => {
-      days[5].steps[1] = step('Weekly test: 5 km time trial', 1, 30, {
-        kind: 'weekly_test',
-        instructions: 'Run a 5 km time trial and log your time.',
-        load: { runKm: 5, hardRun: true },
-      });
-    });
-    const week = value(checkWeekAnswer(answer, back, true));
-    const light = week[5].detailedSteps.find((item) => item.title === 'Weekly test: an easy version')!;
-    expect(light.load).toBeUndefined();
-    expect(safetyLines().map((line) => line.rule)).not.toContain('load_missing');
   });
 
   it('fitStepMinutes scales runMinutes, never runKm', () => {

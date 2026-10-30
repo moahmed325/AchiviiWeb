@@ -292,7 +292,7 @@ export function weekResponseSchema(recovery?: RecoveryProfile | null, loadGoal?:
     required: string[];
   };
   if (recovery) {
-    stepItems.properties.kind = { type: 'string', enum: recovery.kinds.map((kind) => kind.id) };
+    stepItems.properties.kind = { type: 'string', enum: writableKinds(recovery).map((kind) => kind.id) };
     stepItems.required = [...stepItems.required, 'kind'];
   }
   if (loadGoal) {
@@ -339,9 +339,18 @@ const HIGH_LOAD_LINE =
  */
 const orList = (items: string[]) => (items.length > 1 ? `${items.slice(0, -1).join(', ')} or ${items[items.length - 1]}` : items[0] ?? '');
 
+/**
+ * The kinds the week writer may give a step. No weekly tests (2026-10-30): the Weekly test kind stays on the profile
+ * for steps stored before then (the carry still reads it), but is never offered or taken from a new answer.
+ */
+function writableKinds(recovery: RecoveryProfile): RecoveryProfile['kinds'] {
+  return recovery.kinds.filter((kind) => kind.id !== WEEKLY_TEST_KIND.id);
+}
+
 function kindsBlock(recovery: RecoveryProfile): string {
-  const lines = recovery.kinds.map((kind) => `- ${kind.id}: ${kind.name}. ${kind.description}`);
-  const standalone = recovery.kinds.filter((kind) => kind.action === 'move' && kind.id !== WEEKLY_TEST_KIND.id).map((kind) => kind.id);
+  const offered = writableKinds(recovery);
+  const lines = offered.map((kind) => `- ${kind.id}: ${kind.name}. ${kind.description}`);
+  const standalone = offered.filter((kind) => kind.action === 'move').map((kind) => kind.id);
   const rules = [
     standalone.length
       ? `- A step whose kind is ${orList(standalone)} starts with its own short warm-up (5 minutes or less) inside its instructions, so it can be done on another day on its own.`
@@ -378,7 +387,7 @@ function safetyLimitsBlock(input: WeekCallInput): string {
     '',
     'SAFETY LIMITS (these override the method and the target; a week whose steps break any of them is not saved)',
     ...runningLines(input.baseWeek, input.loadGoal?.runLevel),
-    `- At most ${HARD_RUNS_MAX} hard runs this week (intervals, tempo, race pace; a hard weekly test counts as one).`,
+    `- At most ${HARD_RUNS_MAX} hard runs this week (intervals, tempo, race pace).`,
     `- Calorie deficit: ${CALORIE_DEFICIT_MIN} to ${CALORIE_DEFICIT_MAX} kcal a day, never more.`,
     `- Daily intake: never below ${DAILY_INTAKE_MIN_KCAL} kcal a day.`,
   ];
@@ -446,14 +455,9 @@ function firstWeekBackLines(base: Parameters<typeof firstWeekBackLimit>[0]): str
   return [head, `- Add up the runKm of every run before you answer; the total must be at most ${most} km (or the runMinutes, at most ${minutes} minutes, when any run is not given in km).`];
 }
 
-/**
- * Plan safety limits M2.1 (RULE-4, PSL-8): the step-fields line on a load goal, worded from `loadNeed`. The weekly
- * test step is named only on a running goal.
- */
-export function loadLine(loadGoal: LoadGoal): string {
-  const which = loadGoal.running
-    ? 'a running step, a cardio step, a lifting step, the weekly test step and any step with highLoad true'
-    : 'a running step, a cardio step, a lifting step and any step with highLoad true';
+/** Plan safety limits M2.1 (RULE-4, PSL-8): the step-fields line on a load goal, worded from `loadNeed`. */
+export function loadLine(_loadGoal: LoadGoal): string {
+  const which = 'a running step, a cardio step, a lifting step and any step with highLoad true';
   return [
     `  - load: only on ${which},`,
     "    and on the minimumVersion when the day's priority-1 step has one: the step's numbers, leaving out any that don't",
@@ -477,10 +481,6 @@ export function buildWeekPrompt(input: WeekCallInput, layout: DayLayout[]): stri
   return prompt + kindsBlock(input.recovery) + whereTheyAreBlock(input) + firstWeekBackBlock(input);
 }
 
-/**
- * M1.5a (WU-25 (3), WU-29 (1)): the days away and the return rule's note; for a high-load goal, the "at or below" line.
- * Nothing about a target or a restart level (M3.4).
- */
 /** The return rule's restart, as the writer reads it (no weekly tests, 2026-10-30: the level, not a target). */
 const RESTART_WORDS: Record<Restart, string> = {
   'last level': 'pick up at the level of the last week they trained.',
@@ -488,6 +488,10 @@ const RESTART_WORDS: Record<Restart, string> = {
   'back 2 weeks': 'go back two weeks: the level of two weeks before their last one.',
 };
 
+/**
+ * M1.5a (WU-25 (3), WU-29 (1)): the days away, the restart level and the return rule's note; for a high-load goal,
+ * the "at or below" line and the load limits.
+ */
 export function firstWeekBackBlock(input: Pick<WeekCallInput, 'firstWeekBack'>): string {
   const back = input.firstWeekBack;
   if (!back) return '';
@@ -614,14 +618,15 @@ type ParsedStep = DetailedStep & { priority: number; badKind?: string };
 
 /**
  * RULE-6: the profile's kind id for what the model wrote: an exact id, or an exact name (case-insensitive) mapped to
- * its id. Null when it matches neither.
+ * its id, among the kinds it may write (`writableKinds`). Null when it matches neither.
  */
 export function resolveKind(value: unknown, recovery: RecoveryProfile): string | null {
   const written = text(value);
   if (!written) return null;
-  const byId = recovery.kinds.find((kind) => kind.id === written);
+  const kinds = writableKinds(recovery);
+  const byId = kinds.find((kind) => kind.id === written);
   if (byId) return byId.id;
-  const byName = recovery.kinds.find((kind) => kind.name.toLowerCase() === written.toLowerCase());
+  const byName = kinds.find((kind) => kind.name.toLowerCase() === written.toLowerCase());
   return byName ? byName.id : null;
 }
 
@@ -839,7 +844,7 @@ export function checkWeekAnswer(
       for (const step of steps) {
         if (step.kind) continue;
         const wrote = step.badKind ? `kind "${step.badKind}"` : 'no kind';
-        kindFailures.push(`${label} step "${step.title}" has ${wrote}; use one of: ${recovery.kinds.map((kind) => kind.id).join(', ')}.`);
+        kindFailures.push(`${label} step "${step.title}" has ${wrote}; use one of: ${writableKinds(recovery).map((kind) => kind.id).join(', ')}.`);
       }
       steps = steps.map((step) => cleanStep(step) as ParsedStep);
       // RULE-8, MR-25: a warm-up, cool-down or log belongs inside its session's step. Soft: gives way on the last attempt.

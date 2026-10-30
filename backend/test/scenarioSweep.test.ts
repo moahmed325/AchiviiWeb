@@ -5,12 +5,12 @@ import { writeFileSync } from 'node:fs';
 
 // Scenario sweep (2026-10-29, Mo: "make sure missed sessions and the weekly thing work for every scenario, custom goals
 // especially"). Made-up people run whole plans day by day through the real routes (open the app: close the week when
-// due, reconcile; complete tasks, log tests, review, mark missed, carry or swap, change the schedule, answer
-// checkpoints, finish the goal) on the in-memory store, with every switch as in production (all five on). Only the
-// model calls are replaced: the week writer (steps of the goal's own kinds, seats for carried steps as the real writer
-// is asked) and the weekly update (an honest model whose answer goes through the real check). After every open, the
-// rules that must always hold are checked. Every custom-goal template and every pathway run against every person;
-// `SWEEP=full` runs the whole matrix, otherwise a slice that covers each goal and each person at least once.
+// due, reconcile; complete tasks and tap how they felt, review, mark missed, carry or swap, change the schedule,
+// finish the goal) on the in-memory store, with every switch as in production. Only the week writer is replaced (steps
+// of the goal's own kinds, seats for carried steps as the real writer is asked). No weekly tests (2026-10-30): no test,
+// target or checkpoint; the week writer is told what was done, and the sweep checks it is told exactly that. After every
+// open, the rules that must always hold are checked. Every custom-goal template and every pathway run against every
+// person; `SWEEP=full` runs the whole matrix, otherwise a slice that covers each goal and each person at least once.
 
 vi.mock('../src/lib/prisma.js', async () => ({ prisma: (await import('./weekCloseStore.js')).db.prisma }));
 vi.mock('../src/routes/auth.js', () => ({
@@ -24,33 +24,17 @@ vi.mock('../src/lib/ai/weekPlan.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/lib/ai/weekPlan.js')>()),
   generateWeekPlan: vi.fn(),
 }));
-vi.mock('../src/lib/ai/weeklyUpdate.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../src/lib/ai/weeklyUpdate.js')>()),
-  askWeeklyUpdate: vi.fn(),
-}));
 
 import { db } from './weekCloseStore.js';
 import { getAuthUser } from '../src/routes/auth.js';
 import { goalRouter } from '../src/routes/goal.js';
-import { generateWeekPlan, weekLayout, type PlanVariant, type WeekCallInput, type WeekDayPlan } from '../src/lib/ai/weekPlan.js';
-import {
-  askWeeklyUpdate,
-  askedWeeks,
-  boundOf,
-  checkWeeklyUpdate,
-  heldWeekOf,
-  holdsOf,
-  nextWeekIsLast,
-  type RawWeeklyUpdate,
-  type WeeklyUpdateInput,
-} from '../src/lib/ai/weeklyUpdate.js';
+import { FEELS, generateWeekPlan, paceOf, weekLayout, type Feel, type Pace, type WeekCallInput, type WeekDayPlan } from '../src/lib/ai/weekPlan.js';
 import { RECOVERY_TEMPLATES, type RecoveryProfile } from '../src/lib/recovery/index.js';
 import { makeGoalProfile } from '../src/lib/recovery/forGoal.js';
 import { CERTIFIED_PRESETS } from '../src/lib/ai/presets/index.js';
-import { pathwayFor, withPathwayTests, type Roadmap, type RoadmapWeek, type WeekTarget } from '../src/lib/ai/roadmap.js';
+import { pathwayFor, type Roadmap, type RoadmapWeek } from '../src/lib/ai/roadmap.js';
 import { dailyTaskRows, roadmapWeekRows, storedRoadmap } from '../src/lib/planV2.js';
 import { planShape } from '../src/lib/planLength.js';
-import { safeTargetClimb, harder } from '../src/lib/safety/targetSteps.js';
 
 const START = new Date('2026-09-21T00:00:00Z'); // a Monday
 const DAY = 86_400_000;
@@ -60,6 +44,7 @@ const addDays = (date: Date, days: number) => new Date(date.getTime() + days * D
 // ---------------------------------------------------------------------------------------------------------------------
 // Goals: every custom-goal template, and every pathway
 
+/** A goal measured in a number: its measure and where they start. `to` is only the goal's own wording. */
 type NumberSpec = { metric: string; unit: string; from: number; to: number; direction?: 'higher_is_better' | 'lower_is_better' };
 interface GoalSpec {
   name: string;
@@ -120,10 +105,9 @@ interface Person {
   name: string;
   away?: (c: Ctx) => boolean;
   practises?: (c: Ctx) => boolean;
-  /** How good their logged test results are against the target: 1 hits it, above beats it, below falls short. */
-  result?: number | null;
-  /** Logs the test on the test day (null: never logs). */
-  logs?: boolean;
+  /** After a done session, the tap for how it felt (null or missing: no tap), and sometimes a note. */
+  feels?: (c: Ctx) => Feel | null;
+  notes?: (c: Ctx) => string | null;
   /** Submits the review on the week's last day instead of waiting for the automatic close. */
   reviews?: boolean;
   /** On a day they skip, they tap "I missed it" and answer any held key session (carry now or swap). */
@@ -132,33 +116,31 @@ interface Person {
   choice?: 'keep_going' | 'final_week';
   /** A schedule change on this plan day. */
   schedule?: { day: number; body: Record<string, unknown> };
-  /** Checkpoint offers: accept or keep. */
-  checkpoint?: 'accept' | 'keep';
   timezone?: string;
   /** Local hour they open the app. */
   hour?: number;
 }
 
 const PEOPLE: Person[] = [
-  { name: 'Perfect Pat (reviews, logs on target)', logs: true, result: 1, reviews: true },
-  { name: 'Auto Ana (never reviews, logs on target)', logs: true, result: 1 },
-  { name: 'Busy Sam (skips 1 day in 3, never logs)', practises: (c) => c.day % 3 !== 1 },
-  { name: 'Coin-flip Carl (does half the days at random, logs)', practises: (c) => c.rng() < 0.5, logs: true, result: 0.85, actions: true },
-  { name: 'Two-bad-weeks Ben (nothing in weeks 3 and 4)', practises: (c) => c.week !== 3 && c.week !== 4, logs: true, result: 0.7 },
-  { name: 'Sick Mia (away 10 days in week 5)', away: (c) => c.day >= 30 && c.day < 40, logs: true, result: 1 },
-  { name: 'Holiday Hal (away 25 days in week 4)', away: (c) => c.day >= 22 && c.day < 47, logs: true, result: 1 },
+  { name: 'Perfect Pat (reviews, taps just right)', reviews: true, feels: () => 'just_right' },
+  { name: 'Auto Ana (never reviews, never taps)' },
+  { name: 'Busy Sam (skips 1 day in 3)', practises: (c) => c.day % 3 !== 1 },
+  { name: 'Coin-flip Carl (does half the days at random, taps at random)', practises: (c) => c.rng() < 0.5, feels: (c) => FEELS[Math.floor(c.rng() * 3)], actions: true },
+  { name: 'Two-bad-weeks Ben (nothing in weeks 3 and 4)', practises: (c) => c.week !== 3 && c.week !== 4, feels: () => 'just_right' },
+  { name: 'Sick Mia (away 10 days in week 5)', away: (c) => c.day >= 30 && c.day < 40, notes: (c) => (c.day === 29 ? 'Coming down with a cold' : null) },
+  { name: 'Holiday Hal (away 25 days in week 4)', away: (c) => c.day >= 22 && c.day < 47 },
   { name: 'Gone Tom (away 6 weeks, keeps going)', away: (c) => c.day >= 15 && c.day < 57, choice: 'keep_going' },
-  { name: 'Gone Gina (away 6 weeks, does her final week)', away: (c) => c.day >= 15 && c.day < 57, choice: 'final_week', logs: true, result: 1 },
-  { name: 'Weekend Wes (only opens Sat and Sun)', away: (c) => c.weekday !== 0 && c.weekday !== 6, logs: true, result: 1 },
-  { name: 'Clicker Cleo (taps I missed it, carries and swaps)', practises: (c) => c.rng() < 0.6, actions: true, logs: true, result: 1 },
-  { name: 'Shift Sid (5 days to 4 in week 5, weekends off)', schedule: { day: 30, body: { planVariant: 'minimal', restWeekdays: [0, 3, 6] } }, logs: true, result: 1 },
-  { name: 'Strong Stella (beats every target, accepts raises)', logs: true, result: 1.25, checkpoint: 'accept' },
-  { name: 'Struggling Sue (60% of target, accepts lowers)', logs: true, result: 0.6, checkpoint: 'accept', practises: (c) => c.rng() < 0.75 },
-  { name: 'Stubborn Stu (60% of target, keeps his goal)', logs: true, result: 0.6, checkpoint: 'keep' },
-  { name: 'Night-owl Nia (Auckland, opens at 23:30)', timezone: 'Pacific/Auckland', hour: 23.5, logs: true, result: 1 },
+  { name: 'Gone Gina (away 6 weeks, does her final week)', away: (c) => c.day >= 15 && c.day < 57, choice: 'final_week' },
+  { name: 'Weekend Wes (only opens Sat and Sun)', away: (c) => c.weekday !== 0 && c.weekday !== 6 },
+  { name: 'Clicker Cleo (taps I missed it, carries and swaps)', practises: (c) => c.rng() < 0.6, actions: true, feels: () => 'just_right' },
+  { name: 'Shift Sid (5 days to 4 in week 5, weekends off)', schedule: { day: 30, body: { planVariant: 'minimal', restWeekdays: [0, 3, 6] } } },
+  { name: 'Strong Stella (does it all, always too easy)', feels: () => 'too_easy', reviews: true },
+  { name: 'Struggling Sue (does 3 in 4, always too hard, writes notes)', practises: (c) => c.rng() < 0.75, feels: () => 'too_hard', notes: (c) => (c.rng() < 0.3 ? 'My knee hurts a bit' : null) },
+  { name: 'Mixed Max (too hard on Mondays, too easy otherwise)', feels: (c) => (c.weekday === 1 ? 'too_hard' : 'too_easy') },
+  { name: 'Night-owl Nia (Auckland, opens at 23:30)', timezone: 'Pacific/Auckland', hour: 23.5, feels: () => 'just_right' },
   { name: 'Late Leo (Los Angeles, opens at 00:15, skips Mondays)', timezone: 'America/Los_Angeles', hour: 0.25, practises: (c) => c.weekday !== 1 },
   { name: 'Quitter Quinn (stops opening after week 6)', away: (c) => c.day >= 42 },
-  { name: 'Forgetful Fay (does every session, never logs the test)' },
+  { name: 'Note-taker Nora (a note every day, never taps)', notes: (c) => `Day ${c.day + 1}: ran out of time near the end` },
 ];
 
 // Short plans (B-109): a fixed date under 12 weeks away.
@@ -187,7 +169,6 @@ const hash = (text: string) => [...text].reduce((h, ch) => (Math.imul(h, 31) + c
 let counters = new Map<string, number>();
 let writtenByKind = new Map<string, string[]>();
 let profileNow: RecoveryProfile;
-let weeklyRejections: string[] = [];
 
 const practiceKinds = () => profileNow.kinds.filter((k) => k.action !== 'fixed');
 
@@ -220,9 +201,7 @@ function fakeWeek(input: WeekCallInput): WeekDayPlan[] {
   return weekLayout(input.planVariant, input.weekStart, input.restWeekdays).map((day) => {
     const practice = !day.isRestDay;
     let steps: ReturnType<typeof stepOf>[] = [];
-    if (practice && day.isTestDay) {
-      steps = [{ ...stepOf(kinds[0].id, 1, Math.round(minutes / 2)) }, { stepNumber: 2, title: `Weekly test: ${input.test.instructions}`, durationMinutes: Math.round(minutes / 2), instructions: input.test.instructions, focusCue: '', pitfallToAvoid: '', priority: 0, kind: 'weekly_test' }];
-    } else if (practice) {
+    if (practice) {
       const first = kinds[index % kinds.length];
       const second = kinds[(index + 1) % kinds.length];
       index++;
@@ -235,81 +214,31 @@ function fakeWeek(input: WeekCallInput): WeekDayPlan[] {
       slotTime: '19:30',
       implementationIntention: '',
       detailedSteps: steps,
-      isKeySession: practice && !day.isTestDay && index === 2,
+      isKeySession: practice && index === 2,
       whyToday: '',
       minimumVersion: practice ? { title: 'Ten minutes', durationMinutes: 10, instructions: 'The smallest step.' } : null,
     } as unknown as WeekDayPlan;
   });
 }
 
-/** An honest weekly update: keeps the plan, holds where the rules hold, never backwards, week 12 exactly as it is. */
-function honestUpdate(input: WeeklyUpdateInput): RawWeeklyUpdate {
-  const counts = input.counts as unknown as { practiceDone: number; practicePlanned: number };
-  const score = counts.practicePlanned > 0 ? (counts.practiceDone / counts.practicePlanned) * 100 : null;
-  // As a careful model would read it: the practice done and, when logged, the result against the target.
-  const status = score === null ? 'a_bit_behind' : score >= 80 ? 'on_track' : score >= 50 ? 'a_bit_behind' : 'far_behind';
-  const asked = askedWeeks(input);
-  const holds = holdsOf(input);
-  const last = nextWeekIsLast(input);
-  const heldWeek = heldWeekOf(input);
-  const held = input.restart ? !last : (status === 'far_behind' && !last) || holds.notLogged || holds.weekBehind.length > 0;
-  const bound = boundOf(input);
-  const final = asked[asked.length - 1];
-  let prev: number | null = null;
-  const nextTargets = asked.map((week) => {
-    const planned = week.target;
-    if (planned.kind === 'deliverable') {
-      const description = held && week.weekNumber === heldWeek && input.target.kind === 'deliverable' ? input.target.description : planned.description;
-      return { weekNumber: week.weekNumber, kind: 'deliverable', description };
-    }
-    let value = planned.value;
-    const dir = planned.direction;
-    if (week === final) value = planned.value;
-    else if (input.restart && week.weekNumber === heldWeek && input.restart.level.kind === 'number') value = input.restart.level.value;
-    else if (held && week.weekNumber === heldWeek && input.target.kind === 'number') value = input.target.value;
-    else if (bound !== null && harder(bound, value, dir)) value = bound;
-    if (prev !== null && harder(prev, value, dir)) value = prev;
-    if (week !== final && final.target.kind === 'number' && harder(value, final.target.value, dir)) value = final.target.value;
-    prev = value;
-    return { weekNumber: week.weekNumber, kind: 'number', metric: planned.metric, value, unit: planned.unit };
-  });
-  return { status, nextTargets, messageToUser: 'Next week keeps building toward your target.', guidanceForNextWeek: 'Keep the same rhythm.' };
-}
-
 // ---------------------------------------------------------------------------------------------------------------------
 // Seeding: a goal as goal create saves it
-
-function targetsFor(spec: GoalSpec, shape: ReturnType<typeof planShape>): WeekTarget[] {
-  if (spec.deliverable) return Array.from({ length: shape.weeks }, (_, i) => ({ kind: 'deliverable' as const, description: `${spec.deliverable} ${Math.min(i + 1, shape.finalWeek)}` }));
-  const n = spec.number!;
-  const raw: WeekTarget[] = Array.from({ length: shape.weeks }, (_, i) => {
-    const step = Math.min(i + 1, shape.finalWeek) / shape.finalWeek;
-    return { kind: 'number', metric: n.metric, value: Math.round((n.from + (n.to - n.from) * step) * 10) / 10, unit: n.unit, direction: n.direction ?? 'higher_is_better' };
-  });
-  const safe = safeTargetClimb(raw, n.from, { run10k: spec.presetId === 'run10k' }).targets;
-  // As the roadmap check does (B-109): the ready week keeps the final week's target.
-  if (shape.readyWeek !== null) safe[shape.readyWeek - 1] = { ...safe[shape.finalWeek - 1] };
-  return safe;
-}
 
 function seed(spec: GoalSpec, length: (typeof LENGTHS)[number], timezone: string) {
   const shape = planShape(length.weeks);
   const fixedDate = length.fixedDay === null ? null : addDays(START, length.fixedDay);
-  const preset = spec.presetId ? CERTIFIED_PRESETS.find((p) => p.id === spec.presetId)! : null;
   const made = makeGoalProfile({ presetId: spec.presetId, domain: null, goalText: spec.rawGoal });
   profileNow = spec.template ? (RECOVERY_TEMPLATES[spec.template] as unknown as RecoveryProfile) : (made as { profile: RecoveryProfile }).profile;
-  const targets = targetsFor(spec, shape);
-  const weeks: RoadmapWeek[] = targets.map((target, i) => ({
+  const weeks: RoadmapWeek[] = Array.from({ length: shape.weeks }, (_, i) => ({
     weekNumber: i + 1,
     phase: i < Math.ceil(shape.weeks / 2) ? 'Base' : 'Build',
     focus: `Focus ${i + 1}`,
-    target,
-    test: { type: 'count', instructions: 'Check where you are', passIf: 'x' },
   }));
-  let roadmap: Roadmap = {
-    finalGoal: 'The goal',
-    finalTest: 'The final test',
-    startingPoint: { value: spec.number?.from ?? null, description: 'Now' },
+  const n = spec.number;
+  const roadmap: Roadmap = {
+    finalGoal: n ? `${n.metric}: ${n.to} ${n.unit}` : `${spec.deliverable}, finished`,
+    startingPoint: { value: n?.from ?? null, description: 'Now' },
+    measure: n ? { metric: n.metric, unit: n.unit, direction: n.direction ?? 'higher_is_better' } : null,
     method: { name: 'Method', creator: '', summary: 'A method.', whyChosen: 'Fits.', runnerUp: null, safety: 5, rules: ['One thing at a time'], candidates: [] },
     phases: [
       { name: 'Base', startWeek: 1, endWeek: Math.ceil(shape.weeks / 2), purpose: 'Build.' },
@@ -317,7 +246,6 @@ function seed(spec: GoalSpec, length: (typeof LENGTHS)[number], timezone: string
     ],
     weeks,
   };
-  roadmap = withPathwayTests(roadmap, preset, shape);
   const routine = { dailyMinutes: 30, planVariant: 'steady', sleepTime: '23:00', preferredSlot: 'evening', wakeTime: '07:00', busyHours: '09:00 - 17:00', commitments: [] };
   db.state.goals.push({
     id: 'g1',
@@ -341,9 +269,9 @@ function seed(spec: GoalSpec, length: (typeof LENGTHS)[number], timezone: string
   for (const row of roadmapWeekRows('g1', roadmap, 30, 'steady')) {
     db.state.weeks.push({ id: `w${row.weekNumber}`, testResult: null, executionScore: null, reviewNotes: null, closedBy: null, closedAt: null, jumped: false, ...JSON.parse(JSON.stringify(row)) });
   }
-  const week1 = fakeWeek({ weekNumber: 1, totalWeeks: length.weeks, weekStart: START, planVariant: 'steady', dailyMinutes: 30, test: roadmap.weeks[0].test } as unknown as WeekCallInput);
+  const week1 = fakeWeek({ weekNumber: 1, totalWeeks: length.weeks, weekStart: START, planVariant: 'steady', dailyMinutes: 30 } as unknown as WeekCallInput);
   for (const row of dailyTaskRows('g1', 1, week1)) {
-    db.state.tasks.push({ id: `g1-d${row.dayNumber}`, status: 'pending', usedMinimumVersion: false, notOffered: false, notes: null, completedAt: null, ...JSON.parse(JSON.stringify(row)) });
+    db.state.tasks.push({ id: `g1-d${row.dayNumber}`, status: 'pending', usedMinimumVersion: false, notOffered: false, notes: null, feel: null, completedAt: null, ...JSON.parse(JSON.stringify(row)) });
   }
   return { shape, fixedDate, roadmap };
 }
@@ -376,16 +304,13 @@ beforeEach(() => {
   db.reset();
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.mocked(getAuthUser).mockImplementation(async () => currentUser as never);
-  vi.mocked(generateWeekPlan).mockImplementation(async (input) => fakeWeek(input));
-  vi.mocked(askWeeklyUpdate).mockImplementation(async (input) => {
-    const verdict = checkWeeklyUpdate(honestUpdate(input), input);
-    if ('value' in verdict) return { outcome: 'accepted', update: verdict.value, reasons: [] };
-    weeklyRejections.push(`week ${input.weekNumber}: ${verdict.reasons.join(' | ')}`);
-    return { outcome: 'fallback', update: null, reasons: verdict.reasons };
+  vi.mocked(generateWeekPlan).mockImplementation(async (input) => {
+    writerCalls.push({ input, closing: closingWeekCounts(input.weekNumber) });
+    return fakeWeek(input);
   });
   for (const method of ['log', 'warn', 'error', 'info'] as const) vi.spyOn(console, method).mockImplementation(() => {});
-  // The production switch states (all five on, docs: CLAUDE.md).
-  for (const flag of ['WEEK_CLOSE_ENABLED', 'MISSED_SESSIONS_CARRY_ENABLED', 'METHOD_RECOVERY_ENABLED', 'WEEKLY_UPDATE_ENABLED', 'CUSTOM_RECOVERY_PROFILES_ENABLED']) vi.stubEnv(flag, 'true');
+  // The production switch states (docs: CLAUDE.md).
+  for (const flag of ['WEEK_CLOSE_ENABLED', 'MISSED_SESSIONS_CARRY_ENABLED', 'METHOD_RECOVERY_ENABLED', 'CUSTOM_RECOVERY_PROFILES_ENABLED']) vi.stubEnv(flag, 'true');
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -435,7 +360,22 @@ function storedTitles(): Set<string> {
   return titles;
 }
 
-const valueOf = (target: unknown) => (target && typeof target === 'object' && (target as WeekTarget).kind === 'number' ? (target as { value: number }).value : null);
+/**
+ * What the writer should be told about last week, read from the store at the call: the newest closed week before
+ * `weekNumber` (a jump or a break skips weeks), its practice sessions (no rest days, no days not offered), done ones,
+ * and the taps and notes on them.
+ */
+function closingWeekCounts(weekNumber: number) {
+  const closed = db.state.weeks.filter((w) => w.weekNumber < weekNumber && (w.status === 'completed' || w.status === 'active')).sort((a, b) => b.weekNumber - a.weekNumber)[0];
+  if (!closed) return null;
+  const tasks = db.tasksOf(closed.weekNumber);
+  const practice = tasks.filter((t) => !t.isRestDay && !t.notOffered);
+  const feel: Record<Feel, number> = { too_easy: 0, just_right: 0, too_hard: 0 };
+  for (const t of practice) if (t.status === 'completed' && t.feel) feel[t.feel as Feel] += 1;
+  return { week: closed.weekNumber, done: practice.filter((t) => t.status === 'completed').length, planned: practice.length, feel, notes: tasks.filter((t) => t.notes?.trim()).length };
+}
+
+let writerCalls: Array<{ input: WeekCallInput; closing: ReturnType<typeof closingWeekCounts> }> = [];
 
 interface RunResult {
   problems: string[];
@@ -445,17 +385,15 @@ interface RunResult {
   movedDays: number;
   lostLetGo: number;
   lostMove: Record<string, number>;
-  updates: { accepted: number; fallback: number };
-  checkpoints: string[];
+  /** The pace each written week was given (week 2 on). */
+  paces: Partial<Record<Pace, number>>;
   daysToFinish: number;
-  finalAtStart: number | null;
-  finalAtEnd: number | null;
 }
 
 async function runPlan(spec: GoalSpec, person: Person, length: (typeof LENGTHS)[number]): Promise<RunResult> {
   counters = new Map();
   writtenByKind = new Map();
-  weeklyRejections = [];
+  writerCalls = [];
   const tz = person.timezone ?? 'UTC';
   currentUser = { id: 'u1', email: 'u1@achivii.com', timezone: tz };
   const { shape, fixedDate } = seed(spec, length, tz);
@@ -469,10 +407,9 @@ async function runPlan(spec: GoalSpec, person: Person, length: (typeof LENGTHS)[
     seen.add(key);
     problems.push(`${where}: ${what}`);
   };
-  const finalTargetAtStart = valueOf(db.week(shape.finalWeek).target);
   let lastWeekSeen = 1;
   let day = 0;
-  let checkpointsSeen: string[] = [];
+  let callsChecked = 0;
   let tookFinalWeek = false;
   const dailyMinutes = () => JSON.parse(db.goal().routine).dailyMinutes as number;
 
@@ -543,32 +480,26 @@ async function runPlan(spec: GoalSpec, person: Person, length: (typeof LENGTHS)[
     for (const kind of profileNow.kinds.filter((k) => k.inOrder && k.action !== 'let_go')) {
       for (const title of writtenByKind.get(kind.id) ?? []) if (!stored.has(title)) add(where, `in-order step ${title} is gone`);
     }
-    // Targets: never backwards; the ready week keeps the final week's; nothing beyond the goal.
-    const nums = db.state.weeks.sort((a, b) => a.weekNumber - b.weekNumber).map((w) => w.target);
-    for (let i = 1; i < nums.length; i++) {
-      const a = valueOf(nums[i - 1]);
-      const b = valueOf(nums[i]);
-      if (a !== null && b !== null && harder(a, b, (nums[i] as { direction: 'higher_is_better' | 'lower_is_better' }).direction) && !db.week(i).jumped && db.week(i).status !== 'completed') {
-        add(where, `week ${i + 1}'s target ${b} is easier than week ${i}'s ${a}`);
+    // No test anywhere in a week written now (no weekly tests): no test day, no "Weekly test" step.
+    for (const task of db.state.tasks) {
+      if (task.isTestDay) add(where, `${task.date} (week ${task.weekNumber}) is a test day`);
+      if (steps(task).some((item) => /^weekly test\b/i.test(item.title) || item.kind === 'weekly_test')) add(where, `${task.date} holds a test step`);
+      // A tap only on a done session.
+      if (task.feel && task.status !== 'completed') add(where, `${task.date} has feel ${task.feel} but is ${task.status}`);
+    }
+    // The writer is told exactly what last week was: its sessions done and planned, the taps, every note.
+    for (; callsChecked < writerCalls.length; callsChecked++) {
+      const { input, closing } = writerCalls[callsChecked];
+      if (!closing) continue;
+      const last = input.lastWeek;
+      if (!last) {
+        add(where, `week ${input.weekNumber} was written with no last week (week ${closing.week} closed)`);
+        continue;
       }
-    }
-    if (shape.readyWeek !== null && JSON.stringify(db.week(shape.readyWeek).target) !== JSON.stringify(db.week(shape.finalWeek).target)) {
-      add(where, `ready week target ${JSON.stringify(db.week(shape.readyWeek).target)} differs from the final week's ${JSON.stringify(db.week(shape.finalWeek).target)}`);
-    }
-    const finalNow = valueOf(db.week(shape.finalWeek).target);
-    const accepted = (Array.isArray(goal.roadmap?.checkpoints) ? goal.roadmap.checkpoints : []).some((c: any) => c.answer === 'accept');
-    // The final target moves only by an accepted checkpoint, or lowered by the safe climb (recorded in loweredTargets).
-    const safetyLowered = (Array.isArray(goal.roadmap?.loweredTargets) ? goal.roadmap.loweredTargets : []).some((l: any) => l.week === shape.finalWeek) || finalNow === null || finalTargetAtStart === null || harder(finalTargetAtStart, finalNow, (db.week(shape.finalWeek).target as any).direction);
-    if (finalTargetAtStart !== null && finalNow !== finalTargetAtStart && !accepted && !safetyLowered) add(where, `final target moved from ${finalTargetAtStart} to ${finalNow} with no accepted checkpoint`);
-
-    // Checkpoint offers: answered as the person would.
-    const active2 = await call('/active', at, undefined, 'GET');
-    const offer = active2.body?.activeGoal?.checkpoint;
-    if (offer && !checkpointsSeen.includes(`${offer.week}-${offer.kind}`)) {
-      checkpointsSeen.push(`${offer.week}-${offer.kind}`);
-      const answer = offer.kind === 'line_only' ? 'keep' : person.checkpoint ?? 'keep';
-      const answered = await call('/checkpoint', at, { week: offer.week, answer });
-      if (answered.status !== 200) add(where, `checkpoint answer ${answer} answered ${answered.status} ${JSON.stringify(answered.body)}`);
+      if (last.done !== closing.done || last.planned !== closing.planned) add(where, `week ${input.weekNumber} was told ${last.done} of ${last.planned} done; week ${closing.week} had ${closing.done} of ${closing.planned}`);
+      if (JSON.stringify(last.feel) !== JSON.stringify(closing.feel)) add(where, `week ${input.weekNumber} was told taps ${JSON.stringify(last.feel)}; week ${closing.week} had ${JSON.stringify(closing.feel)}`);
+      if (last.notes.length !== closing.notes) add(where, `week ${input.weekNumber} was told ${last.notes.length} notes; week ${closing.week} had ${closing.notes}`);
+      if (!input.weekNumber || input.weekNumber <= closing.week) add(where, `week ${input.weekNumber} written from a later week ${closing.week}`);
     }
 
     // The person's day.
@@ -577,6 +508,13 @@ async function runPlan(spec: GoalSpec, person: Person, length: (typeof LENGTHS)[
     if (task && task.status !== 'completed' && practise) {
       const done = await call(`/tasks/${task.id}`, at, { status: 'completed' }, 'PATCH');
       if (done.status !== 200) add(where, `completing ${task.date} answered ${done.status} ${JSON.stringify(done.body)}`);
+      // The tap after the session, and a note in the day's note box.
+      const feel = person.feels?.(ctx) ?? null;
+      const note = person.notes?.(ctx) ?? null;
+      if (feel || note) {
+        const tapped = await call(`/tasks/${task.id}`, at, { ...(feel ? { feel } : {}), ...(note ? { notes: note } : {}) }, 'PATCH');
+        if (tapped.status !== 200) add(where, `feel ${feel} answered ${tapped.status} ${JSON.stringify(tapped.body)}`);
+      }
     }
     if (task && task.status !== 'completed' && !practise && person.actions) {
       const marked = await call(`/tasks/${task.id}/mark-missed`, at);
@@ -595,22 +533,6 @@ async function runPlan(spec: GoalSpec, person: Person, length: (typeof LENGTHS)[
           }
         }
       }
-    }
-    // The test, on the test day, when they log it.
-    const testTask = db.state.tasks.find((t) => t.date === today && t.weekNumber === db.goal().currentWeek && t.isTestDay);
-    if (testTask && person.logs && practise) {
-      const week = db.week(testTask.weekNumber);
-      const light = week.test?.light === true;
-      const target = week.target as WeekTarget;
-      let body: Record<string, unknown>;
-      if (light) body = { value: 'Done', passed: true, note: 'Felt fine' };
-      else if (target.kind === 'number') {
-        const f = person.result ?? 1;
-        const value = target.direction === 'lower_is_better' ? Math.round((target.value / f) * 10) / 10 : Math.round(target.value * f * 10) / 10;
-        body = { value, unit: target.unit, passed: target.direction === 'lower_is_better' ? value <= target.value : value >= target.value };
-      } else body = { value: 'Done', passed: (person.result ?? 1) >= 1 };
-      const logged = await call(`/weeks/${testTask.weekNumber}/test-result`, at, body, 'PUT');
-      if (logged.status !== 200) add(where, `test log answered ${logged.status} ${JSON.stringify(logged.body)}`);
     }
     // The review on the week's last day.
     const weekTasks = db.tasksOf(db.goal().currentWeek);
@@ -636,9 +558,10 @@ async function runPlan(spec: GoalSpec, person: Person, length: (typeof LENGTHS)[
     else if (lost > 0) lostMove[`${kind.id} (${kind.action}${kind.inOrder ? ', in order' : ''})`] = lost;
   }
   if (process.env.SWEEP_DEBUG && (spec.name + ' / ' + person.name + ' / ' + length.name).includes(process.env.SWEEP_DEBUG)) {
-    writeFileSync(process.env.SWEEP_DEBUG_OUT ?? 'sweep-debug.json', JSON.stringify({ problems, state: db.state, calls: vi.mocked(generateWeekPlan).mock.calls.map(([i]) => ({ week: i.weekNumber, whereTheyAre: i.whereTheyAre })), updates: vi.mocked(askWeeklyUpdate).mock.calls.map(([i]) => i) }, null, 1));
+    writeFileSync(process.env.SWEEP_DEBUG_OUT ?? 'sweep-debug.json', JSON.stringify({ problems, state: db.state, calls: writerCalls.map(({ input, closing }) => ({ week: input.weekNumber, lastWeek: input.lastWeek, closing, whereTheyAre: input.whereTheyAre })) }, null, 1));
   }
-  for (const r of weeklyRejections) problems.push(`${spec.name} / ${person.name} / ${length.name}: our honest weekly update was rejected, ${r}`);
+  const paces: Partial<Record<Pace, number>> = {};
+  for (const { input } of writerCalls) if (input.lastWeek) paces[paceOf(input.lastWeek)] = (paces[paceOf(input.lastWeek)] ?? 0) + 1;
   return {
     problems,
     finished: goal.status === 'completed',
@@ -647,14 +570,8 @@ async function runPlan(spec: GoalSpec, person: Person, length: (typeof LENGTHS)[
     movedDays: goal.movedDays ?? 0,
     lostLetGo,
     lostMove,
-    updates: {
-      accepted: vi.mocked(askWeeklyUpdate).mock.calls.length - weeklyRejections.length,
-      fallback: weeklyRejections.length,
-    },
-    checkpoints: checkpointsSeen,
+    paces,
     daysToFinish: day + 1,
-    finalAtStart: finalTargetAtStart,
-    finalAtEnd: valueOf(db.week(shape.finalWeek).target),
   };
 }
 

@@ -162,7 +162,7 @@ beforeEach(() => {
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'info').mockImplementation(() => {});
-  for (const name of ['WEEK_CLOSE_ENABLED', 'WEEKLY_UPDATE_ENABLED', 'MISSED_SESSIONS_CARRY_ENABLED', 'METHOD_RECOVERY_ENABLED']) vi.stubEnv(name, '');
+  for (const name of ['WEEK_CLOSE_ENABLED', 'MISSED_SESSIONS_CARRY_ENABLED', 'METHOD_RECOVERY_ENABLED']) vi.stubEnv(name, '');
 });
 
 afterEach(() => {
@@ -202,15 +202,15 @@ describe('the chosen rest days (B-108)', () => {
     expect(validRestWeekdays('steady', 'weekend')).toBeNull();
   });
 
-  it('weekLayout rests on the chosen weekdays from any start day, the test on the last practice day', () => {
-    // START is a Monday: a weekend off rests on days 6 and 7, and Friday is the test day.
+  it('weekLayout rests on the chosen weekdays from any start day, with no test day (no weekly tests)', () => {
+    // START is a Monday: a weekend off rests on days 6 and 7.
     const weekend = weekLayout('steady', START, [0, 6]);
     expect(weekend.filter((d) => d.isRestDay).map((d) => d.dayOfWeek)).toEqual(['Saturday', 'Sunday']);
-    expect(weekend.find((d) => d.isTestDay)?.dayOfWeek).toBe('Friday');
+    expect(weekend.some((d) => d.isTestDay)).toBe(false);
     // A Thursday start, Wednesday and Sunday off.
     const thursday = weekLayout('steady', new Date('2026-09-24T00:00:00Z'), [0, 3]);
     expect(thursday.filter((d) => d.isRestDay).map((d) => d.dayOfWeek)).toEqual(['Sunday', 'Wednesday']);
-    expect(thursday.find((d) => d.isTestDay)?.dayOfWeek).toBe('Tuesday');
+    expect(thursday.some((d) => d.isTestDay)).toBe(false);
   });
 
   it('with none chosen (or ones that do not fit), the layout is exactly as before', () => {
@@ -311,7 +311,7 @@ describe('PATCH /api/goal/schedule (B-108)', () => {
     expect(db.tasksOf(2)).toEqual(before);
     expect((await close(atGap(2, 0))).status).toBe(200);
     expect(restWeekdaysOf(3)).toEqual([0, 6]);
-    expect(db.tasksOf(3).find((t) => t.isTestDay)?.dayOfWeek).toBe('Friday');
+    expect(db.tasksOf(3).filter((t) => t.isRestDay).map((t) => t.dayOfWeek)).toEqual(['Saturday', 'Sunday']);
     const input = vi.mocked(generateWeekPlan).mock.calls[0][0];
     expect(input).toMatchObject({ restWeekdays: [0, 6], dailyMinutes: 60, planVariant: 'steady', slotTime: '07:30' });
   });

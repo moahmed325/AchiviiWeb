@@ -40,7 +40,6 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
   // NP-6, NP-7: Pro sees the next plan; everyone can restart their pathway from the start or choose another.
   const choices = nextPlanChoices(result, isPro);
   const pathway = findPathwayByTitle(goal.rawGoal);
-  const madeIt = result ? result.madeIt : true;
 
   const choose = (mode: NextPlanMode) => {
     if (needsLevel(result, mode)) setLevelFor(mode);
@@ -85,9 +84,9 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
             COMPLETE
           </h1>
 
-          {/* Next plan (NP-1, NP-2): what they reached, against their full goal. */}
+          {/* Next plan (NP-1, NP-2): what they did, and the goal they worked toward. */}
           <p className="mt-2 text-h2 font-medium text-text">
-            {headline ?? (madeIt ? 'You made it.' : planWeeks(goal) === 12 ? '90 days done.' : `${planWeeks(goal)} weeks done.`)}
+            {headline ?? (planWeeks(goal) === 12 ? '90 days done.' : `${planWeeks(goal)} weeks done.`)}
           </p>
           {outcome && <p className="mt-2 max-w-xl text-body-lg text-text">{outcome}</p>}
 
@@ -137,14 +136,14 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
               </p>
             </div>
             <div className="rounded-control border border-border bg-surface-elevated/70 p-3 text-left">
-              <span className="font-ui-mono text-micro text-text-secondary">Benchmarks</span>
+              <span className="font-ui-mono text-micro text-text-secondary">Weeks Finished</span>
               <p className="font-ui-mono text-h3 font-semibold tabular-nums text-accent-hover">
-                {summary.benchmarksAchieved}/{summary.totalBenchmarks}
+                {summary.completedWeeks}/{summary.totalWeeks}
               </p>
             </div>
           </div>
 
-          {/* Next plan (NP-5 to NP-7): Pro only; never shown as a result of falling short. */}
+          {/* Next plan (NP-6, NP-7): Pro only. */}
           {choices.length > 0 && (
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               {choices.map((choice, index) => (

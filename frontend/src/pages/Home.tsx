@@ -7,14 +7,14 @@ import { CustomGoalGate } from '../components/billing';
 import { Button, Surface } from '../components/ui';
 import { LandingPage } from '../components/marketing/LandingPage';
 import { Today, TodaySkeleton } from '../components/today/Today';
-import { BreakChoice, GettingReady, WeekTestFirst } from '../components/today/WeekClose';
+import { BreakChoice, GettingReady } from '../components/today/WeekClose';
 
 const AchievementPage = React.lazy(() => import('./AchievementPage'));
 
 
 export const Home: React.FC = () => {
   const { user, token, loading: authLoading } = useAuth();
-  const { activeGoal, loadingGoal, goalLoadFailed, refreshGoal, apiStatus, closingWeek, heldClose, pendingChoice } = useGoal();
+  const { activeGoal, loadingGoal, goalLoadFailed, refreshGoal, apiStatus, closingWeek, pendingChoice } = useGoal();
   const { startPathway, startCustomGoal } = usePathwayLaunch();
   const [retrying, setRetrying] = useState(false);
 
@@ -102,11 +102,6 @@ export const Home: React.FC = () => {
     // M1.5b (WU-38): a break past the limit waits for the person's choice; Today shows only the card.
     if (pendingChoice && pendingChoice.goalId === activeGoal.id) {
       return <BreakChoice goal={activeGoal} choice={pendingChoice.choice} />;
-    }
-
-    // WU-14: a close waits for last week's test; Today shows only the card until it is answered.
-    if (heldClose) {
-      return <WeekTestFirst goal={activeGoal} weekNumber={heldClose.weekNumber} />;
     }
 
     return <Today goal={activeGoal} />;

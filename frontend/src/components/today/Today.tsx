@@ -1,10 +1,8 @@
 import React, { useEffect, useId, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, Check, ChevronDown, Clock, ExternalLink, Flag, Play, X } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, Clock, ExternalLink, Play, X } from 'lucide-react';
 import type { DailyTask, Goal } from '../../types';
 import { useGoal } from '../../context/GoalContext';
-import { formatPassIf } from '../../lib/formatters';
-import { isLightTest, nextCheckLine } from '../../lib/lightTest';
 import {
   currentRoadmapWeek,
   currentWeekTasks,
@@ -33,9 +31,8 @@ import type { SessionProgress } from '../focus/FocusCompletion';
 import { BasisBadge } from '../BasisBadge';
 import { WeeklyReviewModal } from '../review';
 import { ClosingStretchView } from './ClosingStretchView';
-import { LateTestCard } from './LateTestCard';
-import { DailyTimeCard, RetestNotice } from './Retest';
-import { CheckpointCard } from './Checkpoint';
+import { DailyTimeCard } from './DailyTimeCard';
+import { FeelPicker } from './FeelPicker';
 import { CLOSE_FAILED } from './WeekClose';
 import { closeLineWeek } from '../../lib/weekClose';
 import { fixedDateLine } from '../../lib/fixedDate';
@@ -514,9 +511,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
       {/* Weekly update M1.2b (RULE-9): the close couldn't write next week; the plan shows as stored. */}
       {goalContext.closeFailed && <ErrorState className="relative mt-10" title={CLOSE_FAILED} onRetry={retryClose} retrying={retryingClose} />}
 
-      {/* Checkpoints (RULE-7): the week 4 or 8 offer, first among Today's cards; not while the close failed. */}
-      {!goalContext.closeFailed && <CheckpointCard checkpoint={goal.checkpoint} />}
-
       {closeLine && (
         <Callout>
           <div className="flex items-center justify-between gap-3">
@@ -529,9 +523,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
           </div>
         </Callout>
       )}
-
-      {/* Weekly update M3.3b (AC-4): why the week starts with a re-test, and its result entry (self-contained). */}
-      <RetestNotice goal={goal} now={now} timezone={timezone} />
 
       {reviewDue && (
         <section
@@ -559,9 +550,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
           </div>
         </section>
       )}
-
-      {/* Missed sessions M4.1: the week's test, still open after test day (self-contained). */}
-      <LateTestCard goal={goal} now={now} timezone={timezone} />
 
       {/* Weekly update M3.3b (AC-5): the daily-time question after two hard weeks, once. */}
       <DailyTimeCard check={goal.dailyTimeCheck} />
@@ -592,7 +580,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                   </Badge>
                 )}
                 {task.isKeySession && !done && <Badge tone="achievement">Key session</Badge>}
-                {task.isTestDay && !done && <Badge tone="achievement">Test day</Badge>}
                 {movedHere && <Badge>{movedHere}</Badge>}
                 {!viewingToday && todayTask && (
                   <Button variant="quiet" size="sm" className="-my-2 ml-auto" onClick={() => selectDay(todayTask.id)}>
@@ -611,6 +598,8 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                   </p>
                 </div>
               )}
+              {/* No weekly tests, section 7: one optional tap for how it felt, read when next week is written. */}
+              {done && !task.isRestDay && <FeelPicker task={task} onAddNote={() => setShowNotes(true)} />}
 
               <h2 id="step-heading" className={cx('max-w-[24ch] break-words text-h2 text-text', done && !task.isRestDay ? 'mt-6' : 'mt-6')}>
                 {shown.title}
@@ -655,23 +644,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                     {notice.kind === 'swap_offer' && <SwapOfferAnswers notice={notice} goal={goal} action={planAction} />}
                   </Callout>
                 )
-              )}
-
-              {task.isTestDay && (
-                <div className="mt-6 rounded-card border border-achievement/25 bg-achievement/[0.04] p-5">
-                  <h3 className="flex items-center gap-2 font-ui-mono text-micro uppercase text-achievement">
-                    <Flag aria-hidden="true" strokeWidth={1.5} className="size-3.5" />
-                    {isLightTest(week?.test) ? "Today's light check" : "Today's check"}
-                  </h3>
-                  {week?.test?.instructions && <p className="mt-3 text-body text-text">{week.test.instructions}</p>}
-                  {/* M2.1: a light week shows the next check it builds toward, not a pass mark against the target. */}
-                  {isLightTest(week?.test) && week?.target && (
-                    <p className="mt-2 text-small text-text-secondary">{nextCheckLine(week.weekNumber, week.target, goal)}</p>
-                  )}
-                  {week?.test?.passIf && !isLightTest(week.test) && (
-                    <p className="mt-2 text-small text-text-secondary">{formatPassIf(week.test.passIf)}</p>
-                  )}
-                </div>
               )}
 
               {firstStepToday && (
@@ -811,8 +783,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                           {nextTask.dayNumber === task.dayNumber + 1 ? `Tomorrow · ${nextTask.dayOfWeek}` : `Next practice · ${nextTask.dayOfWeek}`}
                         </span>
                         <span className="flex items-center gap-2">
-                          {nextTask.isTestDay && <Badge tone="achievement">Test day</Badge>}
-                          {nextTask.isKeySession && !nextTask.isTestDay && <Badge tone="achievement">Key session</Badge>}
+                          {nextTask.isKeySession && <Badge tone="achievement">Key session</Badge>}
                           <span className="tabular font-ui-mono text-micro text-text-secondary">{shownNext.durationMinutes || 30} min</span>
                         </span>
                       </div>

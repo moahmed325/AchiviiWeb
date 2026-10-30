@@ -1,22 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Goal, PastLimitChoice, WeeklyTestResult } from '../../types';
-import { useAuth } from '../../context/AuthContext';
+import type { Goal, PastLimitChoice } from '../../types';
 import { useGoal } from '../../context/GoalContext';
-import { ApiError, logWeeklyTestResult } from '../../lib/api';
 import { DRAFT_GOAL_KEY } from '../onboarding/payload';
-import { ReviewTestResultStep } from '../review/ReviewTestResultStep';
-import { LightTestEntry } from '../review/LightTestEntry';
-import { isLightTest, lightTestResult } from '../../lib/lightTest';
-import { Button, Dialog, DialogContent, LoadingState, Surface } from '../ui';
-import { NOT_SAVED } from '../../lib/weekClose';
+import { Button, LoadingState, Surface } from '../ui';
 import { needsLevel } from '../../lib/nextPlan';
 import { useProEntitlement } from '../../hooks/useProEntitlement';
 import { NextPlanLevelDialog } from '../achievement/NextPlanLevelDialog';
 import { fixedDateKey } from '../../lib/fixedDate';
 import { useNextPlanLaunch } from '../achievement/useNextPlanLaunch';
 
-// Weekly update M1.2b (RULE-8, WU-14, WU-28): what the app shows around an automatic week close.
+// Weekly update M1.2b (RULE-8, WU-28): what the app shows around an automatic week close.
 
 export const GETTING_READY = 'Getting your next week ready…';
 export const CLOSE_FAILED = "Couldn't get your next week ready. Please try again.";
@@ -30,114 +24,6 @@ export const GettingReady: React.FC = () => (
     <LoadingState label={GETTING_READY} showLabel />
   </main>
 );
-
-/**
- * The test first (WU-14): a close is due and the week's test isn't logged, so Today shows only this card. "Log result"
- * opens the test entry, and saving the result closes the week with it. Anything else is Skip and closes the week at
- * once as unlogged: "Skip" (on the card or the entry), dismissing the card, or going to another screen (AppShell).
- * Dismissing the entry goes back to the card (WU-32). Only the first answer sends a close (`answerHeldClose`). Closing
- * the tab answers nothing, so the card shows again on the next open.
- */
-export const WeekTestFirst: React.FC<{ goal: Goal; weekNumber: number }> = ({ goal, weekNumber }) => {
-  const { token } = useAuth();
-  const { answerHeldClose } = useGoal();
-  const week = goal.roadmapWeeks?.find((w) => w.weekNumber === weekNumber);
-  const [entry, setEntry] = useState(false);
-  const [result, setResult] = useState<WeeklyTestResult | null>(null);
-  // M2.1: a light week's note; "I did it" logs it with the light result and closes the week.
-  const [note, setNote] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const light = isLightTest(week?.test);
-
-  const skip = () => {
-    if (!saving) void answerHeldClose();
-  };
-  // WU-32: Esc, the ✕ or a tap outside the entry goes back to the card; on the card itself it is Skip.
-  const onOpenChange = (open: boolean) => {
-    if (open || saving) return;
-    if (entry) {
-      setEntry(false);
-      setError(null);
-    } else {
-      skip();
-    }
-  };
-
-  const onSave = async () => {
-    const toSave = light ? lightTestResult(note) : result;
-    if (!toSave || !token || saving) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await answerHeldClose(async () => {
-        try {
-          await logWeeklyTestResult(weekNumber, toSave, token);
-        } catch (err) {
-          // Another tab closed the week meanwhile: nothing left to log, the close below finds nothing due.
-          if (err instanceof ApiError && err.code === 'week_closed') return;
-          throw err;
-        }
-      });
-    } catch (err) {
-      console.warn('Failed to log the test result:', err);
-      setError(NOT_SAVED);
-      setSaving(false);
-    }
-  };
-
-  return (
-    <main id="main" className="ui-root mx-auto w-full max-w-3xl flex-1 px-gutter py-10 sm:py-14">
-      <Dialog open onOpenChange={onOpenChange}>
-        {entry ? (
-          <DialogContent
-            title="Log last week's test"
-            size="md"
-            footer={
-              <>
-                <Button variant="quiet" onClick={skip} disabled={saving}>
-                  Skip
-                </Button>
-                <Button variant="primary" onClick={onSave} disabled={(!light && !result) || !token} loading={saving}>
-                  {light ? 'I did it' : 'Save result'}
-                </Button>
-              </>
-            }
-          >
-            <div className="space-y-4">
-              {light && week?.test ? (
-                <LightTestEntry weekNumber={weekNumber} target={week.target} test={week.test} note={note} onNoteChange={setNote} disabled={saving} />
-              ) : (
-                <ReviewTestResultStep target={week?.target} test={week?.test} testResult={result} onChange={setResult} disabled={saving} />
-              )}
-              {error && (
-                <p role="alert" className="text-small text-danger">
-                  {error}
-                </p>
-              )}
-            </div>
-          </DialogContent>
-        ) : (
-          <DialogContent
-            title="Did you do last week's test?"
-            description="Log your result to shape next week."
-            size="sm"
-            footer={
-              <>
-                <Button variant="quiet" onClick={skip}>
-                  Skip
-                </Button>
-                <Button variant="primary" onClick={() => setEntry(true)}>
-                  Log result
-                </Button>
-              </>
-            }
-          />
-        )}
-      </Dialog>
-    </main>
-  );
-};
 
 /** Section 6 (WU-40 (3)): the card's words, by the choice the break waits for. */
 const CHOICE_COPY: Record<PastLimitChoice, { body: string; action: string }> = {

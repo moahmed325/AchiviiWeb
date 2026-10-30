@@ -12,7 +12,9 @@ import {
   checkWeekAnswer,
   dueDateOf,
   generateWeekPlan,
+  paceOf,
   weekLayout,
+  type LastWeekSummary,
   type RawWeekAnswer,
   type WeekCallInput,
 } from '../src/lib/ai/weekPlan.js';
@@ -28,8 +30,6 @@ const input: WeekCallInput = {
   totalWeeks: 12,
   phase: { name: 'Accuracy', purpose: 'Learn every key without looking.' },
   focus: 'Home row',
-  target: { kind: 'number', metric: 'Typing speed', value: 16, unit: 'words per minute', direction: 'higher_is_better' },
-  test: { type: 'typing_test', instructions: 'Take a 1-minute typing test on keybr.com', passIf: '16 wpm at 95% accuracy' },
   weekStart: new Date('2026-09-21T12:00:00Z'),
 };
 
@@ -46,17 +46,14 @@ function step(title: string, priority: number, minutes = 10) {
   };
 }
 
-/** Steady: days 1-3 and 5-6 practice, 4 and 7 rest, day 6 the test. */
+/** Steady: days 1-3 and 5-6 practice, 4 and 7 rest. */
 function week(overrides: (days: Array<Record<string, unknown>>) => void = () => {}): RawWeekAnswer {
   const days: Array<Record<string, unknown>> = Array.from({ length: 7 }, (_, index) => {
     const dayNumber = index + 1;
     if (dayNumber === 4 || dayNumber === 7) {
       return { dayNumber, isKeySession: false, title: 'Easy home row pass', whyToday: 'Keeps the keys fresh.', steps: [step('Slow home row pass', 1, 12)] };
     }
-    const steps =
-      dayNumber === 6
-        ? [step('Warm up on home row words', 2, 5), step('Weekly test: 1-minute typing test', 1, 15), step('Compare your result with 16 wpm', 3, 10)]
-        : [step(`Drill ${dayNumber} letters`, 1, 15), step(`Type sentence set ${dayNumber}`, 2, 15)];
+    const steps = [step(`Drill ${dayNumber} letters`, 1, 15), step(`Type sentence set ${dayNumber}`, 2, 15)];
     return {
       dayNumber,
       isKeySession: dayNumber === 3,
@@ -75,12 +72,12 @@ function reason(result: ReturnType<typeof checkWeekAnswer>): string {
 }
 
 describe('weekLayout', () => {
-  it('puts rest days where the track says and the test on the last practice day', () => {
+  it('puts rest days where the track says, and no test day (no weekly tests)', () => {
     const layout = weekLayout('steady', input.weekStart);
     expect(layout.filter((d) => d.isRestDay).map((d) => d.dayNumber)).toEqual([4, 7]);
-    expect(layout.find((d) => d.isTestDay)?.dayNumber).toBe(6);
-    expect(weekLayout('accelerated', input.weekStart).find((d) => d.isTestDay)?.dayNumber).toBe(6);
-    expect(weekLayout('minimal', input.weekStart).find((d) => d.isTestDay)?.dayNumber).toBe(6);
+    for (const variant of ['steady', 'accelerated', 'minimal'] as const) {
+      expect(weekLayout(variant, input.weekStart).some((d) => d.isTestDay)).toBe(false);
+    }
   });
 });
 
@@ -96,11 +93,8 @@ describe('checkWeekAnswer', () => {
       expect(new Set(day.detailedSteps.map((s) => s.priority)).size).toBe(day.detailedSteps.length);
       expect(day.minimumVersion!.durationMinutes).toBeLessThanOrEqual(10);
     }
-    expect(days.find((d) => d.isTestDay)?.dayNumber).toBe(6);
+    expect(days.some((d) => d.isTestDay)).toBe(false);
     expect(days.filter((d) => d.isKeySession).map((d) => d.dayNumber)).toEqual([3]);
-    const test = days[5].detailedSteps.find((s) => s.title.startsWith('Weekly test'))!;
-    expect(test.priority).toBe(1);
-    expect(test.passMark).toBe('16 wpm at 95% accuracy');
   });
 
   it('keeps rest days to one light step of 15 minutes at most', () => {
@@ -141,59 +135,27 @@ describe('checkWeekAnswer', () => {
     expect(result.value[0].detailedSteps.reduce((sum, s) => sum + s.durationMinutes, 0)).toBe(30);
   });
 
-  it('lets the test day be shorter than the daily time instead of padding it', () => {
-    const result = checkWeekAnswer(
-      week((days) => {
-        days[5].steps = [step('Warm up on home row words', 2, 5), step('Weekly test: 1-minute typing test', 1, 5), step('Compare your result with 16 wpm', 3, 5)];
-      }),
-      input
-    );
-    if (!('value' in result)) throw new Error(reason(result));
-    expect(result.value[5].durationMinutes).toBe(15);
-    expect(result.value[5].detailedSteps.map((s) => s.durationMinutes)).toEqual([5, 5, 5]);
-  });
-
   it('allows a rest day with no steps', () => {
     const result = checkWeekAnswer(week((days) => { days[6].steps = []; }), input);
     expect('value' in result && result.value[6].title).toBe('Rest day');
   });
 
-  it('never makes the test day a key session, and picks a mid-week one when none is marked', () => {
+  it('picks one key session when none is marked', () => {
     const result = checkWeekAnswer(
       week((days) => {
         for (const day of days) day.isKeySession = false;
-        days[5].isKeySession = true;
       }),
       input
     );
     if (!('value' in result)) throw new Error(reason(result));
     const keys = result.value.filter((d) => d.isKeySession);
     expect(keys).toHaveLength(1);
-    expect(keys[0].isTestDay).toBe(false);
+    expect(keys[0].isRestDay).toBe(false);
   });
 
   it('caps key sessions at 2', () => {
     const result = checkWeekAnswer(week((days) => { for (const day of days) day.isKeySession = true; }), input);
     expect('value' in result && result.value.filter((d) => d.isKeySession)).toHaveLength(2);
-  });
-
-  it('asks for the weekly test on the test day, and adds it itself on the last attempt', () => {
-    const noTest = week((days) => {
-      days[5].steps = [step('Drill six letters', 1, 15), step('Type sentence set six', 2, 15)];
-    });
-    expect(reason(checkWeekAnswer(noTest, input))).toMatch(/Weekly test/);
-    const result = checkWeekAnswer(noTest, input, true);
-    if (!('value' in result)) throw new Error(reason(result));
-    const test = result.value[5].detailedSteps.find((s) => s.title.startsWith('Weekly test'))!;
-    expect(test.instructions).toBe(input.test.instructions);
-    expect(test.priority).toBe(1);
-  });
-
-  it('does not take a "Weekly test warm-up" step for the test step (B-30)', () => {
-    const warmUp = week((days) => {
-      days[5].steps = [step('Weekly test warm-up', 1, 15), step('Type sentence set six', 2, 15)];
-    });
-    expect(reason(checkWeekAnswer(warmUp, input))).toMatch(/Weekly test: \.\.\./);
   });
 
   it('asks a rest-day step that names running for a run load on a running goal (B-90)', () => {
@@ -247,34 +209,77 @@ describe('dueDateOf (B-39)', () => {
 });
 
 describe('buildWeekPrompt', () => {
-  it('lists the fixed days, the target and the test', () => {
+  const last = (over: Partial<LastWeekSummary> = {}): LastWeekSummary => ({
+    done: 4,
+    planned: 5,
+    keySessionsSkipped: [],
+    feel: { too_easy: 0, just_right: 0, too_hard: 0 },
+    notes: [],
+    ...over,
+  });
+
+  it('lists the fixed days and the focus, with no target, test or test day', () => {
     const prompt = buildWeekPrompt(input, weekLayout('steady', input.weekStart));
-    expect(prompt).toContain('Target: Typing speed: 16 words per minute');
-    expect(prompt).toContain('Weekly test: Take a 1-minute typing test on keybr.com. Pass if: 16 wpm at 95% accuracy');
+    expect(prompt).toContain('Home row');
     expect(prompt).toMatch(/Day 4 \(\w+\): rest/);
-    expect(prompt).toMatch(/Day 6 \(\w+\): practice, TEST DAY/);
+    expect(prompt).toMatch(/Day 6 \(\w+\): practice$/m);
+    expect(prompt).not.toMatch(/TEST DAY|Target:|Pass if/);
+    expect(prompt).toContain('- No tests: no "weekly test", time trial or measuring session.');
     expect(prompt).not.toContain('LAST WEEK');
   });
 
-  it('does not print two full stops when the test instructions end with one (B-82)', () => {
-    const dotted = { ...input, test: { ...input.test, instructions: 'Take a 1-minute typing test on keybr.com.' } };
-    const prompt = buildWeekPrompt(dotted, weekLayout('steady', input.weekStart));
-    expect(prompt).toContain('keybr.com. Pass if:');
-    expect(prompt).not.toContain('keybr.com..');
-  });
-
-  it('includes last week from week 2', () => {
+  it('includes last week from week 2: sessions, feel taps, notes, the review and the pace', () => {
     const prompt = buildWeekPrompt(
       {
         ...input,
         weekNumber: 2,
-        lastWeek: { target: input.target, result: 'test done', done: 4, planned: 5, keySessionsSkipped: [] },
+        lastWeek: last({
+          keySessionsSkipped: ['Wednesday: Type set 3'],
+          feel: { too_easy: 0, just_right: 2, too_hard: 1 },
+          notes: ['Tuesday: my wrist hurt a bit'],
+          reflection: 'Busy week at work',
+        }),
       },
       weekLayout('steady', input.weekStart)
     );
     expect(prompt).toContain('LAST WEEK');
     expect(prompt).toContain('Sessions done: 4 of 5.');
-    expect(prompt).toContain('Key sessions skipped: none.');
+    expect(prompt).toContain('Key sessions skipped: Wednesday: Type set 3.');
+    expect(prompt).toContain('How the done sessions felt: 2 just right, 1 too hard.');
+    expect(prompt).toContain('- Tuesday: my wrist hurt a bit');
+    expect(prompt).toContain('Their weekly review: "Busy week at work"');
+    expect(prompt).toContain('Pace this week: They did most of last week: move on to the next step, as the method says.');
+  });
+
+  it('says when no session was tapped', () => {
+    const prompt = buildWeekPrompt({ ...input, weekNumber: 2, lastWeek: last() }, weekLayout('steady', input.weekStart));
+    expect(prompt).toContain('How the done sessions felt: not told.');
+    expect(prompt).not.toContain('Their notes');
+  });
+});
+
+describe('paceOf (section 7)', () => {
+  const feel = (too_easy: number, just_right: number, too_hard: number) => ({ too_easy, just_right, too_hard });
+
+  it('80% or more done: move on, or a bigger step when mostly too easy', () => {
+    expect(paceOf({ done: 4, planned: 5, feel: feel(0, 0, 0) })).toBe('move_on');
+    expect(paceOf({ done: 5, planned: 5, feel: feel(3, 1, 0) })).toBe('bigger_step');
+    expect(paceOf({ done: 5, planned: 5, feel: feel(2, 2, 0) })).toBe('move_on');
+  });
+
+  it('50% to 79% done, or mostly too hard: a smaller step', () => {
+    expect(paceOf({ done: 3, planned: 5, feel: feel(3, 0, 0) })).toBe('smaller_step');
+    expect(paceOf({ done: 5, planned: 5, feel: feel(0, 1, 3) })).toBe('smaller_step');
+    expect(paceOf({ done: 5, planned: 10, feel: feel(0, 0, 0) })).toBe('smaller_step');
+  });
+
+  it('under half done: repeat, whatever the taps', () => {
+    expect(paceOf({ done: 2, planned: 5, feel: feel(2, 0, 0) })).toBe('repeat');
+    expect(paceOf({ done: 0, planned: 5, feel: feel(0, 0, 0) })).toBe('repeat');
+  });
+
+  it('a week with nothing planned moves on', () => {
+    expect(paceOf({ done: 0, planned: 0, feel: feel(0, 0, 0) })).toBe('move_on');
   });
 });
 
@@ -355,7 +360,7 @@ describe('high-load step flag (M2.1, ND-5)', () => {
     expect(days!.flatMap((day) => day.detailedSteps).every((s) => s.highLoad === false)).toBe(true);
   });
 
-  it('on a physical preset goal marks every practice step, the test step and the minimum version, whatever the model said', () => {
+  it('on a physical preset goal marks every practice step and the minimum version, whatever the model said', () => {
     const answer = week((days) => {
       for (const day of days) {
         day.steps = (day.steps as Array<Record<string, unknown>>).map((s) => ({ ...s, highLoad: false }));
@@ -368,19 +373,8 @@ describe('high-load step flag (M2.1, ND-5)', () => {
       for (const s of day.detailedSteps) expect(s.highLoad).toBe(true);
       expect(day.minimumVersion!.highLoad).toBe(true);
     }
-    expect(days[5].detailedSteps.find((s) => s.title.startsWith('Weekly test'))!.highLoad).toBe(true);
     // Rest days keep their one light step as the model wrote it.
     expect(days[3].detailedSteps[0].highLoad).toBe(false);
-  });
-
-  it('marks the test step code adds on the last attempt: true on a physical preset goal, false otherwise', () => {
-    const noTest = week((days) => {
-      days[5].steps = [step('Drill six letters', 1, 15), step('Type sentence set six', 2, 15)];
-    });
-    const added = (highLoadGoal: boolean) =>
-      value(checkWeekAnswer(noTest, { ...input, highLoadGoal }, true))[5].detailedSteps.find((s) => s.title.startsWith('Weekly test'))!;
-    expect(added(true).highLoad).toBe(true);
-    expect(added(false).highLoad).toBe(false);
   });
 
   it('a derived minimum version takes the flag of the step it comes from', () => {

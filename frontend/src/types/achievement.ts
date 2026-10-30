@@ -1,23 +1,8 @@
-import type { WeeklyTestResult } from './review';
-
 export type GoalLifecycleStatus = 'active' | 'completed' | 'archived';
-
-export interface FinalTestEvaluation {
-  testType: string;
-  targetDeliverable?: string;
-  instructions: string;
-  passCriteria?: string;
-  result?: WeeklyTestResult | null;
-}
 
 export interface GoalCompletionPayload {
   finalReflection?: string;
-  finalTestResult?: WeeklyTestResult | null;
 }
-  
-
-
-
 
 export interface AchievementSummary {
   goalId: string;
@@ -29,8 +14,6 @@ export interface AchievementSummary {
   adherenceRate: number; // 0-100%
   completedWeeks: number;
   totalWeeks: number;
-  benchmarksAchieved: number;
-  totalBenchmarks: number;
   completedAt: string; // ISO string
 }
 

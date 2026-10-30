@@ -311,6 +311,7 @@ export async function updateDailyTask(
     notes?: string | null;
     slotTime?: string | null;
     usedMinimumVersion?: boolean;
+    feel?: import('../types').Feel | null;
   },
   token: string
 ): Promise<import('../types').DailyTask> {
@@ -330,13 +331,9 @@ export async function updateDailyTask(
 export async function submitWeeklyReview(
   weekNumber: number,
   reflection: string,
-  token: string,
-  testResult?: import('../types').WeeklyTestResult | null
+  token: string
 ): Promise<import('../types').WeeklyReviewResponse> {
-  const payload: { reflection: string; testResult?: import('../types').WeeklyTestResult | null } = { reflection };
-  if (testResult !== undefined) {
-    payload.testResult = testResult;
-  }
+  const payload = { reflection };
   const response = await fetch(`${API_BASE_URL}/api/goal/weeks/${weekNumber}/review`, {
     method: 'POST',
     headers: {
@@ -347,27 +344,6 @@ export async function submitWeeklyReview(
   });
 
   return readJson(response, 'Failed to submit weekly review');
-}
-
-/**
- * Missed sessions M4.1 (ND-4): logs the week's test result without closing the week (`PUT .../test-result`).
- * Throws `ApiError` with the status and the server's `reason` as `code` (`week_closed`, `week_not_open`, `not_plan_v2`).
- */
-export async function logWeeklyTestResult(
-  weekNumber: number,
-  result: import('../types').WeeklyTestResult,
-  token: string
-): Promise<{ testResult: import('../types').WeeklyTestResult }> {
-  const response = await fetch(`${API_BASE_URL}/api/goal/weeks/${weekNumber}/test-result`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify(result),
-  });
-
-  return readJson(response, 'Failed to save the test result');
 }
 
 export async function resetActiveGoal(token: string): Promise<boolean> {
@@ -471,20 +447,6 @@ export async function updateSchedule(change: ScheduleChange, token: string): Pro
   });
 
   return readJson(response, "Couldn't save your schedule. Please try again.");
-}
-
-/**
- * Checkpoints (RULE-8, RULE-9, section 7): the answer to the open offer. Refused (`ApiError`, 409 `no_checkpoint` or
- * `weekly_update_disabled`) when there is no open offer for that week any more.
- */
-export async function answerCheckpoint(week: number, answer: 'keep' | 'accept', token: string): Promise<{ week: number; answer: string }> {
-  const response = await fetch(`${API_BASE_URL}/api/goal/checkpoint`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
-    body: JSON.stringify({ week, answer }),
-  });
-
-  return readJson(response, 'Failed to save');
 }
 
 /**

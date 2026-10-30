@@ -14,7 +14,7 @@ import {
   weekProgress,
   type MissNotice,
 } from '../lib/today';
-import { goalTrend, greetingFor, journeyDays, milestones, nextTestDay, practiceTotals, START_SESSION_STATE } from '../lib/dashboard';
+import { greetingFor, journeyDays, practiceTotals, START_SESSION_STATE } from '../lib/dashboard';
 import { Badge, Button, LoadingState, Skeleton } from '../components/ui';
 import { doneDaysOf, visibleDay } from '../lib/stepLines';
 import { GettingReady } from '../components/today/WeekClose';
@@ -89,11 +89,9 @@ const EmptyShell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <main id="main" className="ui-root mx-auto w-full max-w-xl flex-1 px-gutter py-20 text-center">{children}</main>
 );
 
-const shortWeekday = (date: string) => new Date(date + 'T12:00:00Z').toLocaleDateString(undefined, { weekday: 'long', timeZone: 'UTC' });
-
 /**
  * ND-29: the Dashboard answers "how am I doing" (ND-19 keeps it an overview; Today is where a step is done). Today's
- * session sits first with one way in; below it, the whole plan as a map of days and the goal's own measure. Every
+ * session sits first with one way in; below it, the whole plan as a map of days and this week's progress. Every
  * number is real stored state, and the page writes nothing.
  */
 export const Dashboard: React.FC = () => {
@@ -137,16 +135,12 @@ export const Dashboard: React.FC = () => {
 
   const totals = practiceTotals(activeGoal, now, timezone);
   const days = journeyDays(activeGoal, now, timezone);
-  const trend = goalTrend(activeGoal);
-  const test = nextTestDay(activeGoal.dailyTasks ?? [], now, timezone);
-  const nextCheck = test ? 'Next check: ' + (test.date === days.find((d) => d.isToday)?.date ? 'today' : shortWeekday(test.date)) + '.' : null;
   const totalDays = planDays(activeGoal);
   const daysLeft = Math.max(0, totalDays - day);
   const mapSummary = totals.daysDone + ' of ' + totals.daysSoFar + ' practice days done so far. Day ' + day + ' of ' + totalDays + '.';
 
-  const checks = milestones(activeGoal);
-  // GoalProgress has nothing to show for a goal with no number, no checks and no milestone this week.
-  const goalPanel = Boolean(trend) || checks.total > 0 || Boolean(week?.keyMilestone);
+  // GoalProgress has nothing to show for a week with no focus and no practice day.
+  const goalPanel = Boolean(week?.theme) || practiceDays > 0;
 
   const eyebrow = reviewDue ? 'Weekly review' : isDone ? 'Done for today' : isRest ? 'Rest day' : 'Today';
   const heading = reviewDue
@@ -188,7 +182,7 @@ export const Dashboard: React.FC = () => {
         >
           <div className="flex items-center justify-between gap-3">
             <p className="font-ui-mono text-micro uppercase text-achievement">{eyebrow}</p>
-            {startsSession && task?.isTestDay ? <Badge tone="achievement">Test day</Badge> : startsSession && task?.isKeySession ? <Badge tone="achievement">Key session</Badge> : null}
+            {startsSession && task?.isKeySession ? <Badge tone="achievement">Key session</Badge> : null}
           </div>
           {isDone && !reviewDue && (
             <span className="dash-done-mark mt-6" aria-hidden="true">
@@ -217,7 +211,7 @@ export const Dashboard: React.FC = () => {
 
         {goalPanel && (
           <div className="animate-rise-in flex min-w-0" style={stagger(220)}>
-            <GoalProgress trend={trend} milestones={checks} weekMilestone={week?.keyMilestone} nextCheck={nextCheck} />
+            <GoalProgress goal={activeGoal.roadmap?.finalGoal ?? activeGoal.clarifiedOutcome} focus={week?.theme} done={practiceDone} planned={practiceDays} />
           </div>
         )}
       </div>

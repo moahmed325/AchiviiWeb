@@ -1,9 +1,6 @@
 import React from 'react';
 import { Flame } from 'lucide-react';
 import { cx } from '../ui/cx';
-import type { WeekTarget, WeekTest } from '../../types';
-import { formatTarget, formatPassIf } from '../../lib/formatters';
-import { isLightTest, weekTargetText } from '../../lib/lightTest';
 
 export interface ReviewSummaryCardProps {
   /** WU-33 (3): null when the week has no practice day left to count (every day not offered): shown as not counted. */
@@ -11,31 +8,19 @@ export interface ReviewSummaryCardProps {
   completedSessions: number;
   totalActiveSessions: number;
   theme?: string;
-  target?: WeekTarget | null;
-  test?: WeekTest | null;
-  /** M2.1: the week shown; a light week's target reads "Next check, week {n}: {target}". */
-  weekNumber?: number;
-  /** B-109: the plan's weeks (a shorter plan's ready week reads as its final target); missing is 12. */
-  totalWeeks?: number;
 }
 
 /**
  * Analytical yet warm visual card for "How did this week go?" (BP §17–18, §33, VDS §26).
- * Displays honest practice metrics with tabular numerals, non-punitive guidance,
- * and a glance of the week's target deliverable and benchmark test.
+ * Displays honest practice metrics with tabular numerals, non-punitive guidance and the week's focus. No weekly tests
+ * (2026-10-30): no target or test.
  */
 export const ReviewSummaryCard: React.FC<ReviewSummaryCardProps> = ({
   scorePercentage,
   completedSessions,
   totalActiveSessions,
   theme,
-  target,
-  test,
-  weekNumber,
-  totalWeeks,
 }) => {
-  // M2.1: a light week's target is the next check; without the week number it shows as before.
-  const light = isLightTest(test) && weekNumber !== undefined;
   const notCounted = scorePercentage === null;
   const isEmptyWeek = completedSessions === 0;
   const isHighCompletion = scorePercentage !== null && scorePercentage >= 80;
@@ -82,30 +67,12 @@ export const ReviewSummaryCard: React.FC<ReviewSummaryCardProps> = ({
         )}
       </div>
 
-      {(Boolean(theme) || Boolean(target) || Boolean(test)) && (
-        <div className="mt-5 border-t border-border pt-4 text-left space-y-2.5">
-          {theme && (
-            <div className="flex items-start justify-between gap-3 text-small">
-              <span className="text-text-secondary shrink-0">Focus</span>
-              <span className="font-medium text-text text-right">{theme}</span>
-            </div>
-          )}
-          {target && (
-            <div className="flex items-start justify-between gap-3 text-small">
-              {!light && <span className="text-text-secondary shrink-0">Target</span>}
-              <span className={cx('font-medium text-text', !light && 'text-right')}>
-                {weekNumber !== undefined ? weekTargetText(weekNumber, target, test, undefined, { totalWeeks }) : formatTarget(target)}
-              </span>
-            </div>
-          )}
-          {test && (
-            <div className="flex items-start justify-between gap-3 text-small">
-              <span className="text-text-secondary shrink-0">Weekly test</span>
-              <span className="font-medium text-text text-right">
-                {test.instructions || formatPassIf(test.passIf) || test.type}
-              </span>
-            </div>
-          )}
+      {theme && (
+        <div className="mt-5 border-t border-border pt-4 text-left">
+          <div className="flex items-start justify-between gap-3 text-small">
+            <span className="text-text-secondary shrink-0">Focus</span>
+            <span className="font-medium text-text text-right">{theme}</span>
+          </div>
         </div>
       )}
     </div>

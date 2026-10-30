@@ -5,13 +5,12 @@ import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../../context/AuthContext';
 import { GoalProvider, useGoal } from '../../context/GoalContext';
 import * as api from '../../lib/api';
-import type { DailyTask, Goal, Retest, RoadmapWeek } from '../../types';
+import type { DailyTask, Goal, RoadmapWeek } from '../../types';
 import { Today } from './Today';
 import { todayKey } from '../../lib/today';
 import { addDaysToDateKey } from '../../lib/dateUtils';
-import { RETEST_LINES } from '../../lib/retest';
 
-// Weekly update M3.3b (RULE-5, RULE-6, AC-4, AC-5): the re-test line, the re-test result entry and the daily-time card.
+// Weekly update M3.3b (RULE-6, AC-5): the daily-time card on Today.
 
 vi.mock('../../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/api')>();
@@ -22,7 +21,6 @@ vi.mock('../../lib/api', async (importOriginal) => {
     fetchCurrentUser: vi.fn(),
     fetchActiveGoal: vi.fn(),
     reconcileGoal: vi.fn(),
-    logWeeklyTestResult: vi.fn(),
     answerDailyTime: vi.fn(),
   };
 });
@@ -30,11 +28,10 @@ vi.mock('../../lib/api', async (importOriginal) => {
 const mocked = vi.mocked(api);
 const isoDay = (offset: number) => addDaysToDateKey(todayKey(new Date()), offset);
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const RETEST_STEP = { title: 'Re-test: Run 5 km at an even, hard effort', instructions: 'Run 5 km.', durationMinutes: 15, priority: 2 };
 const LEAD = { title: 'Easy run', instructions: 'Run easy.', durationMinutes: 15, priority: 1 };
 
-/** Week 4 runs from two days ago; the re-test step sits on the day `retestOffset` from today. */
-const tasks = (retestOffset: number | null, step = RETEST_STEP): DailyTask[] =>
+/** Week 4 runs from two days ago. */
+const tasks = (): DailyTask[] =>
   DAYS.map((dayOfWeek, index) => {
     const offset = index - 2;
     return {
@@ -45,11 +42,11 @@ const tasks = (retestOffset: number | null, step = RETEST_STEP): DailyTask[] =>
       date: isoDay(offset),
       dayOfWeek,
       title: `Session ${index + 1}`,
-      detailedSteps: JSON.stringify(offset === retestOffset ? [step, LEAD] : [LEAD]),
+      detailedSteps: JSON.stringify([LEAD]),
       implementationIntention: '',
       durationMinutes: 30,
       isRestDay: index === 6,
-      isTestDay: index === 5,
+      isTestDay: false,
       status: 'pending',
       created_at: '',
     } as DailyTask;
@@ -63,16 +60,10 @@ const week = (weekNumber: number, status: string, extra: Partial<RoadmapWeek> = 
     phase: 'Base',
     theme: 'Easy miles',
     status,
-    target: { kind: 'number', metric: '5 km time', value: 27, unit: 'min', direction: 'lower_is_better' },
-    test: { type: 'time_trial', instructions: 'Run 5 km at an even, hard effort.', passIf: 'under 27 minutes' },
-    testResult: null,
     ...extra,
   }) as unknown as RoadmapWeek;
 
-/** The server names the re-test day (M3.3b review); `extra.retest` is merged over it, and null stays null. */
-const goal = (extra: Partial<Goal> = {}, retestOffset: number | null = 0, step = RETEST_STEP): Goal => {
-  const day = retestOffset === null ? {} : { taskId: `t${retestOffset + 3}`, date: isoDay(retestOffset) };
-  const retest = 'retest' in extra ? (extra.retest ? { ...day, ...extra.retest } : null) : { ofWeek: 3, reason: 'not_logged', logged: false, ...day };
+const goal = (extra: Partial<Goal> = {}): Goal => {
   return {
     id: 'g1',
     planVersion: 2,
@@ -82,10 +73,9 @@ const goal = (extra: Partial<Goal> = {}, retestOffset: number | null = 0, step =
     currentWeek: 4,
     targetDate: `${isoDay(60)}T00:00:00.000Z`,
     roadmapWeeks: [week(3, 'completed'), week(4, 'active')],
-    dailyTasks: tasks(retestOffset, step),
+    dailyTasks: tasks(),
     dailyTimeCheck: null,
     ...extra,
-    retest: retest as Retest | null,
   } as unknown as Goal;
 };
 
@@ -107,8 +97,6 @@ const renderToday = async () => {
   await screen.findByRole('heading', { level: 1 });
 };
 
-const logButton = () => screen.queryByRole('button', { name: 'Log re-test result' });
-
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
@@ -117,102 +105,6 @@ beforeEach(() => {
   mocked.fetchCurrentUser.mockResolvedValue({ id: 'u1', email: 'mo@example.com', created_at: '' });
   mocked.fetchActiveGoal.mockResolvedValue(goal());
   mocked.reconcileGoal.mockResolvedValue({ applies: false, reason: 'no_active_goal' });
-});
-
-describe('The re-test line (AC-4)', () => {
-  it.each([
-    ['not_logged', RETEST_LINES.not_logged],
-    ['two_hard_weeks', RETEST_LINES.two_hard_weeks],
-  ] as const)('on the re-test day, %s shows its exact line as a status, with no dismiss', async (reason, line) => {
-    mocked.fetchActiveGoal.mockResolvedValue(goal({ retest: { ofWeek: 3, reason, logged: false } as Retest }));
-    await renderToday();
-    expect(screen.getByText(line)).toHaveAttribute('role', 'status');
-    expect(screen.queryByRole('button', { name: 'Dismiss' })).toBeNull();
-    for (const word of [/missed/i, /behind/i, /failed/i, /\bfail\b/i]) expect(line).not.toMatch(word);
-  });
-
-  it('M3.4 (WU-59 (5)): after a break no line is shown, and the result entry is still offered', async () => {
-    mocked.fetchActiveGoal.mockResolvedValue(goal({ retest: { ofWeek: 3, reason: 'break', logged: false } as Retest }));
-    await renderToday();
-    for (const line of Object.values(RETEST_LINES)) expect(screen.queryByText(line)).toBeNull();
-    expect(logButton()).toBeVisible();
-  });
-
-  it('the exact words of the copy table', () => {
-    expect(RETEST_LINES.not_logged).toBe(
-      "Last week's test wasn't logged, so we're holding your target. This week starts with a quick re-test so we can adjust."
-    );
-    expect(RETEST_LINES.two_hard_weeks).toBe('The last two weeks were hard to fit in. This week starts with a re-test to find your real level.');
-  });
-
-  it.each([
-    ['on another day (the re-test was yesterday)', goal({}, -1)],
-    ['before the re-test day', goal({}, 1)],
-    ['once it is logged', goal({ retest: { ofWeek: 3, reason: 'not_logged', logged: true } as Retest })],
-    ['when retest is null', goal({ retest: null })],
-  ])('is not shown %s', async (_, g) => {
-    mocked.fetchActiveGoal.mockResolvedValue(g);
-    await renderToday();
-    expect(screen.queryByText(RETEST_LINES.not_logged)).toBeNull();
-  });
-});
-
-describe('The re-test result entry (AC-4, WU-17)', () => {
-  it('offered from the re-test day to the end of the week, not before it', async () => {
-    mocked.fetchActiveGoal.mockResolvedValue(goal({}, -1));
-    await renderToday();
-    expect(logButton()).toBeVisible();
-  });
-
-  it.each([
-    ['before the re-test day', goal({}, 1)],
-    ['once logged', goal({ retest: { ofWeek: 3, reason: 'not_logged', logged: true } as Retest })],
-    ['for a light week (cannot happen)', goal({ roadmapWeeks: [week(3, 'completed', { test: { type: 'light', instructions: 'Log the long run.', passIf: 'Done as written', light: true } as never }), week(4, 'active')] })],
-    ['with no re-test', goal({ retest: null })],
-  ])('not offered %s', async (_, g) => {
-    mocked.fetchActiveGoal.mockResolvedValue(g);
-    await renderToday();
-    expect(logButton()).toBeNull();
-  });
-
-  it('logs the result as the re-tested week\'s result, refreshes the goal, and the line and entry go', async () => {
-    const user = userEvent.setup();
-    mocked.logWeeklyTestResult.mockResolvedValue({ testResult: { value: 26, unit: 'min', passed: true } });
-    await renderToday();
-    mocked.fetchActiveGoal.mockResolvedValue(goal({ retest: { ofWeek: 3, reason: 'not_logged', logged: true } as Retest }));
-
-    await user.click(logButton()!);
-    const dialog = await screen.findByRole('dialog', { name: 'Log re-test result' });
-    expect(within(dialog).getByText('Run 5 km at an even, hard effort.')).toBeVisible();
-    expect(within(dialog).getByText('Pass if under 27 minutes.')).toBeVisible();
-    await user.type(within(dialog).getByLabelText('Your result'), '26');
-    await user.click(within(dialog).getByRole('button', { name: 'Save result' }));
-
-    expect(mocked.logWeeklyTestResult).toHaveBeenCalledWith(3, { value: 26, unit: 'min', passed: true, note: undefined }, 't');
-    await waitFor(() => expect(logButton()).toBeNull());
-    expect(screen.queryByText(RETEST_LINES.not_logged)).toBeNull();
-    expect(screen.queryByRole('dialog')).toBeNull();
-  });
-
-  it('a failed save says so and saves nothing later', async () => {
-    const user = userEvent.setup();
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    mocked.logWeeklyTestResult.mockRejectedValue(new Error('offline'));
-    await renderToday();
-    await user.click(logButton()!);
-    const dialog = await screen.findByRole('dialog', { name: 'Log re-test result' });
-    await user.type(within(dialog).getByLabelText('Your result'), '26');
-    await user.click(within(dialog).getByRole('button', { name: 'Save result' }));
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent("That didn't save. Please try again.");
-    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-    expect(mocked.logWeeklyTestResult).toHaveBeenCalledTimes(1);
-    warn.mockRestore();
-  });
-
-  it('the late-test card for the open week\'s own test is unchanged', async () => {
-    await renderToday();
-    expect(screen.queryByRole('region', { name: "This week's test is still open" })).toBeNull();
-  });
 });
 
 describe('The daily-time card (AC-5)', () => {
@@ -274,7 +166,7 @@ describe('The daily-time card (AC-5)', () => {
     expect(screen.queryByText(/From next week/)).toBeNull();
   });
 
-  it.each(['no_daily_time_check', 'weekly_update_disabled'])('a 409 %s refreshes the goal so the card goes, with no error', async (code) => {
+  it.each(['no_daily_time_check', 'week_close_disabled'])('a 409 %s refreshes the goal so the card goes, with no error', async (code) => {
     const user = userEvent.setup();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     mocked.answerDailyTime.mockRejectedValue(new api.ApiError('This action is not available yet.', 409, code));

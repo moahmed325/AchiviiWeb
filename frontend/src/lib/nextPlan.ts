@@ -3,33 +3,22 @@ import { fixedDateKey } from './fixedDate';
 import { findPathwayByTitle } from './certifiedPresets';
 
 /**
- * Next plan (docs/features/next-plan): the day-90 screen's words (NP-1, NP-2, NP-5), the choices it offers (NP-6,
- * NP-7) and what onboarding carries when a next plan starts (NP-3, NP-4). The numbers are the server's
- * (`goal.journeyResult`); nothing here works one out.
+ * Next plan (docs/features/next-plan): the end screen's words (NP-1), the choices it offers (NP-6, NP-7) and what
+ * onboarding carries when a next plan starts (NP-3, NP-4). The numbers are the server's (`goal.journeyResult`). No weekly
+ * tests (2026-10-30): the end screen says what they did, and a goal measured in a number always asks the level now.
  */
 
-/** NP-1: the line the day-90 screen leads with; null when there is nothing measured to show. */
+/** NP-1: the line the end screen leads with: "You finished 11 of 12 weeks: 52 of 60 sessions." */
 export function journeyHeadline(result: JourneyResult | null | undefined): string | null {
   if (!result) return null;
-  if (result.kind === 'deliverable') return `You finished ${result.weeksFinished} of ${result.totalWeeks ?? 12} weeks.`;
-  if (!result.reached) return null;
-  return result.start ? `You went from ${result.start} to ${result.reached}.` : `You reached ${result.reached}.`;
+  const weeks = `You finished ${result.weeksFinished} of ${result.totalWeeks ?? 12} weeks`;
+  return result.sessionsPlanned > 0 ? `${weeks}: ${result.sessionsDone} of ${result.sessionsPlanned} sessions.` : `${weeks}.`;
 }
 
-/**
- * NP-2: what they reached against their full goal, never a lowered target. A checkpoint's day-90 target is named
- * beside the goal. Never "failed" or "missed".
- */
+/** NP-2: the goal they worked toward, and that a next plan picks it up. Never "failed" or "missed". */
 export function journeyOutcome(result: JourneyResult | null | undefined): string | null {
   if (!result?.goal) return null;
-  if (result.madeIt) return `You reached your goal: ${result.goal}.`;
-  if (result.dayNinetyTarget) {
-    // B-109: a shorter plan has no day 90; its checkpoint target is the final target.
-    const name = result.totalWeeks === undefined ? 'day-90 target' : 'final target';
-    const lead = result.reachedDayNinety ? `You reached your ${name}: ${result.dayNinetyTarget}.` : `${name.charAt(0).toUpperCase()}${name.slice(1)}: ${result.dayNinetyTarget}.`;
-    return `${lead} Your goal: ${result.goal}. That's your next plan.`;
-  }
-  return `Your goal: ${result.goal}. That's your next plan.`;
+  return result.start ? `You started at ${result.start}. Your goal: ${result.goal}.` : `Your goal: ${result.goal}.`;
 }
 
 export interface NextPlanChoice {
@@ -37,28 +26,23 @@ export interface NextPlanChoice {
   label: string;
 }
 
-/**
- * NP-5, NP-6, NP-7: Pro only, and never a reason shown to someone who is not. Made it: "Go further". Fell short:
- * "Keep going" first, unless within one safe step of the goal, where "Go further" leads.
- */
+/** NP-6, NP-7: Pro only, and never a reason shown to someone who is not. "Keep going" with this goal, or a new one. */
 export function nextPlanChoices(result: JourneyResult | null | undefined, isPro: boolean): NextPlanChoice[] {
   if (!isPro || !result) return [];
-  const further: NextPlanChoice = { mode: 'go_further', label: 'Go further' };
-  if (result.madeIt) return [further];
-  const keep: NextPlanChoice = { mode: 'keep_going', label: result.goal && result.kind === 'number' ? `Keep going to ${result.goal}` : 'Keep going' };
-  return result.nearGoal ? [further, keep] : [keep, further];
+  return [
+    { mode: 'keep_going', label: 'Keep going' },
+    { mode: 'go_further', label: 'Go further' },
+  ];
 }
 
-/** NP-9, NP-10: a number goal asks for the level now after a break, or when nothing was measured. */
-export function needsLevel(result: JourneyResult | null | undefined, mode: NextPlanMode): boolean {
-  return result?.kind === 'number' && (mode === 'fresh' || result.reachedValue === null);
+/** NP-9, NP-10: a goal measured in a number asks for the level now (nothing is measured by the plan any more). */
+export function needsLevel(result: JourneyResult | null | undefined, _mode?: NextPlanMode): boolean {
+  return result?.kind === 'number' && Boolean(result.unit);
 }
 
-/** NP-9: the level question, with the last result named when there is one. */
+/** NP-9: the level question, with where the plan started when there is one. */
 export function levelQuestion(result: JourneyResult): string {
-  return result.reached && result.reachedWeek
-    ? `Your last result was ${result.reached}, in week ${result.reachedWeek}. Where are you now?`
-    : 'Where are you now?';
+  return result.start ? `You started this plan at ${result.start}. Where are you now?` : 'Where are you now?';
 }
 
 /** What onboarding is opened with for a next plan (router state `nextPlan`). */
@@ -67,7 +51,7 @@ export interface NextPlanLaunch {
   /** Keep going and a fresh plan: the goal's text. Go further: none; they write the next goal (NP-4). */
   goalText?: string;
   isPreset: boolean;
-  /** The level the plan starts from, as shown ("8 km"), for the banner; null for a deliverable goal. */
+  /** The level the plan starts from, as shown ("8 km"), for the banner; null when none was given. */
   startsFrom: string | null;
   /** The old plan's answers, filled in again (NP-3). */
   answers: PlanAnswer[];
@@ -80,8 +64,7 @@ const amount = (value: number, unit: string | null) => `${Math.round(value * 100
 
 export function nextPlanLaunch(goal: Goal, mode: NextPlanMode, level?: number): NextPlanLaunch {
   const result = goal.journeyResult ?? null;
-  const startsFrom =
-    level !== undefined ? amount(level, result?.unit ?? null) : result?.kind === 'number' ? result.reached : null;
+  const startsFrom = level !== undefined ? amount(level, result?.unit ?? null) : null;
   return {
     request: { fromGoalId: goal.id, mode, ...(level !== undefined ? { level } : {}) },
     ...(mode === 'go_further' ? {} : { goalText: goal.rawGoal }),
@@ -92,7 +75,7 @@ export function nextPlanLaunch(goal: Goal, mode: NextPlanMode, level?: number): 
   };
 }
 
-/** NP-3: the question a next plan does not ask again (the server adds the measured level in its place). */
+/** NP-3: the question a next plan does not ask again (the server adds the level they gave, or what they did, in its place). */
 const LEVEL_QUESTION_ID = 'current_level';
 
 export function nextPlanQuestions(questions: FollowUpQuestion[]): FollowUpQuestion[] {

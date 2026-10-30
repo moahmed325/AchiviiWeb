@@ -36,6 +36,7 @@ const otherKind = LANGUAGE.kinds.find((k) => !k.inOrder && k.action === 'let_go'
 const target = { kind: 'number', metric: 'Words', value: 100, unit: 'words', direction: 'higher_is_better' };
 const test = { type: 'quiz', instructions: 'Take the quiz', passIf: '80%' };
 const method = { name: 'Lessons', creator: '', rules: ['One lesson at a time'] };
+const NO_TAPS = { too_easy: 0, just_right: 0, too_hard: 0 };
 
 const goal = (recovery: unknown, weeks = [1, 2]) =>
   ({
@@ -45,6 +46,7 @@ const goal = (recovery: unknown, weeks = [1, 2]) =>
     startDate: new Date('2026-09-21T00:00:00Z'),
     routine: JSON.stringify({ dailyMinutes: 30, planVariant: 'steady' }),
     roadmap: { finalGoal: 'Hold a conversation', finalTest: '', startingPoint: {}, method, phases: [{ name: 'Base', purpose: 'Build.' }], answers: [], ...(recovery ? { recovery } : {}) },
+    // A goal made before the weekly tests went still stores a target and a test; neither reaches the writer.
     roadmapWeeks: weeks.map((weekNumber) => ({ weekNumber, phase: 'Base', theme: `Theme ${weekNumber}`, target, test })),
   }) as never;
 
@@ -124,12 +126,10 @@ const todaysInput = (recovery: unknown) => ({
   totalWeeks: 12,
   phase: { name: 'Base', purpose: 'Build.' },
   focus: 'Theme 2',
-  target,
-  test,
   weekStart: new Date('2026-09-28T00:00:00Z'),
   highLoadGoal: false,
   recovery,
-  lastWeek: { target, result: 'no test day this week', done: 1, planned: 3, keySessionsSkipped: [] },
+  lastWeek: { done: 1, planned: 3, keySessionsSkipped: [], feel: NO_TAPS, notes: [] },
   // Plan safety limits M2.2a (B-64): the goal id for the `[Safety]` lines; the prompt never reads it.
   goalId: 'g1',
 });
@@ -200,7 +200,7 @@ describe('writeNextWeek with the method switch on (M3.1d)', () => {
     n = 0;
     const allDone = [task({}, [step('Lesson 1', 1, 20, lessonKind), step('Mon notes', 2, 10, otherKind)])];
     const result = await writeNextWeek(goal(LANGUAGE), 1, allDone, '19:30');
-    expect(call()).toStrictEqual({ ...todaysInput(LANGUAGE), lastWeek: { target, result: 'no test day this week', done: 1, planned: 1, keySessionsSkipped: [] } });
+    expect(call()).toStrictEqual({ ...todaysInput(LANGUAGE), lastWeek: { done: 1, planned: 1, keySessionsSkipped: [], feel: NO_TAPS, notes: [] } });
     expect(result).toEqual(written());
   });
 

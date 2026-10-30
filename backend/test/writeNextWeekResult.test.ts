@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// B-61: the week writer is told last week's result from the logged `RoadmapWeek.testResult` first, then the test day's
-// notes, so a result logged in the review or as a late test reaches it.
+// No weekly tests (2026-10-30, docs/features/no-weekly-tests/plan.md section 7): the week writer is told what last
+// week was like, from its days: sessions done and planned, the key sessions skipped, how the done sessions felt, the
+// notes word for word, and the weekly review's reflection.
 
 vi.mock('../src/lib/prisma.js', () => ({ prisma: {} }));
 
@@ -11,62 +12,83 @@ vi.mock('../src/lib/ai/weekPlan.js', async (importOriginal) => ({
 }));
 
 import { generateWeekPlan } from '../src/lib/ai/weekPlan.js';
-import { writeNextWeek } from '../src/lib/planV2.js';
+import { lastWeekOf, readFeel, writeNextWeek } from '../src/lib/planV2.js';
 
-const target = { kind: 'number', metric: 'Time', value: 30, unit: 'minutes', direction: 'higher_is_better' };
-const test = { type: 'timed_run', instructions: 'Run as long as you can', passIf: '30 minutes' };
+const goal = {
+  id: 'g1',
+  rawGoal: 'Learn to paint',
+  clarifiedOutcome: 'Paint a landscape',
+  startDate: new Date('2026-09-21T00:00:00Z'),
+  routine: JSON.stringify({ dailyMinutes: 30, planVariant: 'steady' }),
+  roadmap: { finalGoal: 'Paint a landscape', startingPoint: {}, method: { name: 'Studies', creator: '', rules: [] }, phases: [{ name: 'Base', purpose: '' }], answers: [] },
+  roadmapWeeks: [
+    { weekNumber: 1, phase: 'Base', theme: 'Values' },
+    { weekNumber: 2, phase: 'Base', theme: 'Colour' },
+  ],
+} as never;
 
-const goalWith = (testResult: unknown) =>
+const day = (dayOfWeek: string, over: Record<string, unknown> = {}) =>
   ({
-    id: 'g1',
-    rawGoal: 'Run 10k',
-    clarifiedOutcome: 'Run 10k',
-    startDate: new Date('2026-09-21T00:00:00Z'),
-    routine: JSON.stringify({ dailyMinutes: 30, planVariant: 'steady' }),
-    roadmap: { finalGoal: 'Run 10k', finalTest: '', startingPoint: {}, method: { name: 'Base', creator: '', rules: [] }, phases: [{ name: 'Base', purpose: '' }], answers: [] },
-    roadmapWeeks: [
-      { weekNumber: 1, phase: 'Base', theme: 'Easy', target, test, testResult },
-      { weekNumber: 2, phase: 'Base', theme: 'Longer', target, test, testResult: null },
-    ],
+    id: `t-${dayOfWeek}`,
+    weekNumber: 1,
+    dayOfWeek,
+    title: `${dayOfWeek} study`,
+    isRestDay: false,
+    isKeySession: false,
+    isTestDay: false,
+    notOffered: false,
+    status: 'completed',
+    usedMinimumVersion: false,
+    notes: null,
+    feel: null,
+    ...over,
   }) as never;
 
-const testDay = (over: Record<string, unknown> = {}) =>
-  ({ id: 't1', weekNumber: 1, dayOfWeek: 'Sunday', title: 'Test', isRestDay: false, isKeySession: false, isTestDay: true, status: 'completed', usedMinimumVersion: false, notes: null, ...over }) as never;
-
-async function resultFor(testResult: unknown, tasks: never[]) {
-  await writeNextWeek(goalWith(testResult), 1, tasks, '19:30');
-  return vi.mocked(generateWeekPlan).mock.calls[0][0].lastWeek!.result;
-}
+const WEEK = [
+  day('Monday', { feel: 'too_hard', notes: 'my wrist hurt' }),
+  day('Tuesday', { feel: 'just_right' }),
+  day('Wednesday', { isKeySession: true, status: 'pending', feel: 'too_easy' }),
+  day('Thursday', { isRestDay: true, notes: '  ' }),
+  day('Friday', { isKeySession: true, usedMinimumVersion: true }),
+  day('Saturday', { notOffered: true, status: 'pending' }),
+  // A test day stored before the weekly tests went counts as an ordinary session.
+  day('Sunday', { isTestDay: true, status: 'pending', notes: 'ran out of time' }),
+];
 
 beforeEach(() => vi.mocked(generateWeekPlan).mockClear());
 
-describe('writeNextWeek last week result (B-61)', () => {
-  it('a logged result gives the value, unit, passed and its note', async () => {
-    const result = await resultFor({ value: 31.5, unit: 'minutes', passed: true, note: 'Felt strong' }, [testDay({ notes: 'day note' })]);
-    expect(result).toBe('test logged: 31.5 minutes, passed; their note: "Felt strong"');
+describe('lastWeekOf', () => {
+  it('counts practice sessions (no rest days, no days not offered), taps on done sessions only, notes with their day', () => {
+    expect(lastWeekOf(WEEK)).toEqual({
+      done: 3,
+      planned: 5,
+      keySessionsSkipped: ['Wednesday: Wednesday study', 'Friday: Friday study'],
+      feel: { too_easy: 0, just_right: 1, too_hard: 1 },
+      notes: ['Monday: my wrist hurt', 'Sunday: ran out of time'],
+    });
   });
 
-  it('a logged result without a note or unit takes the test day note, and says not passed', async () => {
-    const result = await resultFor({ value: '28', passed: false }, [testDay({ notes: '  legs tired ' })]);
-    expect(result).toBe('test logged: 28, not passed; their note: "legs tired"');
+  it('adds the reflection only when there is one', () => {
+    expect(lastWeekOf(WEEK, '  Busy week ')).toMatchObject({ reflection: 'Busy week' });
+    expect(lastWeekOf(WEEK, '   ')).not.toHaveProperty('reflection');
   });
 
-  it('a logged result reaches the writer even when the test day is not marked done (a late test)', async () => {
-    const result = await resultFor({ value: 30, unit: 'minutes', passed: true }, [testDay({ status: 'pending' })]);
-    expect(result).toBe('test logged: 30 minutes, passed');
+  it('readFeel keeps the three taps and nothing else', () => {
+    expect(['too_easy', 'just_right', 'too_hard', 'great', '', null, 3].map(readFeel)).toEqual(['too_easy', 'just_right', 'too_hard', null, null, null, null]);
+  });
+});
+
+describe('writeNextWeek tells the writer last week', () => {
+  it('from the finished week, with the review reflection', async () => {
+    await writeNextWeek(goal, 1, WEEK, '19:30', null, [], { reflection: 'Busy week' });
+    const input = vi.mocked(generateWeekPlan).mock.calls[0][0];
+    expect(input.lastWeek).toEqual({ ...lastWeekOf(WEEK), reflection: 'Busy week' });
+    expect(input).not.toHaveProperty('target');
+    expect(input).not.toHaveProperty('test');
   });
 
-  it('without a logged result the wording is exactly as before', async () => {
-    expect(await resultFor(null, [testDay({ notes: 'ran 29 minutes' })])).toBe('test done; their note: "ran 29 minutes"');
-    vi.mocked(generateWeekPlan).mockClear();
-    expect(await resultFor(null, [testDay()])).toBe('test done, score not logged');
-    vi.mocked(generateWeekPlan).mockClear();
-    expect(await resultFor(undefined, [testDay({ status: 'pending' })])).toBe('the weekly test was not done');
-    vi.mocked(generateWeekPlan).mockClear();
-    expect(await resultFor(null, [])).toBe('no test day this week');
-  });
-
-  it('a stored result in an unusable shape falls back to the old wording', async () => {
-    expect(await resultFor({ value: '', passed: true }, [testDay()])).toBe('test done, score not logged');
+  it('nothing for a week with no tasks', async () => {
+    await writeNextWeek(goal, 1, [], '19:30');
+    expect(vi.mocked(generateWeekPlan).mock.calls[0][0].lastWeek).toBeUndefined();
   });
 });

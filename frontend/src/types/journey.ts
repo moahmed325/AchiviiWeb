@@ -1,5 +1,3 @@
-import { WeekTarget, WeekTest } from './index';
-
 /**
  * Progression and rendering status across steps, weeks, and phases.
  */
@@ -32,8 +30,6 @@ export interface JourneyWeek {
   phaseName: string;
   theme?: string;
   focus?: string;
-  target?: WeekTarget | null;
-  test?: WeekTest | null;
   keyMilestone?: string;
   status: JourneyStatus;
   executionScore?: number;
@@ -62,12 +58,11 @@ export interface JourneyPhase {
 
 /**
  * Days 85–90 Closing Stretch (OD-2 Option A).
- * Follows week 12 review, dedicated to taking roadmap.finalTest and arrival at destination.
+ * Follows the last week: reflection and arrival at the destination (no final test since 2026-10-30).
  */
 export interface JourneyClosingStretch {
   startDay: number; // 85
   endDay: number; // 90
-  finalTest: string;
   finalGoal: string;
   status: JourneyStatus;
   isCurrent: boolean;
@@ -99,12 +94,9 @@ export interface JourneyData {
   rawGoal: string;
   clarifiedOutcome: string;
   finalGoal: string;
-  finalTest?: string;
   methodName?: string;
   methodAuthor?: string;
   phases: JourneyPhase[];
   closingStretch: JourneyClosingStretch;
   metrics: JourneyProgressMetrics;
-  /** Plan safety limits M1.3 (PSL-9, PSL-12): the honest line under week 12's target, when it was lowered. */
-  week12Line?: string | null;
 }

@@ -467,6 +467,97 @@ describe('PATCH /api/goal/tasks/:taskId — usedMinimumVersion (M2.0, ND-3)', ()
   });
 });
 
+// No weekly tests, section 7 (2026-10-30): after a session is done, one tap for how it felt.
+describe('PATCH /api/goal/tasks/:taskId — feel', () => {
+  let server: Server;
+  let baseUrl: string;
+  const mockUser = { id: 'usr-feel', email: 'feel@achivii.com' };
+  const task = (overrides: Record<string, unknown> = {}) => ({
+    id: 'task-1',
+    goalId: 'goal-1',
+    status: 'completed',
+    completedAt: new Date('2026-10-05T08:00:00Z'),
+    date: '2026-10-05',
+    notes: null,
+    slotTime: null,
+    minimumVersion: null,
+    usedMinimumVersion: false,
+    feel: null,
+    isRestDay: false,
+    goal: { id: 'goal-1', userId: mockUser.id, status: 'active' },
+    ...overrides,
+  });
+  const patch = (body: unknown) =>
+    fetch(`${baseUrl}/api/goal/tasks/task-1`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
+      body: JSON.stringify(body),
+    });
+  const updateData = () => (prisma.dailyTask.update as any).mock.calls[0][0].data;
+
+  beforeAll(async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/goal', goalRouter);
+    await new Promise<void>((resolve) => {
+      server = app.listen(0, () => {
+        const addr = server.address();
+        if (!addr || typeof addr === 'string') throw new Error('Failed to bind');
+        baseUrl = `http://localhost:${addr.port}`;
+        resolve();
+      });
+    });
+  });
+  afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (getAuthUser as any).mockResolvedValue(mockUser);
+    (prisma.dailyTask.update as any).mockImplementation(async ({ data }: any) => ({ ...task(), ...data, goal: undefined }));
+  });
+
+  it.each(['too_easy', 'just_right', 'too_hard'])('stores %s on a done session, and nothing else changes', async (feel) => {
+    (prisma.dailyTask.findUnique as any).mockResolvedValueOnce(task());
+    const res = await patch({ feel });
+    expect(res.status).toBe(200);
+    expect((await res.json()).task.feel).toBe(feel);
+    expect(updateData()).toEqual({ completedAt: task().completedAt, feel });
+  });
+
+  it('stores it with the completion in one call, and clears it with null', async () => {
+    (prisma.dailyTask.findUnique as any).mockResolvedValueOnce(task({ status: 'pending', completedAt: null, date: '2000-01-01' }));
+    expect((await patch({ status: 'completed', feel: 'too_hard' })).status).toBe(200);
+    expect(updateData()).toMatchObject({ status: 'completed', feel: 'too_hard' });
+    vi.mocked(prisma.dailyTask.update).mockClear();
+    (prisma.dailyTask.findUnique as any).mockResolvedValueOnce(task({ feel: 'too_hard' }));
+    expect((await patch({ feel: null })).status).toBe(200);
+    expect(updateData().feel).toBeNull();
+  });
+
+  it('400 for any other value, and for a session not done, writing nothing', async () => {
+    for (const feel of ['great', '', 3, true]) {
+      const res = await patch({ feel });
+      expect(res.status).toBe(400);
+    }
+    (prisma.dailyTask.findUnique as any).mockResolvedValueOnce(task({ status: 'pending', completedAt: null }));
+    expect((await patch({ feel: 'just_right' })).status).toBe(400);
+    (prisma.dailyTask.findUnique as any).mockResolvedValueOnce(task());
+    expect((await patch({ status: 'pending', feel: 'just_right' })).status).toBe(400);
+    expect(prisma.dailyTask.update).not.toHaveBeenCalled();
+  });
+
+  it('marking a session not done clears how it felt', async () => {
+    (prisma.dailyTask.findUnique as any).mockResolvedValueOnce(task({ feel: 'too_easy' }));
+    expect((await patch({ status: 'pending' })).status).toBe(200);
+    expect(updateData()).toMatchObject({ status: 'pending', completedAt: null, feel: null });
+  });
+
+  it('a notes or time change leaves the feel alone', async () => {
+    (prisma.dailyTask.findUnique as any).mockResolvedValueOnce(task({ feel: 'too_easy' }));
+    expect((await patch({ notes: 'Felt good' })).status).toBe(200);
+    expect(updateData()).not.toHaveProperty('feel');
+  });
+});
+
 const migrationsDir = fileURLToPath(new URL('../prisma/migrations', import.meta.url));
 
 describe('M2.0 migration (ND-3)', () => {
@@ -484,5 +575,21 @@ describe('M2.0 migration (ND-3)', () => {
       .filter(Boolean);
 
     expect(statements).toEqual(['ALTER TABLE "daily_tasks" ADD COLUMN "usedMinimumVersion" BOOLEAN NOT NULL DEFAULT false']);
+  });
+});
+
+describe('the feel migration (no weekly tests, section 7)', () => {
+  it('adds exactly the one nullable feel column', () => {
+    const matches = readdirSync(migrationsDir).filter((name) => name.endsWith('_task_feel'));
+    expect(matches).toHaveLength(1);
+    const sql = readFileSync(join(migrationsDir, matches[0], 'migration.sql'), 'utf8');
+    const statements = sql
+      .split('\n')
+      .filter((line) => !line.trim().startsWith('--'))
+      .join(' ')
+      .split(';')
+      .map((s) => s.replace(/\s+/g, ' ').trim())
+      .filter(Boolean);
+    expect(statements).toEqual(['ALTER TABLE "daily_tasks" ADD COLUMN "feel" TEXT']);
   });
 });

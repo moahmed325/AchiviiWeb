@@ -163,7 +163,7 @@ beforeEach(() => {
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'info').mockImplementation(() => {});
-  for (const name of ['WEEK_CLOSE_ENABLED', 'WEEKLY_UPDATE_ENABLED', 'MISSED_SESSIONS_CARRY_ENABLED', 'METHOD_RECOVERY_ENABLED']) vi.stubEnv(name, '');
+  for (const name of ['WEEK_CLOSE_ENABLED', 'MISSED_SESSIONS_CARRY_ENABLED', 'METHOD_RECOVERY_ENABLED']) vi.stubEnv(name, '');
 });
 
 afterEach(() => {
@@ -234,7 +234,7 @@ describe('the choice past the limit, WEEK_CLOSE_ENABLED on', () => {
   it('check answers the choice and the break, and writes nothing but the first try', async () => {
     seed(2);
     const before = stored();
-    expect((await check(atGap(2, 45))).body).toEqual({ due: true, weekNumber: 2, testLogged: false, break: true, choice: 'keep_going' });
+    expect((await check(atGap(2, 45))).body).toEqual({ due: true, weekNumber: 2, break: true, choice: 'keep_going' });
     expect(stored()).toEqual(before);
     expect(db.goal().closeTriedWeek).toBe(2);
     expect(generateWeekPlan).not.toHaveBeenCalled();
@@ -277,7 +277,7 @@ describe('the choice past the limit, WEEK_CLOSE_ENABLED on', () => {
     const input = vi.mocked(generateWeekPlan).mock.calls[0][0];
     expect(input.weekNumber).toBe(6);
     expect(input.weekStart).toEqual(new Date('2026-11-19T00:00:00Z'));
-    expect(input.lastWeek?.target.value).toBe(58);
+    expect(input.lastWeek).toMatchObject({ planned: expect.any(Number), done: expect.any(Number) });
     expect(input.firstWeekBack).toBeDefined();
     expect(logLines(' jumped ')).toEqual(['[WeekClose] goal g1 week 2 jumped 3-5 moved 24 choice keep_going']);
     expect(logLines('past the limit')).toEqual([]);
@@ -377,7 +377,7 @@ describe('the choice past the limit, WEEK_CLOSE_ENABLED on', () => {
   });
 });
 
-describe('no test card after a break (WU-39)', () => {
+describe('the check answers whether it was a break (WU-39)', () => {
   beforeEach(closeOn);
 
   it.each([
@@ -387,18 +387,16 @@ describe('no test card after a break (WU-39)', () => {
     [10, true],
   ])('a gap of %i days: break %s', async (gap, isBreak) => {
     seed(2);
-    expect((await check(atGap(2, gap))).body).toEqual({ due: true, weekNumber: 2, testLogged: false, break: isBreak, choice: null });
+    expect((await check(atGap(2, gap))).body).toEqual({ due: true, weekNumber: 2, break: isBreak, choice: null });
   });
 });
 
 describe('switch off (R-7, AC-19)', () => {
-  // M4.1b (WU-62 (1)): state A (both unset) and state D (only WEEKLY_UPDATE_ENABLED) must agree.
+  // M4.1b (WU-62 (1)): state A (the switch unset).
   it.each([
-    ['both switches unset', ''],
-    ['only WEEKLY_UPDATE_ENABLED on', 'true'],
-  ])('%s: no choice in any answer, no jumps, the review works as before', async (_name, update) => {
+    ['the switch unset', ''],
+  ])('%s: no choice in any answer, no jumps, the review works as before', async (_name, _update) => {
     vi.stubEnv('WEEK_CLOSE_ENABLED', '');
-    vi.stubEnv('WEEKLY_UPDATE_ENABLED', update);
     seed(2);
     expect((await check(atGap(2, 45))).body).toEqual({ due: false });
     expect((await close(atGap(2, 45), 'keep_going')).body).toEqual({ due: false });

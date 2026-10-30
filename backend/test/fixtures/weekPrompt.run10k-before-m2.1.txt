@@ -13,8 +13,6 @@ Rules (follow every one):
 THIS WEEK
 Week 1 of 12, phase "Base": Build easy running time.
 Focus: Easy aerobic running
-Next check (week 4): Continuous run distance: 6 km. Build toward it; it is not tested this week.
-Weekly test (the light test, done as written; no number against the target): Run this week's long run as written, at an easy pace you could talk at. Note the distance, the time and how it felt.
 
 
 THE DAYS (already decided; keep them)
@@ -23,22 +21,20 @@ THE DAYS (already decided; keep them)
 - Day 3 (Wednesday): practice
 - Day 4 (Thursday): rest
 - Day 5 (Friday): practice
-- Day 6 (Saturday): practice, TEST DAY
+- Day 6 (Saturday): practice
 - Day 7 (Sunday): rest
 
 WRITE THE WEEK
 - 7 days, dayNumber 1-7, exactly as listed above.
-- The test day's main step is the weekly test exactly as written above, titled "Weekly test: ...", with a
-  short warm-up before it (5 minutes or less) and a short step after it (5 minutes or less) that notes how it went; it does not compare anything with the target. The test day may be shorter than 40 minutes; do not pad it.
-- The light test belongs to the long run: the test day is that session, with the test as its main step.
-- Mark 1-2 practice days (not the test day) as key sessions ("isKeySession": true): the hardest sessions that
-  matter most for the target. Put them mid-week.
+- No tests: no "weekly test", time trial or measuring session. The plan is adjusted from what they do and how it feels.
+- Mark 1-2 practice days as key sessions ("isKeySession": true): the hardest sessions that matter most for the goal.
+  Put them mid-week.
 - Each practice day has:
   - title: what they get done, e.g. "Hold a 3-minute conversation about your weekend", not "Speaking practice"
-  - whyToday: one sentence on how this day moves them toward the target
+  - whyToday: one sentence on how this day moves them forward on this week's focus
   - 2-4 steps that each do something different, with minutes adding up to 40
   - minimumVersion: one 10-minute step for days they can't do the full session. It must still move them
-    toward the target.
+    forward.
 - Each step has:
   - title and instructions: specific enough to start without looking anything up
   - minutes
@@ -62,10 +58,9 @@ KINDS OF STEP (every practice-day step has exactly one "kind": one of these ids,
 - long_session: Long session. The week's longest steady run, ride or swim.
 - strength_and_mobility: Strength and mobility. Strength, core or mobility work that supports the sport.
 - catch_all: Catch-all. Work that fits none of the other kinds.
-- weekly_test: Weekly test. The week's test, done exactly as written.
 - fixed_time_session: Fixed-time session. Something set for a time by others, such as a class, a group run or a call.
 - A step whose kind is quality_session, long_session or strength_and_mobility starts with its own short warm-up (5 minutes or less) inside its instructions, so it can be done on another day on its own.
 - Work that only makes sense together, such as a game and its review, is written as one step.
-- A warm-up, cool-down or log of a session is written inside that session's step (in its instructions), never as a step of its own. The test day keeps its short warm-up and result steps as described above.
+- A warm-up, cool-down or log of a session is written inside that session's step (in its instructions), never as a step of its own.
 - A practice day still has 2 to 4 steps: a day built around one session, such as a run, adds a second step of another kind, such as drills, strides, mobility or technique work.
-- Every step on the test day, including its warm-up and the step after the test, has kind weekly_test. Use fixed_time_session only for something set for a time by others, such as a class, a group run or a call.
+- Use fixed_time_session only for something set for a time by others, such as a class, a group run or a call.

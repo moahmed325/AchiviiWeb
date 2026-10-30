@@ -1,24 +1,14 @@
-import React, { useId, useMemo, useState } from 'react';
+import React, { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  AlertTriangle,
-  ArrowRight,
-  CheckCircle2,
-  Compass,
-  RotateCcw,
-  Sparkles,
-  Target,
-} from 'lucide-react';
-import type { Goal, WeeklyTestResult, GoalCompletionPayload } from '../../types';
+import { AlertTriangle, ArrowRight, Compass, Sparkles } from 'lucide-react';
+import type { Goal, GoalCompletionPayload } from '../../types';
 import { useGoal } from '../../context/GoalContext';
 import { useUserTimezone } from '../../context/AuthContext';
-import { extractFinalTestEvaluation } from '../../lib/achievement';
-import { week12NoteText } from '../../lib/week12Line';
-import { dayNumber } from '../../lib/today';
+import { dayNumber, isRestLike } from '../../lib/today';
 import { lastDaysLine } from '../../lib/fixedDate';
 import { closingStartDay, planDays, planLengthLabel, planWeeks } from '../../lib/planLength';
 import { Button } from '../ui/Button';
-import { Field, Input, Textarea } from '../ui/Field';
+import { Field, Textarea } from '../ui/Field';
 import { cx } from '../ui/cx';
 
 export interface ClosingStretchViewProps {
@@ -50,9 +40,9 @@ const Eyebrow: React.FC<{ children: React.ReactNode; className?: string }> = ({
 
 /**
  * ClosingStretchView (Days 85–90, OD-2 Option A, BP §34).
- * Terminal deliberate practice state in Today. The 84 planned practice days are complete.
- * Days 85–90 are dedicated to the Capstone Evaluation, 90-day journey reflection,
- * and arrival at the Roman garden destination.
+ * Terminal deliberate practice state in Today. The 84 planned practice days are complete. No weekly tests
+ * (2026-10-30): no final test; the days after the last week are for looking back (what they did, a reflection) and
+ * arriving.
  */
 export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
   goal,
@@ -64,7 +54,6 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
   const [now] = useState(() => new Date());
   const currentDay = dayNumber(goal, now, timezone);
 
-  const evalData = useMemo(() => extractFinalTestEvaluation(goal), [goal]);
   const storageKey = `${STORAGE_KEY_PREFIX}${goal.id}`;
 
   const [reflection, setReflection] = useState<string>(() => {
@@ -75,20 +64,15 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
     }
   });
 
-  const [testResult, setTestResult] = useState<WeeklyTestResult | null>(() => {
-    return evalData?.result || null;
-  });
-
   const [completing, setCompleting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const reflectionFieldId = useId();
-  const testValueFieldId = useId();
-  const testNotesFieldId = useId();
 
   const summitGoal = goal.roadmap?.finalGoal || goal.clarifiedOutcome || goal.rawGoal;
-  // M1.3 (PSL-9): the honest line under the Summit Target when week 12 was lowered to a safe step.
-  const week12Line = week12NoteText(goal);
+  // What they did: practice sessions done of those planned (rest days and days not offered left out).
+  const practice = (goal.dailyTasks ?? []).filter((task) => !isRestLike(task));
+  const sessionsDone = practice.filter((task) => task.status === 'completed').length;
 
   const handleReflectionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
@@ -100,43 +84,12 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
     }
   };
 
-  const handlePassedChange = (passed: boolean) => {
-    setTestResult((prev) => ({
-      value: prev?.value || (passed ? 'Achieved' : 'In Progress'),
-      unit: prev?.unit,
-      passed,
-      note: prev?.note,
-    }));
-  };
-
-  const handleTestValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    if (!val.trim()) {
-      setTestResult((prev) => (prev ? { ...prev, value: '' } : null));
-      return;
-    }
-    setTestResult((prev) => ({
-      value: val,
-      unit: prev?.unit,
-      passed: prev?.passed ?? true,
-      note: prev?.note,
-    }));
-  };
-
-  const handleTestNoteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const note = e.target.value;
-    setTestResult((prev) => (prev ? { ...prev, note } : { value: 'Achieved', passed: true, note }));
-  };
-
-  const handleSubmit = async (skipTest: boolean = false) => {
+  const handleSubmit = async () => {
     if (completing || apiStatus === 'offline') return;
     setCompleting(true);
     setSubmitError(null);
 
-    const payload: GoalCompletionPayload = {
-      finalReflection: reflection.trim() || undefined,
-      finalTestResult: skipTest ? null : (testResult && String(testResult.value).trim() ? testResult : null),
-    };
+    const payload: GoalCompletionPayload = { finalReflection: reflection.trim() || undefined };
 
     try {
       const updated = await completeGoal(payload);
@@ -195,14 +148,12 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
           </Button>
         </div>
         <h2 id="closing-stretch-heading" className="mt-3 text-h2 font-semibold text-text">
-          The Final Evaluation & Arrival
+          Look back and arrive
         </h2>
         <p className="mt-2 text-body text-text-secondary max-w-2xl leading-relaxed">
           {shortPlan
-            ? `The ${firstDay - 1} planned practice days are complete. Take your capstone evaluation, reflect on your ${planLengthLabel(goal)} journey, and arrive at your date rested.`
-            : `The 84 planned deliberate practice days are complete. These final six days are dedicated to
-          taking your capstone evaluation, reflecting on your 90-day journey, and arriving at the
-          destination.`}
+            ? `The ${firstDay - 1} planned practice days are complete. Look back on your ${planLengthLabel(goal)} journey and arrive at your date rested.`
+            : 'The 84 planned practice days are complete. These final days are for looking back on your 90-day journey and arriving at your goal.'}
         </p>
         {/* B-109: a shorter plan's last days before the date (Mo, choice d). */}
         {restLine && <p className="mt-3 text-body text-text">{restLine}</p>}
@@ -246,116 +197,25 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
         </div>
       </div>}
 
-      {/* Capstone Evaluation Card */}
+      {/* What they did, and the goal they worked toward. */}
       <div className="rounded-card border border-border bg-surface-elevated/70 p-5 sm:p-6 space-y-4 text-left">
-        <div className="space-y-1">
-          <div className="flex items-center gap-1.5 font-ui-mono text-micro uppercase tracking-wider text-text-secondary">
-            <Target aria-hidden="true" strokeWidth={1.5} className="size-3.5 text-achievement shrink-0" />
-            <span>Capstone Benchmark Verification</span>
-          </div>
-          <h3 className="text-body font-semibold text-text">
-            {evalData?.testType || 'Capstone Benchmark Verification'}
-          </h3>
-          <p className="text-small text-text-secondary leading-relaxed">
-            {evalData?.instructions ||
-              'Complete your final capstone verification test under standard conditions.'}
-          </p>
-        </div>
-
-        {/* Target Deliverable / Pass Mark Banner */}
-        {(evalData?.targetDeliverable || evalData?.passCriteria) && (
-          <div className="rounded-control border border-border bg-background/50 p-3 space-y-1.5 text-small text-text">
-            {evalData.targetDeliverable && (
-              <div>
-                <span className="font-medium text-text-secondary">Summit Target: </span>
-                <span>{evalData.targetDeliverable}</span>
-                {week12Line && <p className="mt-1 text-text-secondary">{week12Line}</p>}
-              </div>
-            )}
-            {evalData.passCriteria && (
-              <div>
-                <span className="font-medium text-text-secondary">Criteria: </span>
-                <span className="text-text-secondary">{evalData.passCriteria}</span>
-              </div>
-            )}
+        {practice.length > 0 && (
+          <div>
+            <Eyebrow>What you did</Eyebrow>
+            <p className="mt-2 text-h3 text-text tabular">
+              {sessionsDone} of {practice.length} sessions
+            </p>
           </div>
         )}
-
-        {/* Ambition Reminder */}
         {summitGoal && (
           <div className="flex items-start gap-2 rounded-control border border-achievement/20 bg-achievement/5 p-3 text-small text-text">
             <Compass aria-hidden="true" strokeWidth={1.5} className="size-4 text-achievement shrink-0 mt-0.5" />
             <div>
-              <span className="font-medium text-text-secondary">Summit Ambition: </span>
+              <span className="font-medium text-text-secondary">Your goal: </span>
               <span className="text-text">{summitGoal}</span>
             </div>
           </div>
         )}
-
-        {/* Result Input Controls */}
-        <div className="pt-2 space-y-4 border-t border-border">
-          <div>
-            <label className="block text-small font-medium text-text mb-2">
-              Capstone Result
-            </label>
-            <div className="flex flex-wrap gap-2.5" role="group" aria-label="Capstone Result">
-              <button
-                type="button"
-                onClick={() => handlePassedChange(true)}
-                className={cx(
-                  'focus-ring flex min-h-11 items-center gap-2 rounded-control border px-3.5 py-2 text-small font-medium transition-colors cursor-pointer',
-                  testResult?.passed === true
-                    ? 'border-accent bg-accent/10 text-accent font-semibold ring-1 ring-accent/30'
-                    : 'border-border bg-surface hover:bg-surface-elevated text-text-secondary'
-                )}
-              >
-                <CheckCircle2 aria-hidden="true" strokeWidth={1.5} className="size-4" />
-                <span>Benchmark achieved</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePassedChange(false)}
-                className={cx(
-                  'focus-ring flex min-h-11 items-center gap-2 rounded-control border px-3.5 py-2 text-small font-medium transition-colors cursor-pointer',
-                  testResult?.passed === false
-                    ? 'border-amber-500/50 bg-amber-500/10 text-amber-300 font-semibold ring-1 ring-amber-500/30'
-                    : 'border-border bg-surface hover:bg-surface-elevated text-text-secondary'
-                )}
-              >
-                <RotateCcw aria-hidden="true" strokeWidth={1.5} className="size-4" />
-                <span>In progress — Reinforcing</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field
-              label="Recorded Score or Deliverable Output"
-              id={testValueFieldId}
-              hint="e.g. 48:30 min, Level B2 Passed, 55 wpm"
-            >
-              <Input
-                id={testValueFieldId}
-                value={testResult?.value ?? ''}
-                placeholder="Result value or deliverable description"
-                onChange={handleTestValueChange}
-              />
-            </Field>
-
-            <Field
-              label="Evaluation Notes (optional)"
-              id={testNotesFieldId}
-              hint="Conditions, what clicked, reflections"
-            >
-              <Input
-                id={testNotesFieldId}
-                value={testResult?.note ?? ''}
-                placeholder="Optional benchmark observation"
-                onChange={handleTestNoteChange}
-              />
-            </Field>
-          </div>
-        </div>
       </div>
 
       {/* Final Journey Reflection Textarea */}
@@ -388,7 +248,7 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
             <p className="font-medium">Couldn't record completion</p>
             <p className="text-small text-text-secondary">{submitError}</p>
           </div>
-          <Button variant="secondary" size="sm" onClick={() => handleSubmit(false)}>
+          <Button variant="secondary" size="sm" onClick={() => handleSubmit()}>
             Try again
           </Button>
         </div>
@@ -411,23 +271,13 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
           size="lg"
           loading={completing}
           disabled={completing || apiStatus === 'offline'}
-          onClick={() => handleSubmit(false)}
+          onClick={() => handleSubmit()}
           trailingIcon={<Sparkles aria-hidden="true" strokeWidth={1.5} className="size-4 text-achievement" />}
           className="w-full sm:w-auto min-h-12 border-achievement/40 bg-surface-elevated hover:bg-surface text-text hover:border-achievement shadow-lg"
         >
           Complete my journey
         </Button>
 
-        <Button
-          type="button"
-          variant="quiet"
-          size="sm"
-          disabled={completing || apiStatus === 'offline'}
-          onClick={() => handleSubmit(true)}
-          className="text-text-secondary hover:text-text self-center sm:self-auto min-h-[44px]"
-        >
-          Arrive without test
-        </Button>
       </div>
     </section>
   );

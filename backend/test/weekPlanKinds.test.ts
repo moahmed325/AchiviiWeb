@@ -21,11 +21,11 @@ import {
 import { RECOVERY_TEMPLATES } from '../src/lib/recovery/index.js';
 
 // Method-aware recovery M2.1: with a profile, every practice-day step carries one of its kind ids, or the week is not
-// saved (RULE-6, MR-5, MR-16); code sets the test step's and the 10-minute version's kind (RULE-7, MR-15). Without a
-// profile, the week call is exactly as before.
+// saved (RULE-6, MR-5, MR-16); code sets the 10-minute version's kind (RULE-7, MR-15). Without a profile, the week
+// call is exactly as before. No weekly tests (2026-10-30): no test day, and the Weekly test kind is never offered.
 
 const general = RECOVERY_TEMPLATES.general;
-const IDS = general.kinds.map((kind) => kind.id);
+const IDS = general.kinds.filter((kind) => kind.id !== 'weekly_test').map((kind) => kind.id);
 
 const input: WeekCallInput = {
   finalGoal: 'Type 40 words per minute at 95% accuracy',
@@ -38,8 +38,6 @@ const input: WeekCallInput = {
   totalWeeks: 12,
   phase: { name: 'Accuracy', purpose: 'Learn every key without looking.' },
   focus: 'Home row',
-  target: { kind: 'number', metric: 'Typing speed', value: 16, unit: 'words per minute', direction: 'higher_is_better' },
-  test: { type: 'typing_test', instructions: 'Take a 1-minute typing test on keybr.com', passIf: '16 wpm at 95% accuracy' },
   weekStart: new Date('2026-09-21T12:00:00Z'),
 };
 const withProfile: WeekCallInput = { ...input, recovery: general };
@@ -59,17 +57,14 @@ function step(title: string, priority: number, minutes = 10, kind: unknown = 'pr
   };
 }
 
-/** Steady: days 1-3 and 5-6 practice, 4 and 7 rest, day 6 the test. Every step tagged practice_session. */
+/** Steady: days 1-3 and 5-6 practice, 4 and 7 rest. Every step tagged practice_session or project_work. */
 function week(overrides: (days: Array<Record<string, any>>) => void = () => {}): RawWeekAnswer {
   const days: Array<Record<string, any>> = Array.from({ length: 7 }, (_, index) => {
     const dayNumber = index + 1;
     if (dayNumber === 4 || dayNumber === 7) {
       return { dayNumber, isKeySession: false, title: 'Easy home row pass', whyToday: 'Keeps the keys fresh.', steps: [step('Slow home row pass', 1, 12)] };
     }
-    const steps =
-      dayNumber === 6
-        ? [step('Warm up on home row words', 2, 5), step('Weekly test: 1-minute typing test', 1, 15), step('Compare your result with 16 wpm', 3, 10)]
-        : [step(`Drill ${dayNumber} letters`, 1, 15), step(`Type sentence set ${dayNumber}`, 2, 15, 'project_work')];
+    const steps = [step(`Drill ${dayNumber} letters`, 1, 15), step(`Type sentence set ${dayNumber}`, 2, 15, 'project_work')];
     return {
       dayNumber,
       isKeySession: dayNumber === 3,
@@ -103,7 +98,8 @@ describe('the schema (RULE-6)', () => {
     const stepSchema = weekResponseSchema(general).properties.days.items.properties.steps.items as any;
     expect(stepSchema.properties.kind).toEqual({ type: 'string', enum: IDS });
     expect(stepSchema.required).toContain('kind');
-    expect(IDS).toEqual(expect.arrayContaining(['weekly_test', 'fixed_time_session']));
+    expect(general.kinds.map((kind) => kind.id)).toEqual(expect.arrayContaining(['weekly_test', 'fixed_time_session']));
+    expect(IDS).not.toContain('weekly_test');
     const constant = WEEK_RESPONSE_SCHEMA.properties.days.items.properties.steps.items as any;
     expect(constant.properties.kind).toBeUndefined();
     expect(constant.required).not.toContain('kind');
@@ -132,7 +128,7 @@ describe('the prompt (RULE-6, RULE-8, MR-20)', () => {
     const fixture = readFileSync(new URL('./fixtures/weekPrompt.with-profile.txt', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
     const prompt = buildWeekPrompt(withProfile, layout);
     expect(prompt).toBe(fixture);
-    for (const kind of general.kinds) expect(prompt).toContain(`- ${kind.id}: ${kind.name}. ${kind.description}`);
+    for (const kind of general.kinds.filter((k) => k.id !== 'weekly_test')) expect(prompt).toContain(`- ${kind.id}: ${kind.name}. ${kind.description}`);
     expect(prompt).toContain('- A step whose kind is practice_session or catch_all starts with its own short warm-up');
     expect(prompt).toContain('such as a game and its review, is written as one step');
     expect(prompt).not.toMatch(/let_go|let go|\baction\b/);
@@ -206,27 +202,6 @@ describe('every step keeps a kind (RULE-6)', () => {
 });
 
 describe('what code sets itself (RULE-7, MR-15)', () => {
-  it('the test step is weekly_test whatever the model tagged', () => {
-    const answer = week((days) => {
-      days[5].steps[1].kind = 'project_work';
-    });
-    const test = value(checkWeekAnswer(answer, withProfile))[5].detailedSteps.find((s) => s.title.startsWith('Weekly test'))!;
-    expect(test.kind).toBe('weekly_test');
-
-    const untagged = week((days) => {
-      delete days[5].steps[1].kind;
-    });
-    expect(value(checkWeekAnswer(untagged, withProfile))[5].detailedSteps.find((s) => s.title.startsWith('Weekly test'))!.kind).toBe('weekly_test');
-  });
-
-  it('a test step code adds on the last attempt is weekly_test', () => {
-    const noTest = week((days) => {
-      days[5].steps = [step('Drill six letters', 1, 15), step('Type sentence set six', 2, 15, 'project_work')];
-    });
-    const added = value(checkWeekAnswer(noTest, withProfile, true))[5].detailedSteps.find((s) => s.title.startsWith('Weekly test'))!;
-    expect(added.kind).toBe('weekly_test');
-  });
-
   it("the 10-minute version takes the kind of the day's priority-1 step", () => {
     const answer = week((days) => {
       days[0].steps = [step('Type a paragraph', 2, 15, 'practice_session'), step('Write a short story', 1, 15, 'project_work')];
@@ -234,8 +209,6 @@ describe('what code sets itself (RULE-7, MR-15)', () => {
     const days = value(checkWeekAnswer(answer, withProfile));
     expect(days[0].minimumVersion!.kind).toBe('project_work');
     expect(days[1].minimumVersion!.kind).toBe('practice_session');
-    // On the test day the test step leads.
-    expect(days[5].minimumVersion!.kind).toBe('weekly_test');
 
     const derived = week((days) => {
       delete days[2].minimumVersion;
@@ -244,47 +217,13 @@ describe('what code sets itself (RULE-7, MR-15)', () => {
   });
 });
 
-describe('every test-day step is Weekly test (M2.3, RULE-7, MR-25)', () => {
-  it('with a profile, the warm-up and the review on the test day are weekly_test too, whatever the model wrote', () => {
-    const answer = week((days) => {
-      days[5].steps[0].kind = 'cardio';
-      delete days[5].steps[2].kind;
-    });
-    const testDay = value(checkWeekAnswer(answer, withProfile))[5];
-    expect(testDay.detailedSteps.map((s) => [s.title, s.kind])).toEqual([
-      ['Warm up on home row words', 'weekly_test'],
-      ['Weekly test: 1-minute typing test', 'weekly_test'],
-      ['Compare your result with 16 wpm', 'weekly_test'],
-    ]);
-    // Only the test step gets the test's pass mark and leads the day.
-    expect(testDay.detailedSteps.filter((s) => s.passMark === input.test.passIf).map((s) => s.title)).toEqual(['Weekly test: 1-minute typing test']);
-    expect(testDay.detailedSteps.find((s) => s.priority === 1)!.title).toBe('Weekly test: 1-minute typing test');
-    // Other days keep the model's kinds.
-    expect(value(checkWeekAnswer(answer, withProfile))[0].detailedSteps.map((s) => s.kind)).toEqual(['practice_session', 'project_work']);
-  });
-
-  it('with a profile, the steps kept beside a test step code adds are weekly_test', () => {
-    const noTest = week((days) => {
-      days[5].steps = [step('Drill six letters', 1, 15), step('Type sentence set six', 2, 15, 'project_work')];
-    });
-    const testDay = value(checkWeekAnswer(noTest, withProfile, true))[5];
-    expect(testDay.detailedSteps.every((s) => s.kind === 'weekly_test')).toBe(true);
-  });
-
-  it('without a profile the test day is untouched: no kinds, and the side steps keep their own pass marks', () => {
-    const testDay = value(checkWeekAnswer(week(), input))[5];
-    for (const s of testDay.detailedSteps) expect(s).not.toHaveProperty('kind');
-    expect(testDay.detailedSteps.map((s) => s.passMark)).toEqual(['95% accuracy or better', input.test.passIf, '95% accuracy or better']);
-  });
-});
-
 describe('warm-ups, cool-downs and logs stay inside their step (M2.3, RULE-8, MR-25)', () => {
   const layout = weekLayout('steady', input.weekStart);
 
-  it('the prompt says so only with a profile, and keeps the test day\'s warm-up and result steps', () => {
-    const line = "- A warm-up, cool-down or log of a session is written inside that session's step (in its instructions), never as a step of its own. The test day keeps its short warm-up and result steps as described above.";
+  it('the prompt says so only with a profile, and never offers the Weekly test kind', () => {
+    const line = "- A warm-up, cool-down or log of a session is written inside that session's step (in its instructions), never as a step of its own.";
     expect(buildWeekPrompt(withProfile, layout)).toContain(line);
-    expect(buildWeekPrompt(withProfile, layout)).toContain('- Every step on the test day, including its warm-up and the step after the test, has kind weekly_test.');
+    expect(buildWeekPrompt(withProfile, layout)).not.toMatch(/weekly_test|test day/i);
     expect(buildWeekPrompt(input, layout)).not.toMatch(/cool-down|log of a session/);
   });
 
@@ -337,14 +276,6 @@ describe('warm-ups, cool-downs and logs stay inside their step (M2.3, RULE-8, MR
     );
     const last = value(checkWeekAnswer(answer, withProfile, true));
     expect(last[0].detailedSteps.map((s) => s.title)).toEqual(['Easy indoor warm-up', 'Drill 1 letters', 'Log your speed']);
-  });
-
-  it("the test day's warm-up and review are not a reason (they are weekly_test)", () => {
-    const answer = week((days) => {
-      days[5].steps[0].title = 'Pre-test warm-up';
-      days[5].steps[2].title = 'Log your result';
-    });
-    expect('value' in checkWeekAnswer(answer, withProfile)).toBe(true);
   });
 
   it('without a profile the same week is accepted on the first attempt', () => {

@@ -262,27 +262,6 @@ describe.each([
     expect(await run([1], reviewMorningAfter)).toEqual(reviewed);
   });
 
-  it('M4.1b, AC-19 state D: with only WEEKLY_UPDATE_ENABLED on, the reviews and the reconcile bodies are the same as with both unset', async () => {
-    const onTime = await run([1], onTimeReview);
-    const reviewed = await run([1], reviewMorningAfter);
-    vi.stubEnv('WEEKLY_UPDATE_ENABLED', 'true');
-    expect(await run([1], onTimeReview)).toEqual(onTime);
-    expect(await run([1], reviewMorningAfter)).toEqual(reviewed);
-  });
-
-  it('M4.1b, AC-17 state C: with both on (the update has no model answer and falls back), the same reconcile bodies and weeks', async () => {
-    // The update reads the finished week's handoff too (its in-order kinds), so the spy sees one more read with the
-    // method switch on; the week writer's handoff is the last one.
-    const seen = (result: Awaited<ReturnType<typeof run>>) => ({ ...result, handoff: result.handoff.at(-1) });
-    const onTime = seen(await run([1], onTimeReview));
-    const reviewed = seen(await run([1], reviewMorningAfter));
-    vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
-    vi.stubEnv('WEEKLY_UPDATE_ENABLED', 'true');
-    expect(seen(await run([1], onTimeReview))).toEqual(onTime);
-    expect(seen(await run([1], reviewMorningAfter))).toEqual(reviewed);
-    expect(vi.mocked(console.log).mock.calls.filter((args) => String(args[0]).startsWith('[WeeklyUpdate]')).length).toBeGreaterThan(0);
-  });
-
   it('the last practice day left undone and first seen the morning after: reconcile first and close first agree', async () => {
     // Last open on Friday evening, so Saturday's miss is first seen on Monday morning: in today's order reconcile writes
     // what it hands on onto week 2 before the review's handoff reads it; with the close first the handoff reads it first.

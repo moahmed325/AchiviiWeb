@@ -16,14 +16,8 @@ import { RUN10K_WEEK1 } from './run10kWeekInput.js';
 // Plan safety limits M2.2b (RULE-7, PSL-18, PSL-11 Q13, AC-7): a load goal's first week back is held to the newest week
 // with done running, by what was done, with no allowance, half after a long break, never below 30 minutes / 5 km.
 
-/** A later, measured week (not light), as in `weekLoadLimits.test.ts`. */
-const WEEK5: WeekCallInput = {
-  ...RUN10K_WEEK1,
-  loadGoal: { running: true },
-  weekNumber: 5,
-  test: { type: 'timer', instructions: 'Run 5 km at a hard, steady effort and log your time.', passIf: 'Under 30 minutes' },
-  testSession: undefined,
-};
+/** A later week, as in `weekLoadLimits.test.ts`. */
+const WEEK5: WeekCallInput = { ...RUN10K_WEEK1, loadGoal: { running: true }, weekNumber: 5 };
 const back = (total: number, fromWeek = 3, percent = 100, runs = 3): BaseWeek => ({ known: true, unit: 'minutes', total, totalMinutes: total, runs, firstWeekBack: { fromWeek, percent } });
 
 function step(title: string, priority: number, minutes: number, extra: Record<string, unknown> = {}) {
@@ -50,20 +44,17 @@ const loadOf = (run: RunSpec) =>
   run.noLoad ? {} : { load: { ...(run.km !== undefined ? { runKm: run.km } : { runMinutes: run.min }), hardRun: false } };
 type Practice = 1 | 2 | 3 | 5;
 
-/** As `weekLoadLimits.test.ts`'s `week`: days 1-3 and 5-6 practice (40 minutes each), 4 and 7 rest, day 6 the test. */
-function week(runs: Partial<Record<Practice, RunSpec>>, test: RunSpec = { min: 10 }, testText?: string): RawWeekAnswer {
+/**
+ * As `weekLoadLimits.test.ts`'s `week`: days 1-3 and 5-6 practice (40 minutes each), 4 and 7 rest; day 6's run is
+ * `day6` (an easy 10-minute run unless given). No weekly tests (2026-10-30): day 6 was the test day.
+ */
+function week(runs: Partial<Record<Practice, RunSpec>>, day6: RunSpec = { min: 10 }): RawWeekAnswer {
   const days = Array.from({ length: 7 }, (_, index) => {
     const dayNumber = index + 1;
     if (dayNumber === 4 || dayNumber === 7) return { dayNumber, isKeySession: false, title: 'Rest and recover', whyToday: 'Recovery.', steps: [] };
-    const run = runs[dayNumber as Practice];
+    const run = dayNumber === 6 ? day6 : runs[dayNumber as Practice];
     const steps =
-      dayNumber === 6
-        ? [
-            step('Jog gently before the test', 2, 5, { kind: 'weekly_test' }),
-            step('Weekly test: long run at an easy pace', 1, test.min, { kind: 'weekly_test', highLoad: true, ...loadOf(test), ...(testText ? { instructions: testText } : {}) }),
-            step('Note how the run felt', 3, 5, { kind: 'weekly_test' }),
-          ]
-        : run
+      run
           ? [
               step(`Run ${dayNumber}`, 1, run.min, { kind: 'easy_session', highLoad: true, ...loadOf(run) }),
               step(`Calf and hip circuit ${dayNumber}`, 2, 40 - run.min, { kind: 'strength_and_mobility' }),
@@ -386,65 +377,3 @@ describe('writeNextWeek with a first week back', () => {
 
 // ---------------------------------------------------------------------------------------------------------------
 // M2.2b review fix 1: the light-step swap fits the room left under the running-total limit.
-
-describe('the light-step swap fits the room (review fix 1)', () => {
-  /** A run10k first week back of a high-load goal: a light week, so a test step refused on the last attempt is swapped. */
-  const BACK: WeekCallInput = { ...WEEK5, firstWeekBack: { awayDays: 10, note: null, highLoad: true } };
-  const TRIAL = 'Run a 5K time trial at race effort.';
-  /** The test step, refused for the time trial, says 0 running minutes so the model's week fits; its day is 40 minutes. */
-  const testDay = (answer: RawWeekAnswer) => {
-    const result = checkWeekAnswer(answer, { ...BACK, baseWeek: base }, true);
-    return 'value' in result ? result.value.find((day) => day.isTestDay)! : null;
-  };
-  let base: BaseWeek;
-  const lightStep = (day: NonNullable<ReturnType<typeof testDay>>) => day.detailedSteps.find((item) => item.title === 'Weekly test: an easy version')!;
-
-  it('limit 30, no other running, a 30-minute test: the light step keeps its 30 minutes and the week is written', () => {
-    base = { ...back(10), runs: 1 };
-    const day = testDay(week({}, { min: 30 }, TRIAL));
-    expect(day).not.toBeNull();
-    expect(lightStep(day!).durationMinutes).toBe(30);
-  });
-
-  it('limit 30, no other running, a 40-minute test day: the light step is cut to 30 and the week is written', () => {
-    base = { ...back(10), runs: 1 };
-    const answer = week({}, { min: 30 }, TRIAL);
-    // The test step takes the whole 40 minutes of its day, with its running said as 5.
-    const day6 = (answer.days as Array<Record<string, any>>)[5];
-    day6.steps = [{ ...day6.steps[1], minutes: 40, load: { runMinutes: 5, hardRun: false } }];
-    const day = testDay(answer);
-    expect(day).not.toBeNull();
-    expect(lightStep(day!).durationMinutes).toBe(30);
-    expect(day!.durationMinutes).toBe(30);
-  });
-
-  it('other running 25 leaves room 5, under a 10-minute version: not shortened, the week fails as before', () => {
-    base = { ...back(10), runs: 1 };
-    const answer = week({ 1: { min: 25 } }, { min: 5 }, TRIAL);
-    (answer.days as Array<Record<string, any>>)[5].steps[1].minutes = 20;
-    const result = checkWeekAnswer(answer, { ...BACK, baseWeek: base }, true);
-    expect('reason' in result ? result.reason : '').toContain("This week's running is 45 minutes; the most allowed is 30");
-  });
-
-  it('an ordinary base with room: a light step that already fits is unchanged', () => {
-    base = { known: true, unit: 'minutes', total: 200, totalMinutes: 200, runs: 4 };
-    const day = testDay(week({ 1: { min: 20 }, 2: { min: 20 } }, { min: 20 }, TRIAL));
-    expect(lightStep(day!).durationMinutes).toBe(20);
-  });
-
-  it('an ordinary base: the light step is cut to the room too', () => {
-    // Base 60 + 10 = 70; other running 50; a 30-minute test becomes 20.
-    base = { known: true, unit: 'minutes', total: 60, totalMinutes: 60, runs: 3 };
-    const answer = week({ 1: { min: 25 }, 2: { min: 25 } }, { min: 30 }, TRIAL);
-    (answer.days as Array<Record<string, any>>)[5].steps[1].load = { runMinutes: 15, hardRun: false };
-    const day = testDay(answer);
-    expect(day).not.toBeNull();
-    expect(lightStep(day!).durationMinutes).toBe(20);
-  });
-
-  it('no running-total limit (a 0-run base): no change', () => {
-    base = { known: true, unit: 'minutes', total: 0, totalMinutes: 0, runs: 0, firstWeekBack: { fromWeek: null, percent: 100 } };
-    const day = testDay(week({}, { min: 30 }, TRIAL));
-    expect(lightStep(day!).durationMinutes).toBe(30);
-  });
-});

@@ -281,14 +281,16 @@ export function weekList(weeks: readonly (number | string)[], join: 'and' | 'or'
 export function buildRoadmapPrompt(input: RoadmapInput, fixedMethod?: FixedMethod): string {
   const shape = planShape(input.totalWeeks);
   const n = shape.weeks;
-  const end = shape.readyWeek === null ? 'day 90' : `the end of week ${n}`;
+  const end = shape.readyWeek === null ? 'day 90' : `the last day of week ${n}`;
   return `Goal as typed: "${input.workingTitle}" (${input.domain})
 Time: ${input.dailyMinutes} minutes a day, ${input.activeDays} days a week, for ${n} weeks.${
-    shape.readyWeek === null ? '' : `\nTheir date: they have a fixed date (an exam, a race, a talk) right after week ${n}; week ${n} is the easier week before it.`
+    shape.readyWeek === null
+      ? ''
+      : `\nTheir date: they have a fixed date (an exam, a race, a talk) right after week ${n}; week ${n} is the easier week before it.\nTheir answers may have been given for 90 days; their date leaves ${n} weeks. Keep their goal when it can be reached safely by then; if it can't, make\n"finalGoal" the furthest safe point on the way to it.`
   }
 Their answers:
 ${formatAnswerLines(input.answers)}
-(Skipped answers: assume a beginner, basic equipment, and no target they did not give.)
+(Skipped answers: assume a beginner, basic equipment, and no number they did not give.)
 
 1. THE GOAL
    "finalGoal": their success answer as one specific outcome that can be checked on ${end}.
