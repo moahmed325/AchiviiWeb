@@ -1222,7 +1222,7 @@ html:has(.marketing) {
     justify-content: center;
     border-radius: var(--radius-control);
     background-color: color-mix(in oklab, var(--color-text) 5%, transparent);
-    color: var(--color-text-muted);
+    color: var(--color-text-secondary);
     font-family: var(--font-ui-mono);
     font-size: var(--text-micro);
     font-variant-numeric: tabular-nums;

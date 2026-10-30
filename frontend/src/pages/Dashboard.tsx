@@ -167,7 +167,7 @@ export const Dashboard: React.FC = () => {
             naming ? (
               <div className="mt-4 max-w-sm"><NameForm label="What should we call you?" onSaved={() => setNaming(false)} /></div>
             ) : (
-              <Button variant="quiet" size="sm" className="-ml-3 mt-2" onClick={() => setNaming(true)}>Add your name</Button>
+              <Button variant="quiet" size="sm" className="-ml-4 mt-2" onClick={() => setNaming(true)}>Add your name</Button>
             )
           )}
           <p className="mt-5 max-w-xl text-body-lg text-text">{status}</p>
