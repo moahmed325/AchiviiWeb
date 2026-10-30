@@ -118,12 +118,6 @@ export interface MockOptions {
   swap?: PlanActionAnswer;
   carryNow?: PlanActionAnswer;
   /**
-   * `PUT /api/goal/weeks/:weekNumber/test-result` (missed sessions M4.1) answers with this status and `{ error }`
-   * instead of saving. When it saves, the week in the mocked goal gets the result, so a reload returns it; a completed
-   * week answers 409 `week_closed`, as the backend does.
-   */
-  testResultStatus?: number;
-  /**
    * `POST /api/goal/close-week` (weekly update M1.2b). Omitted: `{ due: false }` to every call, as the backend answers
    * while WEEK_CLOSE_ENABLED is off, so specs written before M1.2b are unchanged. Given: check mode answers `check` until
    * a close works; a close waits `closeDelayMs`, then answers `closeStatus` with the server's 503 text, or saves
@@ -153,7 +147,7 @@ const CARRY_DISABLED: PlanActionAnswer = { status: 409, body: { error: 'This act
 
 export interface TaskUpdate {
   taskId: string;
-  body: { status?: string; notes?: string | null; slotTime?: string };
+  body: { status?: string; notes?: string | null; slotTime?: string; feel?: string | null };
 }
 
 export interface GenerationStreamStep {
@@ -193,8 +187,6 @@ export interface MockCalls {
   dailyTime: unknown[];
   /** POST /api/goal/reconcile. */
   reconcile: number;
-  /** Every POST /api/goal/checkpoint body (checkpoints M2). */
-  checkpoints: unknown[];
 }
 
 const json = (route: Route, status: number, body: unknown) =>
@@ -204,7 +196,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Stands in for the backend and Supabase Auth without touching any real service or database. */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<MockCalls> {
-  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [], planActions: [], testResults: [], closeWeek: [], closeChoices: [], closeLineSeen: [], dailyTime: [], reconcile: 0, checkpoints: [] };
+  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [], planActions: [], closeWeek: [], closeChoices: [], closeLineSeen: [], dailyTime: [], reconcile: 0 };
   const {
     goal = null,
     signupStatus = 201,
@@ -231,7 +223,6 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     markMissed = CARRY_DISABLED,
     swap = CARRY_DISABLED,
     carryNow = CARRY_DISABLED,
-    testResultStatus,
     closeWeek,
   } = options;
   let weekClosed = false;
@@ -361,25 +352,6 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
       return json(route, status, answer.body ?? {});
     }
 
-    const testResultMatch = path.match(/^\/api\/goal\/weeks\/(\d+)\/test-result$/);
-    if (testResultMatch && route.request().method() === 'PUT') {
-      const weekNumber = Number(testResultMatch[1]);
-      const body = route.request().postDataJSON();
-      calls.testResults.push({ weekNumber, body });
-      if (testResultStatus) return json(route, testResultStatus, { error: 'Failed to save the test result.' });
-      const weeks = (saved?.roadmapWeeks ?? []) as Array<Record<string, unknown>>;
-      const week = weeks.find((w) => w.weekNumber === weekNumber);
-      if (!week) return json(route, 404, { error: 'Week not found.' });
-      // Weekly update M3.3b (WU-58 (3)): the closed week the open week re-tests takes the result, and the goal's
-      // `retest` then reads it as logged, as the server works it out.
-      const openWeek = weeks.find((w) => w.status === 'active');
-      const retested = week.status === 'completed' && openWeek?.retestOfWeek === weekNumber;
-      if (week.status === 'completed' && !retested) return json(route, 409, { error: 'This week has already been reviewed.', reason: 'week_closed' });
-      week.testResult = retested ? { ...body, retestLoggedInWeek: openWeek!.weekNumber } : body;
-      if (retested && saved?.retest) saved.retest = { ...(saved.retest as object), logged: true };
-      return json(route, 200, { testResult: week.testResult });
-    }
-
     // Weekly update M3.3b (WU-58 (4)): the daily-time answer. 409 `no_daily_time_check` without a question, as the server.
     if (path === '/api/goal/daily-time' && route.request().method() === 'POST') {
       const minutes = route.request().postDataJSON()?.minutes;
@@ -389,18 +361,6 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
       saved!.dailyTimeCheck = null;
       if (minutes !== check.minutes) saved!.routine = JSON.stringify({ ...JSON.parse(String(saved!.routine || '{}')), dailyMinutes: minutes });
       return json(route, 200, { dailyMinutes: minutes, dailyTimeAskedAt: new Date().toISOString() });
-    }
-
-    // Checkpoints (section 7): the answer to the open offer. Accept sets the day-90 line, as the server does; 409
-    // `no_checkpoint` without an open offer.
-    if (path === '/api/goal/checkpoint' && route.request().method() === 'POST') {
-      const body = route.request().postDataJSON() as { week?: number; answer?: string };
-      calls.checkpoints.push(body);
-      const open = saved?.checkpoint as { week: number; offered: string | null; goal: string } | null | undefined;
-      if (!open || open.week !== body?.week) return json(route, 409, { error: 'There is no checkpoint to answer.', reason: 'no_checkpoint' });
-      saved!.checkpoint = null;
-      if (body.answer === 'accept') saved!.dayNinetyLine = { target: open.offered, goal: open.goal };
-      return json(route, 200, { week: body.week, answer: body.answer, by: 'person', answeredAt: new Date().toISOString() });
     }
 
     const taskMatch = path.match(/^\/api\/goal\/tasks\/([^/]+)$/);
@@ -415,6 +375,9 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
       if (body.status) task.status = body.status;
       if (body.status === 'completed') task.completedAt = new Date().toISOString();
       if (body.status === 'pending') task.completedAt = null;
+      // No weekly tests, section 7: how a done session felt; marking it not done clears it.
+      if (body.status === 'pending') task.feel = null;
+      else if (body.feel !== undefined) task.feel = body.feel;
       if (body.notes !== undefined) task.notes = body.notes;
       if (body.slotTime !== undefined) task.slotTime = body.slotTime;
       return json(route, 200, { task });

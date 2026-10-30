@@ -45,7 +45,7 @@ function after() {
   };
 }
 
-const CHECK = { due: true, weekNumber: 1, testLogged: false, break: true, choice: 'keep_going' };
+const CHECK = { due: true, weekNumber: 1, break: true, choice: 'keep_going' };
 
 const evidence = async (page: Page, info: TestInfo, name: string) => {
   if (!process.env.EVIDENCE) return;

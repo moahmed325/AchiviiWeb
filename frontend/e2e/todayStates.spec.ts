@@ -78,7 +78,7 @@ test.describe('OD-9 States on Today (M5.7)', () => {
     await expect(stepCard.getByRole('button', { name: 'Start' })).toBeVisible();
   });
 
-  test('test day: displays weekly benchmark card with instructions and pass mark without fake inputs', async ({ page }) => {
+  test("an older goal's stored test day is an ordinary session: no badge, no check card (no weekly tests)", async ({ page }) => {
     const base = shellGoal();
     const testGoal = {
       ...base,
@@ -87,11 +87,7 @@ test.describe('OD-9 States on Today (M5.7)', () => {
           weekNumber: 1,
           phase: 'Foundations',
           theme: 'Core architecture',
-          test: {
-            type: 'Prototype Demo',
-            instructions: 'Walk a real user through the interactive onboarding prototype.',
-            passIf: 'user completes the flow in under 5 minutes without guidance',
-          },
+          test: { type: 'Prototype Demo', instructions: 'Walk a real user through the interactive onboarding prototype.', passIf: 'under 5 minutes' },
         },
       ],
       dailyTasks: base.dailyTasks.map((t) => (t.id === 't3' ? { ...t, isTestDay: true } : t)),
@@ -101,15 +97,10 @@ test.describe('OD-9 States on Today (M5.7)', () => {
     await page.goto('/');
 
     const stepCard = main(page).locator('section[aria-labelledby="step-heading"]');
-    await expect(stepCard.getByText('Test day')).toBeVisible();
-    await expect(stepCard.getByRole('heading', { level: 3, name: "Today's check" })).toBeVisible();
-    await expect(stepCard.getByText(/Benchmark/)).toHaveCount(0);
-    await expect(stepCard.getByText('Walk a real user through the interactive onboarding prototype.')).toBeVisible();
-    await expect(stepCard.getByText('Pass if user completes the flow in under 5 minutes without guidance.')).toBeVisible();
-
-    // Zero fake score inputs
-    await expect(page.locator('input[type="range"]')).toHaveCount(0);
-    await expect(page.locator('input[name="score"]')).toHaveCount(0);
+    await expect(stepCard.getByRole('button', { name: 'Start', exact: true })).toBeVisible();
+    await expect(stepCard.getByText('Test day')).toHaveCount(0);
+    await expect(stepCard.getByText("Today's check")).toHaveCount(0);
+    await expect(stepCard.getByText('Walk a real user through the interactive onboarding prototype.')).toHaveCount(0);
   });
 
   test('recovery: yesterday left pending shows no generic callout and no punitive copy', async ({ page }) => {
@@ -215,8 +206,8 @@ test.describe('OD-9 States on Today (M5.7)', () => {
     // Numeral clamped at 90 / 90
     await expect(page.getByLabel('Day 90 of 90')).toBeVisible();
     // Past day 85 an active goal is in the closing stretch (M9.4), which replaced the old "Journey Complete" card.
-    await expect(page.getByRole('heading', { level: 2, name: 'The Final Evaluation & Arrival' })).toBeVisible();
-    await expect(page.getByText(/The 84 planned deliberate practice days are complete/)).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Look back and arrive' })).toBeVisible();
+    await expect(page.getByText(/The 84 planned practice days are complete/)).toBeVisible();
     await expect(page.getByRole('link', { name: 'Review 90-day staircase' })).toHaveAttribute('href', '/roadmap');
     // No fabricated step: no practice-day card and no Start.
     await expect(main(page).locator('section[aria-labelledby="step-heading"]')).toHaveCount(0);
@@ -247,7 +238,6 @@ test.describe('Every Today state is clean at 360-412 px (M3.4)', () => {
     const base = shellGoal();
     return { ...base, dailyTasks: base.dailyTasks.map((t) => (changes[t.id] ? { ...t, ...changes[t.id] } : t)) };
   };
-  const TEST = { type: 'deliverable_check', instructions: 'Share the one-page brief with one person who might use it.', passIf: 'one person reads it and replies' };
 
   /** Buttons inside `scope` that are at least 44x44 px. */
   const expectTargets = async (scope: Locator, label: string) => {
@@ -283,9 +273,10 @@ test.describe('Every Today state is clean at 360-412 px (M3.4)', () => {
     { name: 'rest day', goal: withTasks({ t3: { isRestDay: true } }), ready: (page) => expect(stepCard(page).getByText("Today's rest")).toBeVisible(), card: stepCard },
     { name: 'key session', goal: withTasks({ t3: { isKeySession: true } }), ready: (page) => expect(stepCard(page).getByText('Key session')).toBeVisible(), card: stepCard },
     {
-      name: 'test day',
-      goal: { ...withTasks({ t3: { isTestDay: true } }), roadmapWeeks: [{ weekNumber: 1, phase: 'Foundations', theme: 'Core architecture', test: TEST }] },
-      ready: (page) => expect(stepCard(page).getByText('Test day')).toBeVisible(),
+      // No weekly tests, section 7: the feel tap after a done session.
+      name: 'ordinary day, done, with how it felt',
+      goal: withTasks({ t3: { status: 'completed', feel: 'just_right' } }),
+      ready: (page) => expect(stepCard(page).getByRole('group', { name: 'How did it feel?' })).toBeVisible(),
       card: stepCard,
     },
     {
@@ -298,23 +289,9 @@ test.describe('Every Today state is clean at 360-412 px (M3.4)', () => {
       card: (page) => page.locator('section[aria-labelledby="review-due-heading"]'),
     },
     {
-      name: 'late-test card',
-      goal: (() => {
-        const base = shellGoal();
-        return {
-          ...base,
-          planVersion: 2,
-          roadmapWeeks: base.roadmapWeeks.map((w) => ({ ...w, test: TEST, testResult: null })),
-          dailyTasks: base.dailyTasks.map((t) => ({ ...t, isTestDay: t.id === 't2' })),
-        };
-      })(),
-      ready: (page) => expect(page.getByRole('region', { name: "This week's test is still open" })).toBeVisible(),
-      card: (page) => page.getByRole('region', { name: "This week's test is still open" }),
-    },
-    {
       name: 'closing stretch (days 85-90)',
       goal: { ...shellGoal(), currentWeek: 12, targetDate: new Date(Date.now() - 5 * 86_400_000).toISOString(), dailyTasks: [] },
-      ready: (page) => expect(page.getByRole('heading', { level: 2, name: 'The Final Evaluation & Arrival' })).toBeVisible(),
+      ready: (page) => expect(page.getByRole('heading', { level: 2, name: 'Look back and arrive' })).toBeVisible(),
       card: (page) => main(page),
     },
     {
@@ -323,32 +300,11 @@ test.describe('Every Today state is clean at 360-412 px (M3.4)', () => {
       ready: (page) => expect(page.getByRole('heading', { level: 1, name: 'COMPLETE' })).toBeVisible(),
     },
     {
-      // Missed sessions P5 (R3b): the results tab, with a recorded final test, so the capstone and benchmark labels show.
       name: 'completed goal, results tab',
-      goal: {
-        ...shellGoal(),
-        status: 'completed',
-        completedAt: new Date().toISOString(),
-        roadmapWeeks: [
-          { ...shellGoal().roadmapWeeks[0], status: 'completed', test: TEST, testResult: { value: 'Sent to Sam', passed: true, note: 'Replied the same day' } },
-          { ...shellGoal().roadmapWeeks[0], id: 'w2', weekNumber: 2, status: 'completed', test: TEST, testResult: null },
-          {
-            ...shellGoal().roadmapWeeks[0],
-            id: 'w12',
-            weekNumber: 12,
-            phase: 'Launch',
-            status: 'completed',
-            target: { kind: 'outcome', description: 'A live product with one paying user' },
-            test: { type: 'launch_check', instructions: 'Show the live product to one user who pays for it.', passIf: 'one user pays' },
-            testResult: { value: 'One paying user', passed: true },
-          },
-        ],
-      },
+      goal: { ...shellGoal(), status: 'completed', completedAt: new Date().toISOString() },
       ready: async (page) => {
         await page.getByRole('tab', { name: 'Your Results' }).click();
-        await expect(page.getByRole('heading', { level: 3, name: /launch_check/i })).toBeVisible();
-        await expect(page.getByText('Target Deliverable')).toBeVisible();
-        await expect(page.getByText('No test recorded')).toBeVisible();
+        await expect(page.getByText('Weeks Finished')).toBeVisible();
       },
     },
   ];

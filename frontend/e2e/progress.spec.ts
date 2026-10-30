@@ -356,7 +356,7 @@ test.describe('Route Navigation & Shell Integration', () => {
 });
 
 test.describe('Early Journey State (Week 1, 0 Completed Sessions)', () => {
-  test('displays honest 0 metrics, calm orientation copy, serene adaptation empty card, and upcoming benchmarks', async ({
+  test('displays honest 0 metrics, calm orientation copy and a serene adaptation empty card, with no benchmarks (ND-31)', async ({
     page,
   }) => {
     const goal = createEarlyGoal();
@@ -386,12 +386,8 @@ test.describe('Early Journey State (Week 1, 0 Completed Sessions)', () => {
     await expect(weeks).toBeVisible();
     await expect(weeks.getByText('0 of 6 practice days')).toBeVisible();
 
-    // Layer 4: BenchmarkResultsCard shows upcoming badge with pass criteria and instructions preview
-    const benchmarks = page.locator('section[aria-labelledby="benchmark-results-heading"]');
-    await expect(benchmarks).toBeVisible();
-    await expect(benchmarks.getByText('Upcoming')).toBeVisible();
-    await expect(benchmarks.getByText('Pass criteria: 3 interviews completed and notes logged')).toBeVisible();
-    await expect(benchmarks.getByText('Conduct 3 customer discovery interviews')).toBeVisible();
+    // No weekly tests (ND-31): no benchmark section.
+    await expect(page.locator('section[aria-labelledby="benchmark-results-heading"]')).toHaveCount(0);
 
     // Layer 5: AdaptationHistoryList renders serene early-state card explaining weekly reviews
     const adaptation = page.locator('section[aria-labelledby="adaptation-history-heading"]');
@@ -406,7 +402,7 @@ test.describe('Early Journey State (Week 1, 0 Completed Sessions)', () => {
 });
 
 test.describe('Mid-Journey State (Week 6 with Completed Reviews & Benchmarks)', () => {
-  test('displays real execution metrics, phase milestones, recorded benchmark results, and genuine adaptation logs', async ({
+  test('displays real execution metrics, phase milestones and genuine adaptation logs, with no benchmarks (ND-31)', async ({
     page,
   }) => {
     const goal = createMidJourneyGoal();
@@ -439,26 +435,6 @@ test.describe('Mid-Journey State (Week 6 with Completed Reviews & Benchmarks)', 
     const weeks = page.getByRole('region', { name: 'Week by week' });
     await expect(weeks.getByText('5 of 5 practice days')).toHaveCount(5);
     await expect(weeks.getByText('3 of 5 practice days')).toBeVisible();
-
-    // Layer 4: Benchmark results card with passed and non-punitive unmet badges
-    const benchmarks = page.locator('section[aria-labelledby="benchmark-results-heading"]');
-    await expect(benchmarks).toBeVisible();
-
-    // Week 1 passed
-    await expect(benchmarks.getByText('Benchmark achieved')).toBeVisible();
-    await expect(benchmarks.getByText('5 rounds', { exact: true })).toBeVisible();
-    await expect(benchmarks.getByText('"Exceeded target pace and form was rock-solid"')).toBeVisible();
-
-    // Week 4 non-punitive unmet benchmark
-    await expect(benchmarks.getByText('In progress · Reinforcing')).toBeVisible();
-    await expect(benchmarks.getByText('3 sets', { exact: true })).toBeVisible();
-    await expect(benchmarks.getByText('"Reinforcing baseline form before accelerating into Phase 2"')).toBeVisible();
-    // Zero red/fail shame copy
-    await expect(benchmarks.getByText(/failed|punishment|strike|penalty/i)).toHaveCount(0);
-
-    // Week 6 upcoming
-    await expect(benchmarks.getByText('Upcoming')).toBeVisible();
-    await expect(benchmarks.getByText('Pass criteria: 45 min continuous tempo clean')).toBeVisible();
 
     // Layer 5: Adaptation history with genuine server insights
     const adaptation = page.locator('section[aria-labelledby="adaptation-history-heading"]');
@@ -609,7 +585,6 @@ test.describe('Accessibility & Responsive Sweeps', () => {
     expect(fillDuration).toBeLessThanOrEqual(0.01);
 
     await page.getByRole('button', { name: /^Detailed history/ }).click();
-    await expect(page.locator('section[aria-labelledby="benchmark-results-heading"]')).toBeVisible();
     await expect(page.locator('section[aria-labelledby="adaptation-history-heading"]')).toBeVisible();
     const lingering = await page.evaluate(() =>
       document
