@@ -896,12 +896,13 @@ html:has(.marketing) {
   }
 
   /* The plan's map: a column per week (13 for a 12-week plan: the closing six days make the last), a square cell per
-     day. The columns share the panel's width, so the map spreads out; cells stop growing at --map-cell-max. */
+     day, GitHub-sized (ND-34): the cells fit the space up to --map-cell-max and no larger. */
   .dash-map-wrap {
     width: 100%;
     max-width: calc(var(--map-cols, 13) * var(--map-cell-max) + (var(--map-cols, 13) - 1) * var(--map-gap));
-    --map-cell-max: 2.25rem;
-    --map-gap: clamp(3px, 0.8vw, 6px);
+    /* GitHub's contribution graph: 10px squares, a 3px gap. */
+    --map-cell-max: 10px;
+    --map-gap: 3px;
   }
 
   .dash-map {
@@ -915,7 +916,7 @@ html:has(.marketing) {
   .dash-map__cell {
     display: block;
     aspect-ratio: 1;
-    border-radius: clamp(2px, 0.5vw, 5px);
+    border-radius: 2px;
     background-color: color-mix(in oklab, var(--color-text) 5%, transparent);
   }
 
@@ -938,8 +939,8 @@ html:has(.marketing) {
 
   /* Today: a crisp gold outline, no glow. */
   .dash-map__cell[data-today] {
-    outline: 2px solid var(--color-achievement);
-    outline-offset: 2px;
+    outline: 1.5px solid var(--color-achievement);
+    outline-offset: 1px;
   }
 
   .dash-map__cell[data-state='today'] {
@@ -969,9 +970,9 @@ html:has(.marketing) {
 
   .dash-key {
     display: inline-block;
-    width: 0.75rem;
-    height: 0.75rem;
-    border-radius: 3px;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
     background-color: color-mix(in oklab, var(--color-text) 5%, transparent);
   }
 

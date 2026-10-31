@@ -244,15 +244,28 @@ export const Dashboard: React.FC = () => {
       </section>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
-        <section aria-labelledby="map-heading" className="dash-panel animate-rise-in p-7" style={stagger(400)}>
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <h2 id="map-heading" className="font-ui-mono text-micro uppercase text-text-secondary">Your {totalDays} days</h2>
-            <p className="tabular text-small text-text-secondary">
-              <span className="text-text">{totals.daysDone}</span> of {totals.daysSoFar} practice days done
-            </p>
+        <section aria-labelledby="map-heading" className="dash-panel animate-rise-in flex flex-col p-7" style={stagger(400)}>
+          <h2 id="map-heading" className="font-ui-mono text-micro uppercase text-text-secondary">Your {totalDays} days</h2>
+          <div className="mt-6 flex flex-1 flex-wrap items-center gap-x-12 gap-y-8">
+            <JourneyMap days={days} summary={mapSummary} />
+            <div className="flex flex-col gap-4">
+              <p className="tabular text-text">
+                <span className="dash-tile__value">{totals.daysDone}</span>
+                <span className="ml-2 text-small text-text-secondary">of {totals.daysSoFar} practice days done</span>
+              </p>
+              <dl className="flex gap-8 text-small">
+                <div>
+                  <dt className="text-text-secondary">Today</dt>
+                  <dd className="tabular mt-0.5 text-text">Day {day} of {totalDays}</dd>
+                </div>
+                <div>
+                  <dt className="text-text-secondary">To go</dt>
+                  <dd className="tabular mt-0.5 text-text">{plural(Math.max(0, totalDays - day), 'day', 'days')}</dd>
+                </div>
+              </dl>
+            </div>
           </div>
-          <div className="mt-6"><JourneyMap days={days} summary={mapSummary} /></div>
-          <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-small text-text-secondary" aria-label="Map key">
+          <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-small text-text-secondary" aria-label="Map key">
             <li className="inline-flex items-center gap-2"><span aria-hidden="true" className="dash-key" data-state="done" />Done</li>
             <li className="inline-flex items-center gap-2"><span aria-hidden="true" className="dash-key" data-state="missed" />Not done</li>
             <li className="inline-flex items-center gap-2"><span aria-hidden="true" className="dash-key" data-state="rest" />Rest</li>
