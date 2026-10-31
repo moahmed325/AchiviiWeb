@@ -17,6 +17,7 @@ import {
   Input,
   LoadingState,
   ProgressBar,
+  ProgressRing,
   SegmentedControl,
   Select,
   SheetContent,
@@ -365,6 +366,17 @@ const UiPreviewPage: React.FC = () => {
             <ProgressBar label="Journey" value={27} max={90} valueText="27 of 90 days" showValue />
             <ProgressBar label="This week" value={3} max={5} valueText="3 of 5 sessions" showValue />
             <ProgressBar label="Phase 1 milestone" value={3} max={4} tone="achievement" showValue valueText="3 of 4 weeks" />
+            <div className="flex flex-wrap items-center gap-8">
+              <ProgressRing label="Goal" value={38} valueText="38% of the way">
+                <span className="tabular text-h3 text-text">38%</span>
+              </ProgressRing>
+              <ProgressRing label="Plan" value={0} size={6} tone="accent">
+                <span className="tabular text-small text-text">0%</span>
+              </ProgressRing>
+              <ProgressRing label="Done" value={100} size={6}>
+                <span className="tabular text-small text-text">100%</span>
+              </ProgressRing>
+            </div>
             <ul className="flex flex-wrap items-center gap-8">
               {markers.map((state) => (
                 <li key={state} className="flex items-center gap-3">

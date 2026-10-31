@@ -5,7 +5,8 @@ import { prisma } from '../src/lib/prisma.js';
 import { reminderFor, type ReminderCandidate, type ReminderTask } from '../src/lib/reminders/plan.js';
 import { buildReminderEmail, unsubscribeUrl, validUnsubscribeToken } from '../src/lib/reminders/email.js';
 import { runReminders } from '../src/lib/reminders/run.js';
-import { remindersRouter } from '../src/routes/reminders.js';
+import { remindersRouter, unsubscribeRouter } from '../src/routes/reminders.js';
+import { createApp } from '../src/app.js';
 
 vi.mock('../src/lib/prisma.js', () => ({
   prisma: { user: { findMany: vi.fn(), updateMany: vi.fn() }, dailyTask: { findFirst: vi.fn() } },
@@ -218,6 +219,7 @@ describe('/api/reminders routes (ND-28)', () => {
 
   beforeAll(async () => {
     const app = express();
+    app.use('/api/reminders/unsubscribe', unsubscribeRouter);
     app.use(express.json());
     app.use('/api/reminders', remindersRouter);
     await new Promise<void>((resolve) => {
@@ -293,5 +295,58 @@ describe('/api/reminders routes (ND-28)', () => {
     const res = await fetch(`${baseUrl}/api/reminders/unsubscribe?u=u1&t=forged`, { method: 'POST' });
     expect(res.status).toBe(400);
     expect(prisma.user.updateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('unsubscribe through the whole app: the page posts with the API\'s own Origin', () => {
+  const API = 'https://achivii-api.onrender.com';
+  let server: Server;
+  let baseUrl: string;
+
+  beforeAll(async () => {
+    vi.stubEnv('CLIENT_ORIGIN', 'https://achivii.app');
+    const app = createApp();
+    await new Promise<void>((resolve) => {
+      server = app.listen(0, () => {
+        const addr = server.address();
+        if (!addr || typeof addr === 'string') throw new Error('Failed to bind');
+        baseUrl = `http://localhost:${addr.port}`;
+        resolve();
+      });
+    });
+  });
+  afterAll(async () => {
+    vi.unstubAllEnvs();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv('REMINDERS_SIGNING_SECRET', 'secret');
+    vi.stubEnv('REMINDERS_CRON_SECRET', 'cron-secret');
+    vi.stubEnv('API_PUBLIC_URL', API);
+  });
+
+  it('the "Turn them off" button reaches the handler and turns reminders off', async () => {
+    (prisma.user.updateMany as any).mockResolvedValue({ count: 1 });
+    const link = unsubscribeUrl('u1').replace(API, baseUrl);
+    const res = await fetch(link, {
+      method: 'POST',
+      headers: { Origin: API, 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain("You won't get missed-day emails any more");
+    expect(prisma.user.updateMany).toHaveBeenCalledWith({ where: { id: 'u1' }, data: { remindersEnabled: false } });
+  });
+
+  it('CORS is not widened: another route still refuses the API\'s own Origin', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const res = await fetch(`${baseUrl}/api/reminders/run`, {
+      method: 'POST',
+      headers: { Origin: API, Authorization: 'Bearer cron-secret' },
+    });
+    expect(res.status).toBe(500);
+    expect(res.headers.get('access-control-allow-origin')).toBeNull();
+    expect(prisma.user.findMany).not.toHaveBeenCalled();
   });
 });

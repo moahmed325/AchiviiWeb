@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { mockApi, signIn } from './mockApi';
 import { shellGoal } from './shellFixtures';
 
-// Next plan (docs/features/next-plan): the end screen leads with what they did (NP-1, NP-2; no weekly tests, ND-33); with
+// Next plan (docs/features/next-plan): the end screen leads with what they did (NP-1, NP-2; no weekly tests, ND-35); with
 // Pro it offers the next plan, which asks a measured goal's level now and opens goal creation starting from it (NP-3,
 // NP-6, NP-10); without Pro there is no next plan and no Pro line (NP-7); the new plan's Progress names the plan it
 // follows (NP-8).

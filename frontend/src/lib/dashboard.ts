@@ -111,3 +111,29 @@ export function greetingFor(now: Date, timezone?: string): string {
   if (hour < 18) return 'Good afternoon';
   return 'Good evening';
 }
+
+export interface Streak {
+  /** Practice days done in a row up to today; rest days and days with no practice planned don't break it. */
+  current: number;
+  /** The longest such run in the plan so far. */
+  best: number;
+}
+
+/**
+ * ND-33: the run of practice days done, read from the map's days. A missed practice day ends a run; today, still to
+ * do, doesn't end it yet.
+ */
+export function practiceStreak(days: readonly MapDay[]): Streak {
+  let run = 0;
+  let best = 0;
+  for (const day of days) {
+    if (day.state === 'ahead') break;
+    if (day.state === 'done') {
+      run += 1;
+      best = Math.max(best, run);
+    } else if (day.state === 'missed') {
+      run = 0;
+    }
+  }
+  return { current: run, best };
+}

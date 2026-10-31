@@ -12,8 +12,11 @@ import { runReminders } from '../lib/reminders/run.js';
  *   the email settings are all present.
  * - `GET /api/reminders/unsubscribe?u=<user id>&t=<signature>`: a page asking to confirm (a GET changes nothing);
  *   `POST` to the same URL turns reminders off without signing in (that page's button, and one-click unsubscribe).
+ *   `unsubscribeRouter`, mounted at `/api/reminders/unsubscribe` before the CORS check (`app.ts`): the page is served
+ *   by the API itself, so its button posts with the API's own Origin.
  */
 export const remindersRouter = Router();
+export const unsubscribeRouter = Router();
 
 function cronAuthorized(req: Request): boolean {
   const secret = process.env.REMINDERS_CRON_SECRET;
@@ -59,7 +62,7 @@ const linkUser = (req: Request): string | null => {
 
 // Opening the link only asks: mail scanners and link previews follow every URL in a message, so a GET never changes
 // anything. The button posts back to the same URL.
-remindersRouter.get('/unsubscribe', (req: Request, res: Response) => {
+unsubscribeRouter.get('/', (req: Request, res: Response) => {
   if (!linkUser(req)) {
     res.status(400).type('html').send(page(INVALID));
     return;
@@ -76,7 +79,7 @@ remindersRouter.get('/unsubscribe', (req: Request, res: Response) => {
 });
 
 // The button above, and the mail app's one-click unsubscribe (RFC 8058), which posts to the List-Unsubscribe URL.
-remindersRouter.post('/unsubscribe', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+unsubscribeRouter.post('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = linkUser(req);
     if (!userId) {

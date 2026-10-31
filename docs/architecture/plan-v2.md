@@ -1,7 +1,7 @@
 # Plan v2 spec
 
 Custom goal → 12-week plan (or a shorter one before a fixed date), one week written at a time from what the person
-did. **No weekly tests (2026-10-30, `docs/features/no-weekly-tests/plan.md`, decisions.md ND-33):** there are no weekly
+did. **No weekly tests (2026-10-30, `docs/features/no-weekly-tests/plan.md`, decisions.md ND-35):** there are no weekly
 targets, tests, checkpoints or final test, and no weekly update call. Each week has a focus inside the method's
 phases; the next week is written from last week's sessions done, how they felt and the person's notes.
 

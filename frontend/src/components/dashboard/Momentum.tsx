@@ -51,8 +51,8 @@ function useCountUp(from: number, to: number): number {
 }
 
 /**
- * The page's reward: every session ever done, counted up on arrival from where it stood at the last visit, with the
- * growth since then named. It only ever counts what was really done.
+ * The sessions tile's number: every session ever done, counted up on arrival from where it stood at the last visit,
+ * with the growth since then named. It only ever counts what was really done.
  */
 export const Momentum: React.FC<{ goalId: string; sessions: number; minutes: number }> = ({ goalId, sessions, minutes }) => {
   const seen = useLastSeen(goalId, sessions);
@@ -62,21 +62,19 @@ export const Momentum: React.FC<{ goalId: string; sessions: number; minutes: num
   const label = sessions === 1 ? 'session done' : 'sessions done';
 
   return (
-    <div className="flex items-center gap-5 sm:flex-col sm:items-end sm:gap-2 sm:text-right">
-      <p className="dash-count tabular text-tally text-achievement" data-gained={gained > 0 || undefined} aria-hidden="true">
+    <>
+      <p className="dash-count tabular dash-tile__value text-text" data-gained={gained > 0 || undefined} aria-hidden="true">
         {shown}
       </p>
       <VisuallyHidden>{sessions + ' ' + label + ', ' + practiceTimeLabel(minutes) + ' of practice.'}</VisuallyHidden>
-      <div className="flex flex-col gap-1 sm:items-end" aria-hidden="true">
-        <p className="text-body text-text">{label}</p>
-        {minutes > 0 && <p className="text-small text-text-secondary">{practiceTimeLabel(minutes)} of practice</p>}
-        {gained > 0 && (
-          <p className="dash-gain mt-1 inline-flex w-fit items-center rounded-full px-2.5 py-0.5 font-ui-mono text-micro text-achievement">
-            +{gained} since your last visit
-          </p>
-        )}
-      </div>
+      {gained > 0 ? (
+        <p className="dash-gain mt-2 inline-flex w-fit items-center rounded-full px-2 py-0.5 font-ui-mono text-micro text-achievement" aria-hidden="true">
+          +{gained} since last visit
+        </p>
+      ) : (
+        <p className="mt-2 text-small text-text-secondary" aria-hidden="true">{label}</p>
+      )}
       {gained > 0 && <VisuallyHidden>{gained + ' more since your last visit.'}</VisuallyHidden>}
-    </div>
+    </>
   );
 };

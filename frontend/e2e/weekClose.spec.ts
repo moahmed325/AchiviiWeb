@@ -10,7 +10,7 @@ const READY = 'Getting your next week ready…';
 const FAILED = "Couldn't get your next week ready. Please try again.";
 const INSIGHT = 'Next week is ready.';
 
-/** Week 1, still open. No weekly tests (ND-33): nothing waits for a test result. */
+/** Week 1, still open. No weekly tests (ND-35): nothing waits for a test result. */
 function before() {
   return shellGoal();
 }

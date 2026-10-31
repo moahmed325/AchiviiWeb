@@ -79,12 +79,12 @@ Main areas (details in `docs/architecture/backend-details.md`; read the part you
 - Plan length: `Goal.totalWeeks` (default 12) through `shapeOf(goal)` in `lib/planLength.ts`; never assume 12 weeks or day 90 in new code (B-109).
 - Safety limits: every number lives in `lib/safety/limits.ts`. Code, not the model, decides how fast targets climb and holds weekly load.
 - Missed sessions and recovery: `lib/missedSessions.ts`, `lib/carryForward.ts`, `lib/recovery/`, `POST /api/goal/reconcile`.
-- Week close: `lib/weekClose/`. No weekly tests, targets, checkpoints or weekly update call (ND-33): the next week is written from last week's sessions done, the feel taps (`DailyTask.feel`) and the notes, with code's pace line (`lastWeekOf` in `lib/planV2.ts`, `paceOf` in `lib/ai/weekPlan.ts`).
+- Week close: `lib/weekClose/`. No weekly tests, targets, checkpoints or weekly update call (ND-35): the next week is written from last week's sessions done, the feel taps (`DailyTask.feel`) and the notes, with code's pace line (`lastWeekOf` in `lib/planV2.ts`, `paceOf` in `lib/ai/weekPlan.ts`).
 - Billing: `lib/billing/`, `config/billing.ts` (Lemon Squeezy, test mode by default).
 - Missed-day reminder email: `lib/reminders/`, `routes/reminders.ts` (`/api/reminders`), run hourly by `.github/workflows/reminders.yml` (`docs/architecture/reminders.md`).
 - LLM: `lib/ai/gemini.ts` (Gemini only, no fallback provider).
 
-Feature switches (`WEEKLY_UPDATE_ENABLED` is read by nothing since ND-33; delete it in Render), all managed in the Render dashboard only (`sync: false`, unset means off). **Never turn them on or off from code or tests:** `MISSED_SESSIONS_CARRY_ENABLED` (on), `METHOD_RECOVERY_ENABLED` (on), `WEEK_CLOSE_ENABLED` (on), `CUSTOM_RECOVERY_PROFILES_ENABLED` (on), `MISSED_DAY_REMINDERS_ENABLED` (off until Resend is set up, `docs/architecture/reminders.md`). They are read through `lib/flags.ts` (`flagOn`, exactly `true`, per request), and the server logs them all at startup (`[Flags]`).
+Feature switches (`WEEKLY_UPDATE_ENABLED` is read by nothing since ND-35; delete it in Render), all managed in the Render dashboard only (`sync: false`, unset means off). **Never turn them on or off from code or tests:** `MISSED_SESSIONS_CARRY_ENABLED` (on), `METHOD_RECOVERY_ENABLED` (on), `WEEK_CLOSE_ENABLED` (on), `CUSTOM_RECOVERY_PROFILES_ENABLED` (on), `MISSED_DAY_REMINDERS_ENABLED` (off until Resend is set up, `docs/architecture/reminders.md`). They are read through `lib/flags.ts` (`flagOn`, exactly `true`, per request), and the server logs them all at startup (`[Flags]`).
 
 The routes that call the model are rate limited in memory (`lib/rateLimit.ts`): `POST /api/goal/clarify` 10 a minute per IP, `POST /api/goal/create` 10 per 10 minutes per person; over it, 429 `rate_limited`.
 

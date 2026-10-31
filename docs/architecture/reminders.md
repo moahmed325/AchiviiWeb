@@ -39,7 +39,10 @@ All of these, in the person's own time zone:
 - From the email: the link opens `GET /api/reminders/unsubscribe?u=<user id>&t=<signature>`, a page that only asks
   (mail scanners and link previews follow every URL, so a GET changes nothing); its button and the mail app's one-click
   unsubscribe (`List-Unsubscribe`, `List-Unsubscribe-Post`) `POST` to the same URL, which turns reminders off. The
-  signature is an HMAC of the user id with `REMINDERS_SIGNING_SECRET`; no sign-in needed.
+  signature is an HMAC of the user id with `REMINDERS_SIGNING_SECRET`; no sign-in needed. Because the page is served
+  by the API itself, its button posts with the API's own `Origin`, which the CORS check refuses; so
+  `/api/reminders/unsubscribe` (`unsubscribeRouter`) is mounted before the CORS middleware in `backend/src/app.ts`.
+  CORS for every other route is unchanged.
 - For everyone: set `MISSED_DAY_REMINDERS_ENABLED` to anything but `true` in Render (the kill switch).
 
 ## Setup (once)

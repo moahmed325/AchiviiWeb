@@ -1,6 +1,6 @@
 # Achivii Custom Goal & 90-Day Execution Engine
 
-> **Historical.** This manual describes an early design (capability extraction, a final capstone test and more). It is kept for reference only; how the plan works now is `docs/architecture/plan-v2.md` (no weekly tests, targets or final test since 2026-10-30, ND-33).
+> **Historical.** This manual describes an early design (capability extraction, a final capstone test and more). It is kept for reference only; how the plan works now is `docs/architecture/plan-v2.md` (no weekly tests, targets or final test since 2026-10-30, ND-35).
 ## Technical Specification & Architecture Manual
 
 ---

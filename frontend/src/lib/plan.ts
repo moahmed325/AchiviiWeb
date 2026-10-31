@@ -1,7 +1,7 @@
 import type { Goal } from '../types';
 import type { JourneyData } from '../types/journey';
 import { dateOfDay } from './dashboard';
-import { planDays } from './planLength';
+import { planDays, planWeeks } from './planLength';
 import { isRestLike } from './today';
 
 /**
@@ -73,4 +73,40 @@ export function weekRows(goal: Goal, journey: JourneyData): WeekRow[] {
 export function finishDate(goal: Pick<Goal, 'targetDate'> & Partial<Pick<Goal, 'startDate' | 'totalWeeks'>>): string | null {
   const key = dateOfDay(goal, planDays(goal));
   return key ? new Date(`${key}T12:00:00Z`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }) : null;
+}
+
+export interface ComingUpItem {
+  kind: 'phase' | 'finish';
+  title: string;
+  detail: string;
+  /** "Sun, Nov 1", "in 3 weeks". */
+  when: string;
+}
+
+const dayLabel = (key: string) =>
+  new Date(`${key}T12:00:00Z`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+/**
+ * ND-33: what comes next on the plan, for the Dashboard: the next phase and the finish line. No weekly checks or final
+ * test (ND-35). Read only from stored state.
+ */
+export function comingUp(goal: Goal): ComingUpItem[] {
+  const items: ComingUpItem[] = [];
+  const current = goal.currentWeek || 1;
+  const next = (goal.roadmap?.phases ?? []).find((phase) => phase.startWeek > current);
+  if (next) {
+    const start = dateOfDay(goal, (next.startWeek - 1) * 7 + 1);
+    const weeks = next.startWeek - current;
+    items.push({
+      kind: 'phase',
+      title: `${next.name} begins`,
+      detail: `Week ${next.startWeek}${start ? ' · ' + dayLabel(start) : ''}`,
+      when: weeks === 1 ? 'next week' : `in ${weeks} weeks`,
+    });
+  }
+  const finish = dateOfDay(goal, planDays(goal));
+  if (finish) {
+    items.push({ kind: 'finish', title: 'Finish line', detail: `The last day of week ${planWeeks(goal)}`, when: dayLabel(finish) });
+  }
+  return items;
 }
