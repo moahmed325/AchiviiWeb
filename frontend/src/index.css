@@ -976,8 +976,6 @@ html:has(.marketing) {
     100% { opacity: 1; transform: scale(1); }
   }
 
-  }
-
   @keyframes dash-pop {
     0% { opacity: 0; transform: scale(0.3); }
     65% { opacity: 1; transform: scale(1.12); }
