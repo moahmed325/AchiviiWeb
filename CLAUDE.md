@@ -32,6 +32,7 @@ npm run build                             # tsc -> dist/
 npx prisma migrate dev                    # new migration
 npx prisma migrate deploy                 # apply migrations (never `db push`, see below)
 npm run ping:llm                          # live provider probe (needs a real key)
+npm run report:recovery                   # I-30: is recovery working? read-only report over every goal (needs DATABASE_URL)
 ```
 
 Backend tests live in two places: `backend/test/*.test.ts` (plan engine, safety and scheduling logic) and next to the code in `backend/src/**/*.test.ts` (billing and routes).
