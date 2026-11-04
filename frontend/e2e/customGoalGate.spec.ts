@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { API, mockApi, signIn } from './mockApi';
 import { CUSTOM_GOAL, answerCustomQuestions, answerEssentials, baseline, expectStep, generate, startGoal } from './onboardingFlow';
 
-// ND-28: a person's first plan is allowed whatever the goal; after that a new custom goal is Pro (ND-10). The server
+// ND-36: a person's first plan is allowed whatever the goal; after that a new custom goal is Pro (ND-10). The server
 // refuses it with a 403, and onboarding explains the refusal honestly.
 
 test.describe('custom goal Pro gate', () => {

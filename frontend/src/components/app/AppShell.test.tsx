@@ -90,44 +90,26 @@ describe('shellMode and shellEntries', () => {
     expect(shellMode('/__ui', true, '/__ui')).toBe('chromeless');
     expect(shellMode('/roadmap', false)).toBe('bare');
     expect(shellMode('/onboarding', true)).toBe('focused');
-    // ND-28: a visitor answering onboarding gets the same top bar.
+    // ND-36: a visitor answering onboarding gets the same top bar.
     expect(shellMode('/onboarding', false)).toBe('focused');
     expect(shellMode('/', true)).toBe('app');
     expect(shellMode('/dashboard', true)).toBe('app');
   });
 
-  it('shows Dashboard, Roadmap and Progress only with a goal, and marks Today active on /', () => {
+  it('shows Dashboard and Roadmap only with a goal, and marks Today active on /; /progress is the Roadmap (ND-31)', () => {
     expect(shellEntries('/', false).showDashboard).toBe(false);
     expect(shellEntries('/', false).showRoadmap).toBe(false);
-    expect(shellEntries('/', false).showProgress).toBe(false);
     expect(shellEntries('/', true).showRoadmap).toBe(true);
-    expect(shellEntries('/', true).showProgress).toBe(true);
     expect(shellEntries('/', true).todayActive).toBe(true);
     expect(shellEntries('/dashboard', true).todayActive).toBe(false);
     expect(shellEntries('/dashboard', true).dashboardActive).toBe(true);
-    expect(shellEntries('/roadmap', true)).toEqual({
-      dashboardActive: false,
-      showDashboard: true,
-      todayActive: false,
-      roadmapActive: true,
-      showRoadmap: true,
-      progressActive: false,
-      showProgress: true,
-    });
-    expect(shellEntries('/progress', true)).toEqual({
-      dashboardActive: false,
-      showDashboard: true,
-      todayActive: false,
-      roadmapActive: false,
-      showRoadmap: true,
-      progressActive: true,
-      showProgress: true,
-    });
+    expect(shellEntries('/roadmap', true)).toEqual({ dashboardActive: false, showDashboard: true, todayActive: false, roadmapActive: true, showRoadmap: true });
+    expect(shellEntries('/progress', true).roadmapActive).toBe(true);
   });
 });
 
 describe('entries', () => {
-  it('with a goal: Dashboard (Home on mobile), Today, Roadmap, Progress, Pathways, Coach and Account, in both layouts', async () => {
+  it('with a goal: Dashboard (Home on mobile), Today, Roadmap, Pathways, Coach and Account, in both layouts (ND-31)', async () => {
     signedIn(GOAL);
     renderAt('/');
     await shellReady();
@@ -137,12 +119,11 @@ describe('entries', () => {
       const names = Array.from(nav.querySelectorAll('a, button'))
         .filter((el) => !el.closest('[hidden]'))
         .map((el) => el.textContent?.replace('mo@example.com', '').trim());
-      expect(names).toEqual([home, 'Today', 'Roadmap', 'Progress', 'Pathways', 'Coach ✦', 'Account']);
+      expect(names).toEqual([home, 'Today', 'Roadmap', 'Pathways', 'Coach ✦', 'Account']);
       expect(within(nav).getByRole('link', { name: home })).toHaveAttribute('href', '/dashboard');
       expect(within(nav).getByRole('link', { name: home })).not.toHaveAttribute('aria-current');
       expect(within(nav).getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
       expect(within(nav).getByRole('link', { name: 'Roadmap' })).not.toHaveAttribute('aria-current');
-      expect(within(nav).getByRole('link', { name: 'Progress' })).not.toHaveAttribute('aria-current');
       expect(within(nav).queryByText(/Journey|coming soon|\(\d+\)/i)).toBeNull();
     }
     expect(screen.getAllByRole('main')).toHaveLength(1);
@@ -175,17 +156,17 @@ describe('entries', () => {
     expect(rail().getByRole('button', { name: 'Pathways' })).toBeInTheDocument();
   });
 
-  it('marks Roadmap as the current page on /roadmap, Progress on /progress, and Today on /', async () => {
+  it('marks Roadmap as the current page on /roadmap and on /progress (it redirects there, ND-31), and Today on /', async () => {
     signedIn(GOAL);
     const { unmount } = renderAt('/roadmap');
     await shellReady();
     expect(await rail().findByRole('link', { name: 'Roadmap' })).toHaveAttribute('aria-current', 'page');
     expect(rail().getByRole('link', { name: 'Today' })).not.toHaveAttribute('aria-current');
-    expect(rail().getByRole('link', { name: 'Progress' })).not.toHaveAttribute('aria-current');
+    expect(rail().queryByRole('link', { name: 'Progress' })).not.toBeInTheDocument();
     unmount();
     const progressRender = renderAt('/progress');
     await shellReady();
-    expect(await rail().findByRole('link', { name: 'Progress' })).toHaveAttribute('aria-current', 'page');
+    expect(await rail().findByRole('link', { name: 'Roadmap' })).toHaveAttribute('aria-current', 'page');
     progressRender.unmount();
     renderAt('/');
     await shellReady();

@@ -197,8 +197,6 @@ describe('safety limits in the week prompt', () => {
       totalWeeks: 12,
       phase: { name: 'Accuracy', purpose: 'Learn every key without looking.' },
       focus: 'Home row',
-      target: { kind: 'number', metric: 'Typing speed', value: 16, unit: 'words per minute', direction: 'higher_is_better' },
-      test: { type: 'typing_test', instructions: 'Take a 1-minute typing test on keybr.com', passIf: '16 wpm at 95% accuracy' },
       weekStart: new Date('2026-09-21T12:00:00Z'),
       highLoadGoal: false,
     };
@@ -267,55 +265,6 @@ describe('[Safety] log line', () => {
   });
 });
 
-describe('roadmap: weeks 1 to 3 tests', () => {
-  function roadmap(testWeek: number, instructions: string): RawRoadmapAnswer {
-    const values = [72.5, 75, 77.5, 80, 82.5, 85, 87.5, 90, 92.5, 95, 97.5, 100];
-    return {
-      finalGoal: 'Squat 100 kg for 5 reps',
-      finalTest: 'Squat 100 kg for 5 reps.',
-      startingPoint: { value: 70, description: '70 kg for 5.' },
-      candidates: [
-        { name: 'Linear progression', creator: '', summary: 'Add load each session.', strengths: 'Simple.', weaknesses: 'Stalls.' },
-        { name: 'Texas method', creator: '', summary: 'Weekly cycle.', strengths: 'Lasts.', weaknesses: 'Complex.' },
-      ],
-      chosen: 'Linear progression',
-      whyChosen: 'A novice lifter.',
-      runnerUp: { name: 'Texas method', whyLost: 'Too complex.' },
-      safety: 4,
-      rules: ['Add 2.5 kg a session', 'Full depth', 'Brace every rep', 'Rest 3 minutes', 'Same test every week'],
-      phases: [
-        { name: 'Base', startWeek: 1, endWeek: 4, purpose: 'Groove.' },
-        { name: 'Build', startWeek: 5, endWeek: 10, purpose: 'Add load.' },
-        { name: 'Peak', startWeek: 11, endWeek: 12, purpose: 'Test.' },
-      ],
-      weeks: values.map((value, index) => ({
-        weekNumber: index + 1,
-        phase: 'whatever',
-        focus: `Focus ${index + 1}`,
-        target: { kind: 'number', metric: 'Squat', value, unit: 'kg for 5', direction: 'higher_is_better' },
-        test: {
-          type: 'count',
-          instructions: index + 1 === testWeek ? instructions : `Squat ${value} kg for 5 with 3 reps in reserve`,
-          passIf: `5 clean reps at ${value} kg`,
-        },
-      })),
-    };
-  }
-  const context = { statedTargets: [] };
-
-  it('refuses a 1RM test in week 2, on the last attempt too, and logs it', () => {
-    const result = checkRoadmapAnswer(roadmap(2, 'Test your 1RM squat'), context, true);
-    expect('reason' in result && result.reason).toMatch(/^SAFETY: week 2's test says "Test your 1RM squat"/);
-    expect(safetyLines()).toEqual([
-      { goalId: null, week: 2, attempt: 2, rule: 'max_test', step: 'Week 2 test', matched: 'Test your 1RM squat', outcome: 'failed' },
-    ]);
-  });
-
-  it('allows the same test in week 4', () => {
-    expect('value' in checkRoadmapAnswer(roadmap(4, 'Test your 1RM squat'), context)).toBe(true);
-  });
-});
-
 describe('safety scan: review fixes', () => {
   const rules = (text: string, weekNumber = 1) => textSafetyHits(text, weekNumber).map((hit) => hit.rule);
 
@@ -345,79 +294,6 @@ describe('safety scan: review fixes', () => {
   });
 });
 
-describe('safety scan: the weekly test as stored', () => {
-  const stored = { ...input, weekNumber: 2, test: { type: 'count' as const, instructions: 'Test your 1RM squat', passIf: 'A new 1RM logged' } };
-  function withTestStep(extra: Record<string, unknown> = {}): RawWeekAnswer {
-    const answer = week(extra);
-    const testDay = (answer.days as Array<Record<string, unknown>>)[5];
-    testDay.steps = [
-      step('Warm up with empty bar squats', 2, 5),
-      step('Weekly test: Test your 1RM squat', 1, 15, { instructions: 'Test your 1RM squat. Rest 3 minutes between attempts.' }),
-      step('Compare your result with last week', 3, 5),
-    ];
-    return answer;
-  }
-
-  it("logs the roadmap's own test text on the test step and does not refuse it", () => {
-    const result = checkWeekAnswer(withTestStep(), stored, true);
-    expect('value' in result).toBe(true);
-    expect(safetyLines().map((line) => line.outcome)).toEqual(['test_text']);
-  });
-
-  it('still refuses a breach the test does not hold', () => {
-    const result = checkWeekAnswer(withTestStep({ instructions: `${PREFIX}Max out on bench.` }), stored, true);
-    expect(reason(result)).toMatch(/SAFETY: Day 1 step "Back squat block 1"/);
-  });
-});
-
-describe('roadmap: every week test, every rule', () => {
-  function roadmapWith(testWeek: number, instructions: string): RawRoadmapAnswer {
-    const values = [72.5, 75, 77.5, 80, 82.5, 85, 87.5, 90, 92.5, 95, 97.5, 100];
-    return {
-      finalGoal: 'Squat 100 kg for 5 reps',
-      finalTest: 'Squat 100 kg for 5 reps.',
-      startingPoint: { value: 70, description: '70 kg for 5.' },
-      candidates: [
-        { name: 'Linear progression', creator: '', summary: 'Add load each session.', strengths: 'Simple.', weaknesses: 'Stalls.' },
-        { name: 'Texas method', creator: '', summary: 'Weekly cycle.', strengths: 'Lasts.', weaknesses: 'Complex.' },
-      ],
-      chosen: 'Linear progression',
-      whyChosen: 'A novice lifter.',
-      runnerUp: { name: 'Texas method', whyLost: 'Too complex.' },
-      safety: 4,
-      rules: ['Add 2.5 kg a session', 'Full depth', 'Brace every rep', 'Rest 3 minutes', 'Same test every week'],
-      phases: [
-        { name: 'Base', startWeek: 1, endWeek: 4, purpose: 'Groove.' },
-        { name: 'Build', startWeek: 5, endWeek: 10, purpose: 'Add load.' },
-        { name: 'Peak', startWeek: 11, endWeek: 12, purpose: 'Test.' },
-      ],
-      weeks: values.map((value, index) => ({
-        weekNumber: index + 1,
-        phase: 'whatever',
-        focus: `Focus ${index + 1}`,
-        target: { kind: 'number', metric: 'Squat', value, unit: 'kg for 5', direction: 'higher_is_better' },
-        test: {
-          type: 'count',
-          instructions: index + 1 === testWeek ? instructions : `Squat ${value} kg for 5 with 3 reps in reserve`,
-          passIf: `5 clean reps at ${value} kg`,
-        },
-      })),
-    };
-  }
-
-  it('refuses a week 5 test that holds a 700 kcal deficit', () => {
-    const result = checkRoadmapAnswer(roadmapWith(5, 'Hold a 700 kcal daily deficit all week and log it'), { statedTargets: [] }, true);
-    expect('reason' in result && result.reason).toMatch(/^SAFETY: week 5's test/);
-  });
-
-  it('refuses a week 2 test at 85% of 1RM', () => {
-    const result = checkRoadmapAnswer(roadmapWith(2, 'Squat 3 reps at 85% of 1RM'), { statedTargets: [] });
-    expect('reason' in result && result.reason).toMatch(/^SAFETY: week 2's test/);
-  });
-});
-
-// M3.1 (PSL-20): an experienced lifter's weeks 1 to 3 follow the method's % of 1RM and reps in reserve; failure and max
-// tests still wait for week 4. A beginner, or anyone with no clear signal, keeps every early-week cap.
 describe('weeks 1 to 3 for someone who already lifts (PSL-20)', () => {
   const recompOption = (start: string) => recompPreset.diagnosticQuestions[0].options.find((option) => option.startsWith(start))!;
   const lifter: WeekCallInput = { ...input, answers: [{ id: 'baseline', question: 'Experience?', answer: recompOption('Overfat / Intermediate Lifter') }] };

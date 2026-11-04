@@ -25,7 +25,7 @@ import { StepGeneration } from './onboarding/StepGeneration';
 import { CommitmentEditor } from './onboarding/CommitmentEditor';
 
 interface OnboardingWizardProps {
-  /** Null for a visitor, who signs up from the summary (ND-28). */
+  /** Null for a visitor, who signs up from the summary (ND-36). */
   token: string | null;
   onGoalCreated: (goal: Goal) => void;
   onSignUp?: () => void;
@@ -40,7 +40,7 @@ interface OnboardingWizardProps {
 }
 
 /**
- * Coordinates the onboarding pages (ND-28). Flow state, history and API calls live in `useOnboardingState`, and the
+ * Coordinates the onboarding pages (ND-36). Flow state, history and API calls live in `useOnboardingState`, and the
  * create body in `payload.ts`; the page components only render and report what the person did.
  */
 export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({

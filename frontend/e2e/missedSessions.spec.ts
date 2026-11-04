@@ -453,7 +453,6 @@ test.describe('Missed sessions: state coverage (M3.4)', () => {
     await signIn(page);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
-    await main(page).getByRole('button', { name: 'Show week' }).click();
     await main(page).getByRole('list').last().getByRole('button').nth(3).click();
     await expect(main(page).getByRole('heading', { level: 2, name: 'Session 4' })).toBeVisible();
     for (const name of ['Set today aside', 'Swap with another day', 'Swap the days', 'Just move its main step']) {
@@ -500,7 +499,7 @@ test.describe('Keyboard and reduced motion on the busiest Today (M3.4)', () => {
   const busy = () => shellWith({ t2: { status: 'pending', isKeySession: true, title: 'Interview three users' } });
   const busyReconcile = () => swapOfferBody('t2', -1, 't3', 0);
 
-  test('Tab order is the primary answer, the secondary, Start, then the quiet actions; dialogs trap focus and return it', async ({ page }) => {
+  test('Tab order is the primary answer, the secondary, the steps, Start, then the quiet actions; dialogs trap focus and return it', async ({ page }) => {
     await mockApi(page, { goal: busy(), reconcile: busyReconcile() });
     await signIn(page);
     await page.setViewportSize({ width: 390, height: 844 });
@@ -509,14 +508,16 @@ test.describe('Keyboard and reduced motion on the busiest Today (M3.4)', () => {
     const card = stepCard(page);
     const names = ['Swap the days', 'Just move its main step', 'Start', 'Mark complete', 'Set today aside', 'Swap with another day'];
     for (const name of names) await expect(card.getByRole('button', { name, exact: true })).toBeVisible();
+    // ND-30: the session's steps are buttons that open in place, between the answers and Start.
+    const order = [...names.slice(0, 2), '1Sketch the core screen20 min', '2List the data it needs25 min', ...names.slice(2)];
 
     await card.getByRole('button', { name: names[0], exact: true }).focus();
-    const seen: string[] = [names[0]];
-    for (let i = 1; i < names.length; i += 1) {
+    const seen: string[] = [order[0]];
+    for (let i = 1; i < order.length; i += 1) {
       await page.keyboard.press('Tab');
       seen.push(await page.evaluate(() => document.activeElement?.textContent?.trim() ?? ''));
     }
-    expect(seen).toEqual(names);
+    expect(seen).toEqual(order);
 
     for (const trigger of ['Set today aside', 'Swap with another day']) {
       const button = card.getByRole('button', { name: trigger, exact: true });

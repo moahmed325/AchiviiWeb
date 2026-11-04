@@ -28,7 +28,7 @@ interface StepSummaryProps {
   onStart: () => void;
 }
 
-/** ND-28: the last page. Short on purpose: where they're going, what it asks of them, and the button to begin. */
+/** ND-36: the last page. Short on purpose: where they're going, what it asks of them, and the button to begin. */
 export const StepSummary: React.FC<StepSummaryProps> = ({ outcome, defaultOutcome, onOutcomeChange, routine, weeks, fixedDate, signedIn, onBack, onStart }) => {
   const [editing, setEditing] = useState(false);
   const toggleEditing = () => {

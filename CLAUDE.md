@@ -43,7 +43,7 @@ Frontend (`cd frontend`):
 ```bash
 npm test                                 # vitest + Testing Library in jsdom (src/**/*.test.{ts,tsx}); at most 6 workers, `vmThreads` pool (vitest.config.ts, B-36, B-41)
 npx vitest run src/components/ui/Button.test.tsx
-npm run lint                             # whole frontend; baseline is 0 errors, 2 warnings
+npm run lint                             # whole frontend; baseline is 0 errors, 1 warning
 npx eslint <changed files>               # files you touch must be lint-clean
 npm run build                            # tsc && vite build
 npm run e2e                              # same as npx playwright test: e2e/*.spec.ts, API mocked via e2e/mockApi.ts; starts Vite itself
@@ -61,11 +61,11 @@ Playwright runs with one worker on purpose (parallel workers stall the Vite dev 
 - Postgres is required everywhere, local included; there is no SQLite mode. The database must allow the pgvector extension, because the older migrations run `CREATE EXTENSION vector` (for the `research_cache` table, since dropped).
 - Always use `prisma migrate deploy`, never `prisma db push`. `db push` skips the migrations folder, which holds `CREATE EXTENSION vector` and the raw-SQL indexes, so the database drifts from the migration history.
 - For Supabase use the session pooler connection string; the direct host is IPv6-only.
-- Models: `User`, `Subscription`, `WebhookEvent`, `Goal`, `RoadmapWeek`, `DailyTask`, `WeeklyReview` (`backend/prisma/schema.prisma`). The unused `research_cache` table, four old `Goal` columns and the Stripe-era `User` columns were dropped on 2026-10-24 (B-8, B-14, B-16).
+- Models: `User`, `Subscription`, `WebhookEvent`, `Goal`, `RoadmapWeek`, `DailyTask`, `WeeklyReview` (`backend/prisma/schema.prisma`). The unused `research_cache` table, four old `Goal` columns and the Stripe-era `User` columns were dropped on 2026-10-24 (B-8, B-14, B-16). `User.remindersEnabled` and `lastReminderAt` hold the reminder email setting (ND-28).
 
 ## Backend architecture
 
-`src/index.ts` mounts `/api/health`, `/api/auth`, `/api/goal`, `/api/billing`. The Lemon Squeezy webhook (`/api/billing/webhook`) is mounted **before** `express.json()` with `express.raw()` so its signature can be verified against the raw body; keep that order.
+`src/index.ts` mounts `/api/health`, `/api/auth`, `/api/goal`, `/api/billing`, `/api/reminders`. The Lemon Squeezy webhook (`/api/billing/webhook`) is mounted **before** `express.json()` with `express.raw()` so its signature can be verified against the raw body; keep that order.
 
 Every request gets an id (`lib/requestContext.ts`, header `X-Request-Id`), and every log line inside a request starts with `[req <id>]`. Routes may throw the typed errors in `lib/httpErrors.ts` (`ValidationError`, `UnauthorizedError`, `PolicyError`, `ExternalServiceError`); `errorHandler`, mounted last, answers them and any unhandled error (a 500 with the request id) (B-105). Stored JSON is read through one checked reader per field in `lib/planV2.ts` (`readRoutine`, `routineRecord`, `readStoredRoadmap`, `startingPointValue`) and `parseStoredSteps` in `lib/carryForward.ts` (B-103).
 
@@ -74,16 +74,17 @@ Auth: the frontend signs in with Supabase and sends the access token as `Authori
 Main areas (details in `docs/architecture/backend-details.md`; read the part you need before changing that area):
 
 - Routes: `routes/goal.ts` holds the router, the active-goal routes and reconcile; each area's routes live in `routes/goal/` (`present.ts` presentGoal, `create.ts` clarify and create, `actions.ts` mark missed, carry now and swap, `tasks.ts` task updates, `weeks.ts` review, close and the week routes, `schedule.ts` editing the schedule, B-108) (B-102).
-- Goal creation: `routes/goal/create.ts` (`POST /api/goal/create`): clarify (`lib/ai/clarify.ts`), preset match (10 pathways in `lib/ai/presets/`; other goals are custom and need Pro), roadmap (`lib/ai/roadmap.ts`), recovery profile (`lib/recovery/`), week 1 (`lib/ai/weekPlan.ts`). If the roadmap or week 1 can't be written, answer 503 and save nothing; an unsafe goal answers 422. No fallback plan.
+- Goal creation: `routes/goal/create.ts` (`POST /api/goal/create`): clarify (`lib/ai/clarify.ts`), preset match (10 pathways in `lib/ai/presets/`; other goals are custom and need Pro), roadmap (`lib/ai/roadmap.ts`: phases, each week's focus, and a `measure` for a goal counted in a number), recovery profile (`lib/recovery/`), week 1 (`lib/ai/weekPlan.ts`). If the roadmap or week 1 can't be written, answer 503 and save nothing; an unsafe goal answers 422. No fallback plan.
 - Plan v2 is the only plan model (`lib/planV2.ts`, spec in `docs/architecture/plan-v2.md`). Don't add plan v1 code back.
 - Plan length: `Goal.totalWeeks` (default 12) through `shapeOf(goal)` in `lib/planLength.ts`; never assume 12 weeks or day 90 in new code (B-109).
 - Safety limits: every number lives in `lib/safety/limits.ts`. Code, not the model, decides how fast targets climb and holds weekly load.
 - Missed sessions and recovery: `lib/missedSessions.ts`, `lib/carryForward.ts`, `lib/recovery/`, `POST /api/goal/reconcile`.
-- Week close and weekly update: `lib/weekClose/`, `lib/ai/weeklyUpdate.ts`.
+- Week close: `lib/weekClose/`. No weekly tests, targets, checkpoints or weekly update call (ND-35): the next week is written from last week's sessions done, the feel taps (`DailyTask.feel`) and the notes, with code's pace line (`lastWeekOf` in `lib/planV2.ts`, `paceOf` in `lib/ai/weekPlan.ts`).
 - Billing: `lib/billing/`, `config/billing.ts` (Lemon Squeezy, test mode by default).
+- Missed-day reminder email: `lib/reminders/`, `routes/reminders.ts` (`/api/reminders`), run hourly by `.github/workflows/reminders.yml` (`docs/architecture/reminders.md`).
 - LLM: `lib/ai/gemini.ts` (Gemini only, no fallback provider).
 
-Feature switches, all managed in the Render dashboard only (`sync: false`, unset means off). **Never turn them on or off from code or tests:** `MISSED_SESSIONS_CARRY_ENABLED` (on), `METHOD_RECOVERY_ENABLED` (on), `WEEK_CLOSE_ENABLED` (on), `WEEKLY_UPDATE_ENABLED` (on, also turns on checkpoints), `CUSTOM_RECOVERY_PROFILES_ENABLED` (on). They are read through `lib/flags.ts` (`flagOn`, exactly `true`, per request), and the server logs them all at startup (`[Flags]`).
+Feature switches (`WEEKLY_UPDATE_ENABLED` is read by nothing since ND-35; delete it in Render), all managed in the Render dashboard only (`sync: false`, unset means off). **Never turn them on or off from code or tests:** `MISSED_SESSIONS_CARRY_ENABLED` (on), `METHOD_RECOVERY_ENABLED` (on), `WEEK_CLOSE_ENABLED` (on), `CUSTOM_RECOVERY_PROFILES_ENABLED` (on), `MISSED_DAY_REMINDERS_ENABLED` (off until Resend is set up, `docs/architecture/reminders.md`). They are read through `lib/flags.ts` (`flagOn`, exactly `true`, per request), and the server logs them all at startup (`[Flags]`).
 
 The routes that call the model are rate limited in memory (`lib/rateLimit.ts`): `POST /api/goal/clarify` 10 a minute per IP, `POST /api/goal/create` 10 per 10 minutes per person; over it, 429 `rate_limited`.
 
@@ -96,7 +97,7 @@ Backend is ESM with `NodeNext` resolution, so relative imports need the `.js` ex
 - `App.tsx`: `AuthProvider` > `GoalProvider` > `BrowserRouter` > `AppShell`. Secondary pages are lazy-loaded. `ProtectedRoute requireGoal` gates routes on having an active goal.
 - `lib/api.ts` is the fetch client; `resolveApiBaseUrl()` uses `VITE_API_BASE_URL` (falls back to localhost:5000 in dev, the Render URL in production).
 - `context/GoalContext.tsx` holds the active goal; `lib/journeyAdapter.ts` and `hooks/useJourneyData.ts` shape it for the journey and roadmap views.
-- Feature folders under `components/` (`today`, `focus`, `journey`, `review`, `progress`, `achievement`, `coach`, `billing`, `onboarding`, `pathways`, `marketing`); shared primitives in `components/ui/`.
+- Feature folders under `components/` (`today`, `dashboard`, `focus`, `review`, `achievement`, `coach`, `billing`, `onboarding`, `pathways`, `marketing`); shared primitives in `components/ui/`.
 - `/__ui` (dev server only) previews every primitive in every state.
 
 ### Frontend rules (from `Design.md`, read it before frontend work)

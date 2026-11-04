@@ -7,7 +7,7 @@ import { GettingReady } from './today/WeekClose';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireGoal?: boolean;
-  /** ND-28: onboarding is open to visitors, who sign up from its last page. */
+  /** ND-36: onboarding is open to visitors, who sign up from its last page. */
   allowAnonymous?: boolean;
 }
 

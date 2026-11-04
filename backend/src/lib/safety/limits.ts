@@ -1,29 +1,10 @@
 /**
- * Plan safety limits (docs/features/plan-safety-limits, RULE-1, PSL-4): every limit number in one place. The roadmap,
- * the week call and the weekly update read them from here; no other code holds a limit number. Units are in the names.
+ * Plan safety limits (docs/features/plan-safety-limits, RULE-1, PSL-4): every limit number in one place. The week call
+ * and its checks read them from here; no other code holds a limit number. Units are in the names. No weekly tests
+ * (2026-10-30): the weekly target steps and the checkpoint numbers went with the targets; these limits check sessions.
  */
 
-/** Running distance target: +10% a week, or +1 km when that is more (PSL-4). */
-export const RUN_DISTANCE_STEP_PERCENT = 10;
-export const RUN_DISTANCE_STEP_MIN_KM = 1;
-/** Continuous running minutes (higher is better) take the distance rule in minutes: +10%, or +10 minutes (PSL-10). */
-export const RUN_DURATION_STEP_MIN_MINUTES = 10;
-
-/** Running time target (lower is better): at most 2% faster a week. Pace is running time (PSL-10). */
-export const RUN_TIME_STEP_PERCENT = 2;
-
-/** Lift load target: +5% a week, or +2.5 kg when that is more. */
-export const LIFT_STEP_PERCENT = 5;
-export const LIFT_STEP_MIN_KG = 2.5;
-
-/** Body weight target: losing at most 1% of last week's target a week; gaining at most 0.5% a week. */
-export const BODY_WEIGHT_LOSS_STEP_PERCENT = 1;
-export const BODY_WEIGHT_GAIN_STEP_PERCENT = 0.5;
-
-/** Body fat target: at most 0.5 percentage points a week. */
-export const BODY_FAT_STEP_POINTS = 0.5;
-
-/** Calorie deficit, as a target or in a step: 250 to 600 kcal a day (PSL-1, PSL-6). */
+/** Calorie deficit in a step: 250 to 600 kcal a day (PSL-1, PSL-6). */
 export const CALORIE_DEFICIT_MIN = 250;
 export const CALORIE_DEFICIT_MAX = 600;
 
@@ -68,11 +49,3 @@ export const FIRST_WEEK_BACK_MIN_KM = 5;
  * weekly-update M3.4's restart level replaces it.
  */
 export const FIRST_WEEK_BACK_LONG_BREAK_PERCENT = 50;
-
-/**
- * Checkpoints (docs/features/checkpoints, RULE-4, CP-5): at the close of week 4 or 8, clearly behind when the forecast
- * covers less than this share of the climb from the starting point to the day-90 target.
- */
-export const CHECKPOINT_BEHIND_PERCENT = 75;
-/** RULE-3, CP-15: under this share of the climb planned by the closing week, the forecast is the straight line. */
-export const CHECKPOINT_FLAT_PLAN_PERCENT = 10;

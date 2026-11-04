@@ -52,6 +52,55 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   );
 };
 
+export interface ProgressRingProps {
+  value: number;
+  max?: number;
+  /** Accessible name of the progressbar. */
+  label: string;
+  /** Announced instead of the bare number, for example "38% of the way to 50:00". */
+  valueText?: string;
+  /** Diameter in rem. */
+  size?: number;
+  tone?: 'accent' | 'achievement';
+  /** Shown in the middle of the ring (for example the percentage). Decorative; the ring carries the value. */
+  children?: React.ReactNode;
+  className?: string;
+}
+
+/**
+ * The same progress as ProgressBar, drawn as a ring for a page's one headline measure. The arc fills once on arrival
+ * (`progress-ring__arc`, near-instant under reduced motion). Flat colour, no glow.
+ */
+export const ProgressRing: React.FC<ProgressRingProps> = ({ value, max = 100, label, valueText, size = 9, tone = 'achievement', children, className }) => {
+  const clamped = Math.min(Math.max(value, 0), max);
+  const share = max > 0 ? clamped / max : 0;
+  return (
+    <div
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={max}
+      aria-valuenow={clamped}
+      aria-valuetext={valueText}
+      className={cx('relative inline-flex shrink-0 items-center justify-center', className)}
+      style={{ width: size + 'rem', height: size + 'rem' }}
+    >
+      <svg viewBox="0 0 100 100" aria-hidden="true" className="absolute inset-0 size-full -rotate-90">
+        <circle cx="50" cy="50" r="44" pathLength={100} className="progress-ring__track" />
+        <circle
+          cx="50"
+          cy="50"
+          r="44"
+          pathLength={100}
+          className={cx('progress-ring__arc', tone === 'achievement' ? 'stroke-achievement' : 'stroke-accent')}
+          style={{ '--ring-offset': String(100 - share * 100) } as React.CSSProperties}
+        />
+      </svg>
+      <div aria-hidden="true" className="relative text-center">{children}</div>
+    </div>
+  );
+};
+
 export type StepState = 'upcoming' | 'active' | 'completed' | 'milestone' | 'destination';
 
 export interface StepMarkerProps {

@@ -32,7 +32,7 @@ export const PRESET_GOAL = 'Run a 10K Under 50 Minutes';
 export const CUSTOM_GOAL = 'Bake sourdough bread at home';
 export const CUSTOM_TYPED_SUCCESS = 'Bake a loaf with an open crumb every weekend';
 
-/** ND-28: one page per question. Clarify's questions are headed by their own text. */
+/** ND-36: one page per question. Clarify's questions are headed by their own text. */
 export const STEP_HEADING = {
   goal: 'What do you want to achieve?',
   days: 'How many days a week can you give it?',

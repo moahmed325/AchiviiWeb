@@ -41,8 +41,6 @@ const baseGoalContext = {
   applyReconciliation: vi.fn(),
   reloadPlan: vi.fn(),
   closingWeek: false,
-  heldClose: null,
-  answerHeldClose: vi.fn(),
   pendingChoice: null,
   answerChoice: vi.fn(),
   closeFailed: false,

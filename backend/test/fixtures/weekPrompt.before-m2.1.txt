@@ -12,8 +12,6 @@ Rules (follow every one):
 THIS WEEK
 Week 1 of 12, phase "Accuracy": Learn every key without looking.
 Focus: Home row
-Target: Typing speed: 16 words per minute
-Weekly test: Take a 1-minute typing test on keybr.com. Pass if: 16 wpm at 95% accuracy
 
 
 THE DAYS (already decided; keep them)
@@ -22,22 +20,20 @@ THE DAYS (already decided; keep them)
 - Day 3 (Wednesday): practice
 - Day 4 (Thursday): rest
 - Day 5 (Friday): practice
-- Day 6 (Saturday): practice, TEST DAY
+- Day 6 (Saturday): practice
 - Day 7 (Sunday): rest
 
 WRITE THE WEEK
 - 7 days, dayNumber 1-7, exactly as listed above.
-- The test day's main step is the weekly test exactly as written above, titled "Weekly test: ...", with a
-  short warm-up before it (5 minutes or less) and a short step after it (5 minutes or less) that compares the
-  result with the target. The test day may be shorter than 30 minutes; do not pad it.
-- Mark 1-2 practice days (not the test day) as key sessions ("isKeySession": true): the hardest sessions that
-  matter most for the target. Put them mid-week.
+- No tests: no "weekly test", time trial or measuring session. The plan is adjusted from what they do and how it feels.
+- Mark 1-2 practice days as key sessions ("isKeySession": true): the hardest sessions that matter most for the goal.
+  Put them mid-week.
 - Each practice day has:
   - title: what they get done, e.g. "Hold a 3-minute conversation about your weekend", not "Speaking practice"
-  - whyToday: one sentence on how this day moves them toward the target
+  - whyToday: one sentence on how this day moves them forward on this week's focus
   - 2-4 steps that each do something different, with minutes adding up to 30
   - minimumVersion: one 10-minute step for days they can't do the full session. It must still move them
-    toward the target.
+    forward.
 - Each step has:
   - title and instructions: specific enough to start without looking anything up
   - minutes

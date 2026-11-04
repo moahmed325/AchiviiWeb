@@ -115,7 +115,7 @@ describe('Home Page (R1 — Goal-load error & pathway guarding)', () => {
     expect(screen.queryByText('Loading your day')).not.toBeInTheDocument();
   });
 
-  it('asks for the goal when there is genuinely none, without an error (ND-28)', async () => {
+  it('asks for the goal when there is genuinely none, without an error (ND-36)', async () => {
     mocked.fetchActiveGoal.mockResolvedValueOnce(null as unknown as Goal);
 
     render(
@@ -158,7 +158,7 @@ describe('Home Page (R1 — Goal-load error & pathway guarding)', () => {
   });
 });
 
-describe('Home before a first goal (ND-28)', () => {
+describe('Home before a first goal (ND-36)', () => {
   const Onboarding = () => <pre data-testid="onboarding-state">{JSON.stringify(useLocation().state)}</pre>;
 
   const renderHome = () =>

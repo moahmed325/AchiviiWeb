@@ -20,8 +20,6 @@ const ResetPasswordPage = React.lazy(() => import('./pages/auth/PasswordResetPag
 /* Development-only primitives preview; the branch is dropped from production builds. */
 const UiPreviewPage = import.meta.env.DEV ? React.lazy(() => import('./pages/dev/UiPreviewPage')) : null;
 
-/* Dedicated Progress page (ND-8 Option A). Lazy-loaded to keep the main bundle lean. */
-const ProgressPage = React.lazy(() => import('./pages/ProgressPage'));
 
 /* Dedicated Achievement page (M9.3). Lazy-loaded to keep the main bundle lean. */
 const AchievementPage = React.lazy(() => import('./pages/AchievementPage'));
@@ -62,7 +60,7 @@ export const App: React.FC = () => {
               <Route path="/forgot-password" element={<React.Suspense fallback={null}><ForgotPasswordPage /></React.Suspense>} />
               <Route path="/reset-password" element={<React.Suspense fallback={null}><ResetPasswordPage /></React.Suspense>} />
 
-              {/* Onboarding: open to visitors (ND-28), who sign up from its last page */}
+              {/* Onboarding: open to visitors (ND-36), who sign up from its last page */}
               <Route
                 path="/onboarding"
                 element={
@@ -98,17 +96,8 @@ export const App: React.FC = () => {
                 }
               />
 
-              {/* Dedicated Progress page (ND-8 Option A, M8.2) */}
-              <Route
-                path="/progress"
-                element={
-                  <ProtectedRoute requireGoal={false}>
-                    <React.Suspense fallback={null}>
-                      <ProgressPage />
-                    </React.Suspense>
-                  </ProtectedRoute>
-                }
-              />
+              {/* ND-31: Progress is part of the Roadmap page. */}
+              <Route path="/progress" element={<Navigate to="/roadmap" replace />} />
 
               {/* Billing return: provider redirect is never treated as payment proof. */}
               <Route path="/billing/return" element={<React.Suspense fallback={null}><CheckoutReturnPage /></React.Suspense>} />

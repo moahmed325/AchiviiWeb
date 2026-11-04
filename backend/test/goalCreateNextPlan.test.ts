@@ -3,8 +3,9 @@ import express from 'express';
 import type { Server } from 'node:http';
 
 // Next plan (docs/features/next-plan, NP-3, NP-7 to NP-10): `POST /api/goal/create` with `nextPlan` is Pro for every
-// goal, reads the level from the old plan itself, adds it as one answer, holds the roadmap's starting point to it, and
-// stores the link under `Goal.roadmap.previousPlan`.
+// goal, reads what the old plan did from its rows, adds the level the person typed as one answer (no weekly tests since
+// 2026-10-30, so a measured goal always asks it), holds the roadmap's starting point to it, and stores the link under
+// `Goal.roadmap.previousPlan`.
 
 const db = vi.hoisted(() => ({
   goalCreate: vi.fn(),
@@ -55,7 +56,7 @@ const GOAL = 'Run 10 km without stopping';
 function modelAnswer(start: number) {
   return {
     finalGoal: GOAL,
-    finalTest: 'Run 10 km.',
+    measure: { metric: 'Continuous run distance', unit: 'km', direction: 'higher_is_better' },
     startingPoint: { value: start, description: 'Today' },
     candidates: [
       { name: 'Run-walk', creator: '', summary: 'Run and walk.', strengths: 'Easy.', weaknesses: 'Slow.' },
@@ -71,17 +72,11 @@ function modelAnswer(start: number) {
       { name: 'Build', startWeek: 5, endWeek: 8, purpose: 'Build.' },
       { name: 'Peak', startWeek: 9, endWeek: 12, purpose: 'Peak.' },
     ],
-    weeks: [7.5, 7.5, 8, 8, 8.5, 8.5, 9, 9, 9.5, 9.5, 10, 10].map((value, index) => ({
-      weekNumber: index + 1,
-      phase: 'Base',
-      focus: 'Run',
-      target: { kind: 'number', metric: 'Continuous run distance', value, unit: 'km', direction: 'higher_is_better' },
-      test: { type: 'count', instructions: 'Run as far as you can.', passIf: `${value} km` },
-    })),
+    weeks: Array.from({ length: 12 }, (_, index) => ({ weekNumber: index + 1, phase: 'Base', focus: 'Run' })),
   };
 }
 
-/** The old plan: 3 km to 10 km, week 12 tested at 7 km. */
+/** The old plan, made before the weekly tests went: 3 km to 10 km, week 12 tested at 7 km; 50 of 60 sessions done. */
 function oldGoal(status: string, roadmapExtra: Record<string, unknown> = {}) {
   return {
     id: 'goal-old',
@@ -99,6 +94,7 @@ function oldGoal(status: string, roadmapExtra: Record<string, unknown> = {}) {
       status: 'completed',
       ...(index === 11 ? { testResult: { value: 7, unit: 'km', passed: false } } : {}),
     })),
+    dailyTasks: Array.from({ length: 60 }, (_, index) => ({ status: index < 50 ? 'completed' : 'pending', isRestDay: false, notOffered: false })),
   };
 }
 
@@ -173,15 +169,15 @@ const stored = () => db.goalCreate.mock.calls[0][0].data.roadmap;
 const prompt = (call = 0) => vi.mocked(generateStructuredContent).mock.calls[call][0] as string;
 
 describe('goal create with nextPlan', () => {
-  it('keep going: Pro check only, the measured level as one answer, the link stored (NP-3, NP-7, NP-8)', async () => {
-    const { status } = await create({ fromGoalId: 'goal-old', mode: 'keep_going' });
+  it('keep going: Pro check only, the typed level as one answer, the link stored (NP-3, NP-7, NP-8)', async () => {
+    const { status } = await create({ fromGoalId: 'goal-old', mode: 'keep_going', level: 7 });
     expect(status).toBe(201);
     expect(auth.next).toHaveBeenCalledWith('u1');
     expect(auth.custom).not.toHaveBeenCalled();
     expect(db.goalFindFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'goal-old', userId: 'u1' } }));
-    expect(prompt()).toContain('7 km (that plan started at 3 km). This is where they are now');
+    expect(prompt()).toContain('7 km (that plan started at 3 km). They finished 12 of 12 weeks, 50 of 60 sessions');
     expect(stored().startingPoint.value).toBe(7);
-    expect(stored().previousPlan).toEqual({ goalId: 'goal-old', number: 2, mode: 'keep_going', summary: '3 km → 7 km' });
+    expect(stored().previousPlan).toEqual({ goalId: 'goal-old', number: 2, mode: 'keep_going', summary: '12 of 12 weeks, 50 of 60 sessions' });
     expect(stored().answers.map((item: { id: string }) => item.id)).toEqual(['current_level', 'measured_level']);
   });
 
@@ -189,7 +185,7 @@ describe('goal create with nextPlan', () => {
     vi.mocked(generateStructuredContent)
       .mockResolvedValueOnce({ success: true, data: modelAnswer(3) } as never)
       .mockResolvedValueOnce({ success: true, data: modelAnswer(7) } as never);
-    const { status } = await create({ fromGoalId: 'goal-old', mode: 'keep_going' });
+    const { status } = await create({ fromGoalId: 'goal-old', mode: 'keep_going', level: 7 });
     expect(status).toBe(201);
     expect(prompt(1)).toContain('"startingPoint.value" must be 7 km');
     expect(stored().startingPoint.value).toBe(7);
@@ -207,6 +203,13 @@ describe('goal create with nextPlan', () => {
     expect(status).toBe(403);
     expect(body.code).toBe('NEXT_PLAN_REQUIRES_PRO');
     expect(db.goalFindFirst).not.toHaveBeenCalled();
+    expect(db.goalCreate).not.toHaveBeenCalled();
+  });
+
+  it('a measured goal needs a typed level: no result is read from the old plan', async () => {
+    const { status, body } = await create({ fromGoalId: 'goal-old', mode: 'keep_going' });
+    expect(status).toBe(400);
+    expect(body.error).toBe('Tell us where you are now, so your next plan starts there.');
     expect(db.goalCreate).not.toHaveBeenCalled();
   });
 
@@ -231,7 +234,7 @@ describe('goal create with nextPlan', () => {
     expect((await create({ fromGoalId: 'goal-old', mode: 'again' })).status).toBe(400);
     expect((await create({ fromGoalId: 'goal-old', mode: 'keep_going', level: -1 })).status).toBe(400);
     db.goalFindFirst.mockResolvedValueOnce(oldGoal('active'));
-    expect((await create({ fromGoalId: 'goal-old', mode: 'keep_going' })).status).toBe(409);
+    expect((await create({ fromGoalId: 'goal-old', mode: 'keep_going', level: 7 })).status).toBe(409);
     expect(db.goalCreate).not.toHaveBeenCalled();
   });
 

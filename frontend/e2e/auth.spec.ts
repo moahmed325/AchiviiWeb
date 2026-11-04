@@ -49,7 +49,7 @@ test.describe('entry points', () => {
     await mockApi(page);
     await page.goto('/');
 
-    // ND-28: Start leads to the question at the top; typing a goal there opens onboarding (onboarding.spec.ts).
+    // ND-36: Start leads to the question at the top; typing a goal there opens onboarding (onboarding.spec.ts).
     await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Start' }).click();
     await expect(page).toHaveURL('/#top');
 

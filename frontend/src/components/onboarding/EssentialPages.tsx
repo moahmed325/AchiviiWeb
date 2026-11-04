@@ -81,7 +81,7 @@ const DatePage: React.FC<EssentialStepProps & { frame: React.ComponentProps<type
 };
 
 /**
- * ND-28: the questions everyone is asked about their routine, one per page. None needs the AI, so they are answered
+ * ND-36: the questions everyone is asked about their routine, one per page. None needs the AI, so they are answered
  * while clarify reads the goal.
  */
 export const EssentialStep: React.FC<EssentialStepProps> = (props) => {

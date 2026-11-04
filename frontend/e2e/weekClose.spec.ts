@@ -2,21 +2,17 @@ import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { mockApi, signIn } from './mockApi';
 import { axeViolations, settled, shellGoal } from './shellFixtures';
 
-// Weekly update M1.2b (RULE-8, RULE-9, RULE-17, WU-14, WU-28, WU-31): the automatic week close as the app shows it,
+// Weekly update M1.2b (RULE-8, RULE-9, RULE-17, WU-28, WU-31): the automatic week close as the app shows it,
 // with POST /api/goal/close-week mocked (mockApi's `closeWeek`). Runs on the desktop and mobile projects.
 // EVIDENCE=1 also saves the screenshots for docs/features/weekly-update/milestones/m1.2b-evidence/.
 
-const CARD = "Did you do last week's test?";
-const CARD_LINE = 'Log your result to shape next week.';
 const READY = 'Getting your next week ready…';
 const FAILED = "Couldn't get your next week ready. Please try again.";
-const INSIGHT = 'Next week is ready. Your targets stay as planned.';
-const TEST = { type: 'deliverable_check', instructions: 'Share the one-page brief with one person who might use it.', passIf: 'one person reads it and replies' };
+const INSIGHT = 'Next week is ready.';
 
-/** Week 1, still open, with its test not logged. */
+/** Week 1, still open. No weekly tests (ND-35): nothing waits for a test result. */
 function before() {
-  const base = shellGoal();
-  return { ...base, roadmapWeeks: base.roadmapWeeks.map((w) => ({ ...w, test: TEST, testResult: null })) };
+  return shellGoal();
 }
 
 /** The same goal after the automatic close: week 1 closed by `auto` with the neutral line, week 2 open. */
@@ -27,7 +23,7 @@ function after() {
     ...base,
     currentWeek: 2,
     roadmapWeeks: [
-      { ...w1, test: TEST, testResult: null, status: 'completed', closedBy: 'auto', closedAt: new Date().toISOString(), closeLineSeenAt: null },
+      { ...w1, status: 'completed', closedBy: 'auto', closedAt: new Date().toISOString(), closeLineSeenAt: null },
       { ...w1, id: 'w2', weekNumber: 2, theme: 'Build the first screen', status: 'active' },
     ],
     dailyTasks: base.dailyTasks.map((t) => ({ ...t, id: `w2-${t.id}`, weekNumber: 2, dayNumber: t.dayNumber + 7, status: 'pending' })),
@@ -42,34 +38,22 @@ const evidence = async (page: Page, info: TestInfo, name: string) => {
 };
 
 test.describe('The week close in the app (M1.2b)', () => {
-  test('the test card, Skip, then the line once', async ({ page }, info) => {
+  test('a due close closes at once with no card, then the line once', async ({ page }, info) => {
     const calls = await mockApi(page, {
       goal: before(),
-      closeWeek: { check: { due: true, weekNumber: 1, testLogged: false }, goalAfterClose: after() },
+      closeWeek: { check: { due: true, weekNumber: 1 }, goalAfterClose: after() },
     });
     await signIn(page);
     await page.goto('/');
 
-    const card = page.getByRole('dialog', { name: CARD });
-    await expect(card).toBeVisible();
-    await expect(card.getByText(CARD_LINE)).toBeVisible();
-    await expect(card.getByRole('button', { name: 'Log result' })).toBeVisible();
-    // Today shows only the card; reconcile waits for the answer (RULE-17).
-    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(0);
-    expect(calls.closeWeek).toEqual(['check']);
-    expect(calls.reconcile).toBe(0);
-    await settled(page);
-    expect(await axeViolations(page), 'axe with the card open').toEqual([]);
-    await evidence(page, info, 'test-card');
-
-    await card.getByRole('button', { name: 'Skip' }).click();
-    await expect(card).toBeHidden();
     const line = page.getByText(INSIGHT);
     await expect(line).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.locator('main header').first()).toContainText('Week 2');
     expect(calls.closeWeek).toEqual(['check', 'close']);
     expect(calls.reconcile).toBe(1);
-    expect(calls.testResults).toEqual([]);
+    await settled(page);
+    expect(await axeViolations(page), 'axe with the line').toEqual([]);
     await evidence(page, info, 'line');
 
     await page.getByRole('button', { name: 'Dismiss' }).click();
@@ -80,27 +64,10 @@ test.describe('The week close in the app (M1.2b)', () => {
     await expect(page.getByText(INSIGHT)).toHaveCount(0);
   });
 
-  test('Log result logs the test, then closes the week with it', async ({ page }) => {
-    const calls = await mockApi(page, {
-      goal: before(),
-      closeWeek: { check: { due: true, weekNumber: 1, testLogged: false }, goalAfterClose: after() },
-    });
-    await signIn(page);
-    await page.goto('/');
-
-    await page.getByRole('dialog', { name: CARD }).getByRole('button', { name: 'Log result' }).click();
-    const entry = page.getByRole('dialog', { name: "Log last week's test" });
-    await entry.getByLabel('Your result').fill('Sent to Sam, who replied');
-    await entry.getByRole('button', { name: 'Save result' }).click();
-    await expect(page.getByText(INSIGHT)).toBeVisible();
-    expect(calls.testResults).toEqual([{ weekNumber: 1, body: { value: 'Sent to Sam, who replied', passed: true } }]);
-    expect(calls.closeWeek).toEqual(['check', 'close']);
-  });
-
   test('"Getting your next week ready…" while the week is written', async ({ page }, info) => {
     const calls = await mockApi(page, {
       goal: before(),
-      closeWeek: { check: { due: true, weekNumber: 1, testLogged: true }, goalAfterClose: after(), closeDelayMs: 2_000 },
+      closeWeek: { check: { due: true, weekNumber: 1 }, goalAfterClose: after(), closeDelayMs: 2_000 },
     });
     await signIn(page);
     await page.goto('/');
@@ -115,7 +82,7 @@ test.describe('The week close in the app (M1.2b)', () => {
   test('a failed close shows the plan as stored and Try again', async ({ page }, info) => {
     const calls = await mockApi(page, {
       goal: before(),
-      closeWeek: { check: { due: true, weekNumber: 1, testLogged: true }, goalAfterClose: after(), closeStatus: 503 },
+      closeWeek: { check: { due: true, weekNumber: 1 }, goalAfterClose: after(), closeStatus: 503 },
     });
     await signIn(page);
     await page.goto('/');
@@ -143,33 +110,6 @@ test.describe('The week close in the app (M1.2b)', () => {
     expect(calls.reconcile).toBe(1);
   });
 
-  test('a review that lost to an automatic close keeps its reflection', async ({ page }, info) => {
-    const done = before();
-    // ND-24: the review opens on the week's last day, so the week is moved back to end today.
-    const lastDay = done.dailyTasks.reduce((last, t) => (t.date > last ? t.date : last), '');
-    const back = (Date.parse(`${lastDay}T00:00:00Z`) - Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`)) / 86_400_000;
-    const moved = (date: string) => new Date(Date.parse(`${date}T00:00:00Z`) - back * 86_400_000).toISOString().slice(0, 10);
-    done.dailyTasks = done.dailyTasks.map((t) => ({ ...t, date: moved(t.date), status: t.isRestDay ? 'pending' : 'completed' }));
-    await mockApi(page, { goal: done });
-    let reflection: unknown = null;
-    await page.route('**/api/goal/weeks/1/review', (route) =>
-      route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: 'This week has already been reviewed.', reason: 'week_closed' }) })
-    );
-    await page.route('**/api/goal/weeks/1/reflection', (route) => {
-      reflection = route.request().postDataJSON();
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ reflection: 'Kept it small' }) });
-    });
-    await signIn(page);
-    await page.goto('/');
-
-    await page.locator('section[aria-labelledby="review-due-heading"]').getByRole('button', { name: 'Start weekly review' }).click();
-    const modal = page.getByRole('dialog');
-    await modal.getByLabel('What worked? What could be better?').fill('Kept it small');
-    await modal.getByRole('button', { name: 'Start Week 2' }).click();
-    await expect(modal.getByText('This week had already closed. Your reflection is saved.')).toBeVisible();
-    expect(reflection).toEqual({ reflection: 'Kept it small' });
-    await evidence(page, info, 'lost-race');
-  });
 
   // Weekly update M1.4 (RULE-13, RULE-14, section 6, WU-33 (4)): back 4 days after week 2 should have started, the
   // close moves the plan 4 days, so week 2 starts today; Today shows the line with the moved end date and today's step.
@@ -188,7 +128,7 @@ test.describe('The week close in the app (M1.2b)', () => {
       dailyTasks: moved.dailyTasks.map((t, index) => ({ ...t, date: iso(index), title: index === 0 ? 'Write the one-page product brief' : t.title })),
       weeklyReviews: moved.weeklyReviews.map((r) => ({ ...r, aiAdaptationInsight: 'Your next week starts today. Your plan now ends on {date}.' })),
     };
-    await mockApi(page, { goal: before(), closeWeek: { check: { due: true, weekNumber: 1, testLogged: true }, goalAfterClose: goal } });
+    await mockApi(page, { goal: before(), closeWeek: { check: { due: true, weekNumber: 1 }, goalAfterClose: goal } });
     await signIn(page);
     await page.goto('/');
 
@@ -224,7 +164,7 @@ test.describe('The week close in the app (M1.2b)', () => {
       dailyTasks: moved.dailyTasks.map((t, index) => ({ ...t, date: iso(index), title: index === 0 ? 'Write the one-page product brief' : t.title })),
       weeklyReviews: moved.weeklyReviews.map((r) => ({ ...r, aiAdaptationInsight: 'Welcome back. Your plan picks up from here and now ends on {date}.' })),
     };
-    await mockApi(page, { goal: before(), closeWeek: { check: { due: true, weekNumber: 1, testLogged: true }, goalAfterClose: goal } });
+    await mockApi(page, { goal: before(), closeWeek: { check: { due: true, weekNumber: 1 }, goalAfterClose: goal } });
     await signIn(page);
     await page.goto('/');
 

@@ -175,10 +175,9 @@ describe('Goal Completion Transition Lifecycle (Milestone M9.2 — OD-1b Option 
       );
     });
 
-    it('persists optional finalReflection and finalTestResult without corrupting structure', async () => {
+    it('persists the optional finalReflection, and ignores a finalTestResult', async () => {
       (getAuthUser as any).mockResolvedValueOnce(mockUser);
       (prisma.goal.findFirst as any).mockResolvedValueOnce(mockActiveGoal);
-      (prisma.roadmapWeek.update as any).mockResolvedValueOnce({ id: 'rw-12' });
       (prisma.weeklyReview.update as any).mockResolvedValueOnce({ id: 'rev-12' });
 
       const updatedMock = {
@@ -207,20 +206,8 @@ describe('Goal Completion Transition Lifecycle (Milestone M9.2 — OD-1b Option 
 
       expect(res.status).toBe(200);
 
-      // Verify final test result was saved to the week 12 roadmap week
-      expect(prisma.roadmapWeek.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 'rw-12' },
-          data: {
-            testResult: {
-              value: '43:45',
-              passed: true,
-              unit: 'mm:ss',
-              note: 'Final test in the park',
-            },
-          },
-        })
-      );
+      // No weekly tests (2026-10-30): a final test result sent by an old app is ignored.
+      expect(prisma.roadmapWeek.update).not.toHaveBeenCalled();
 
       // Verify final reflection was saved to the week 12 review
       expect(prisma.weeklyReview.update).toHaveBeenCalledWith(

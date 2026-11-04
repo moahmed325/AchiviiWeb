@@ -8,7 +8,7 @@ export type CustomGoalAuthorization =
   | { allowed: false; code: typeof CUSTOM_GOAL_REQUIRES_PRO; message: string };
 
 /**
- * ND-28: everyone starts by typing their own goal, so a person's first plan is allowed whatever it is. After that,
+ * ND-36: everyone starts by typing their own goal, so a person's first plan is allowed whatever it is. After that,
  * a new custom goal needs Pro. (Stage 2 replaces this with the 30-day trial.)
  */
 export const authorizeNewCustomGoal = async (userId: string): Promise<CustomGoalAuthorization> => {

@@ -1,14 +1,12 @@
 /**
- * Next plan (docs/features/next-plan): what a plan reached, read from its stored rows. Pure. The goal response sends it
- * as `journeyResult` (the day-90 screen's "You went from 3 km to 8 km", NP-1), and goal create reads it again from the
- * old goal when a next plan starts from it (NP-8), so the starting point never comes from the browser.
+ * Next plan (docs/features/next-plan): what a plan did, read from its stored rows. Pure. The goal response sends it as
+ * `journeyResult` (the end screen's "You finished 11 of 12 weeks: 52 of 60 sessions", NP-1), and goal create reads it
+ * again from the old goal when a next plan starts from it (NP-8). No weekly tests (2026-10-30,
+ * docs/features/no-weekly-tests/plan.md): there is no measured result, so a goal measured in a number always asks
+ * where the person is now, and the summary is weeks and sessions done.
  */
-import { formatAmount, pathwayFor, shownAmount, TOTAL_WEEKS, type PlanAnswer, type WeekTarget } from './ai/roadmap.js';
+import { formatAmount, TOTAL_WEEKS, type Measure, type PlanAnswer, type TargetDirection } from './ai/roadmap.js';
 import { shapeOf } from './planLength.js';
-import { readCheckpoints, unitStep, type NumberTarget } from './weekClose/checkpoint.js';
-import { isWeekTarget, safeGoalTargets, testOf, type StoredWeek } from './safety/storedTargets.js';
-import { harder, nextSafeStep } from './safety/targetSteps.js';
-import { resultNumber } from './weekClose/update.js';
 import { startingPointValue } from './planV2.js';
 
 export type NextPlanMode = 'keep_going' | 'go_further' | 'fresh';
@@ -18,31 +16,20 @@ export const NEXT_PLAN_MODES: readonly NextPlanMode[] = ['keep_going', 'go_furth
 export const MEASURED_LEVEL_ID = 'measured_level';
 
 export interface JourneyResult {
-  kind: 'number' | 'deliverable';
+  /** `number` when the goal is measured in a number (its `measure`), so a next plan asks the level now. */
+  kind: 'number' | 'other';
   /** Number goals: the plan's starting point, as shown ("3 km"); null with no starting point. */
   start: string | null;
   startValue: number | null;
-  /** The last measured result (week 12's test, else the latest measured week), as shown; null when none was logged. */
-  reached: string | null;
-  reachedValue: number | null;
-  /** The week that result was logged in. */
-  reachedWeek: number | null;
-  /** The person's full goal, as shown (never a target a checkpoint or the safe climb lowered, NP-2). */
+  /** The plan's final goal, as written. */
   goal: string | null;
-  goalValue: number | null;
   unit: string | null;
-  direction: NumberTarget['direction'] | null;
-  /** Set when a checkpoint lowered week 12: the day-90 target, as shown, and whether the result reached it. */
-  dayNinetyTarget: string | null;
-  reachedDayNinety: boolean;
-  /** The result reached the full goal. Deliverable goals: week 12's test passed. */
-  madeIt: boolean;
-  /** Fell short by at most one safe step (NP-5): "Go further" leads. */
-  nearGoal: boolean;
+  direction: TargetDirection | null;
   /** Weeks closed and not jumped. */
   weeksFinished: number;
-  /** Deliverable goals: the last week's target whose test passed. */
-  lastDone: string | null;
+  /** Practice sessions done and planned over the whole plan (rest days and days not offered left out). */
+  sessionsDone: number;
+  sessionsPlanned: number;
   /** B-109: the plan's weeks, only when not 12. */
   totalWeeks?: number;
 }
@@ -53,127 +40,85 @@ export interface PreviousPlan {
   /** This plan's number in the chain: the old plan's number plus one (a plan with no link is plan 1). */
   number: number;
   mode: NextPlanMode;
-  /** "3 km → 8 km", or "11 of 12 weeks" for a deliverable goal. */
+  /** "11 of 12 weeks, 52 of 60 sessions". */
   summary: string;
 }
 
-type JourneyWeek = StoredWeek & { testResult?: unknown };
+interface JourneyWeek {
+  weekNumber: number;
+  status?: string | null;
+  jumped?: boolean | null;
+  target?: unknown;
+}
+
+interface JourneyTask {
+  status?: string | null;
+  isRestDay?: boolean | null;
+  notOffered?: boolean | null;
+}
 
 export interface JourneyGoal {
   rawGoal: string;
   clarifiedOutcome: string | null;
   roadmap: unknown;
   roadmapWeeks: JourneyWeek[] | undefined;
+  /** The plan's sessions; missing counts none. */
+  dailyTasks?: JourneyTask[] | undefined;
   /** B-109: the plan's weeks; missing is 12. */
   totalWeeks?: number | null;
 }
 
-const passed = (testResult: unknown) =>
-  Boolean(testResult) && typeof testResult === 'object' && (testResult as Record<string, unknown>).passed === true;
+const DIRECTIONS: readonly TargetDirection[] = ['higher_is_better', 'lower_is_better'];
 
-/** A week whose test measured the goal's number: not jumped, not a light week (M2.1), with a result in the unit. */
-function measured(week: JourneyWeek, target: NumberTarget): number | null {
-  if (week.jumped === true || testOf(week)?.light === true) return null;
-  return resultNumber(week.testResult, target);
-}
-
-/** The first number in a shown amount ("10 km" → 10); `week12Line.goal` is stored only as text. */
-function leadingNumber(text: string): number | null {
-  const match = /-?\d+(?:\.\d+)?/.exec(text);
-  return match ? Number(match[0]) : null;
+/**
+ * What the goal is measured in: the stored `measure`, else (a goal made before the weekly tests went) its last week's
+ * stored number target. Null for a skill, habit or thing made.
+ */
+export function measureOf(roadmap: unknown, weeks: readonly JourneyWeek[]): Measure | null {
+  const hasMeasure = Boolean(roadmap) && typeof roadmap === 'object' && 'measure' in (roadmap as object);
+  const read = (value: unknown): Measure | null => {
+    if (!value || typeof value !== 'object') return null;
+    const item = value as Record<string, unknown>;
+    if (typeof item.metric !== 'string' || typeof item.unit !== 'string' || !item.unit) return null;
+    if (!DIRECTIONS.includes(item.direction as TargetDirection)) return null;
+    return { metric: item.metric, unit: item.unit, direction: item.direction as TargetDirection };
+  };
+  if (hasMeasure) return read((roadmap as { measure?: unknown }).measure);
+  const last = [...weeks].sort((a, b) => b.weekNumber - a.weekNumber).find((week) => week.target && typeof week.target === 'object');
+  const target = last?.target as Record<string, unknown> | undefined;
+  return target?.kind === 'number' ? read(target) : null;
 }
 
 /** B-109: a shorter plan's week count, for the summary and the next plan's answer; nothing on a 12-week plan. */
 const lengthOf = (goal: JourneyGoal): { totalWeeks?: number } => (shapeOf(goal).weeks === TOTAL_WEEKS ? {} : { totalWeeks: shapeOf(goal).weeks });
 
-/** NP-1, NP-2: null for a goal with no v2 roadmap or no weeks. */
+/** NP-1: null for a goal with no v2 roadmap or no weeks. */
 export function journeyResultOf(goal: JourneyGoal): JourneyResult | null {
-  const safe = safeGoalTargets(goal);
-  if (!safe) return null;
-  const weeks = [...safe.weeks].sort((a, b) => a.weekNumber - b.weekNumber);
-  const week12 = weeks.find((week) => week.weekNumber === shapeOf(goal).finalWeek) ?? weeks[weeks.length - 1];
-  const target = week12 && isWeekTarget(week12.target) ? (week12.target as WeekTarget) : null;
-  if (!target) return null;
-  const weeksFinished = weeks.filter((week) => week.status === 'completed' && week.jumped !== true).length;
-
-  if (target.kind === 'deliverable') {
-    const done = weeks.filter((week) => week.jumped !== true && passed(week.testResult) && isWeekTarget(week.target));
-    const last = done[done.length - 1];
-    return {
-      kind: 'deliverable',
-      start: null,
-      startValue: null,
-      reached: null,
-      reachedValue: null,
-      reachedWeek: last ? last.weekNumber : null,
-      goal: target.description,
-      goalValue: null,
-      unit: null,
-      direction: null,
-      dayNinetyTarget: null,
-      reachedDayNinety: false,
-      madeIt: passed(week12.testResult),
-      nearGoal: false,
-      weeksFinished,
-      lastDone: last ? (last.target as WeekTarget & { kind: 'deliverable' }).description || null : null,
-      ...lengthOf(goal),
-    };
-  }
-
-  const startValue = startingPointValue(goal);
-  // The latest measured result, week 12's first (its own target's unit decides whether it counts).
-  let reachedValue: number | null = null;
-  let reachedWeek: number | null = null;
-  for (const week of [...weeks].reverse()) {
-    const own = isWeekTarget(week.target) && (week.target as WeekTarget).kind === 'number' ? (week.target as NumberTarget) : target;
-    const value = measured(week, own);
-    if (value !== null) {
-      reachedValue = value;
-      reachedWeek = week.weekNumber;
-      break;
-    }
-  }
-
-  // The full goal: the safe climb's stated number (`week12Line.goal`), else week 12 before a checkpoint lowered it.
-  const checkpoints = readCheckpoints(goal.roadmap);
-  const lowered = checkpoints.some((item) => item.answer === 'accept') && harder(checkpoints[0].fullGoal, target.value, target.direction);
-  const stated = safe.week12Line?.goal ? leadingNumber(safe.week12Line.goal) : null;
-  const goalValue = stated ?? (lowered ? checkpoints[0].fullGoal : target.value);
-  const shown = (value: number) => shownAmount({ ...target, value });
-  const reaches = (value: number | null, limit: number) => value !== null && !harder(limit, value, target.direction);
-
-  const madeIt = reaches(reachedValue, goalValue);
-  const context = { run10k: pathwayFor(goal.rawGoal, goal.clarifiedOutcome)?.id === 'run10k' };
-  const sign = target.direction === 'higher_is_better' ? 1 : -1;
-  const oneStep =
-    reachedValue === null ? null : (nextSafeStep(target, reachedValue, context) ?? reachedValue + sign * unitStep(target, reachedValue, context));
-  const nearGoal = !madeIt && oneStep !== null && reaches(oneStep, goalValue);
-
+  const roadmap = goal.roadmap as { method?: unknown; finalGoal?: unknown } | null;
+  if (!roadmap || typeof roadmap !== 'object' || !roadmap.method) return null;
+  const weeks = Array.isArray(goal.roadmapWeeks) ? goal.roadmapWeeks : [];
+  if (weeks.length === 0) return null;
+  const measure = measureOf(goal.roadmap, weeks);
+  const startValue = measure ? startingPointValue(goal) : null;
+  const practice = (goal.dailyTasks ?? []).filter((task) => task.isRestDay !== true && task.notOffered !== true);
   return {
-    kind: 'number',
-    start: startValue === null ? null : formatAmount(startValue, target.unit),
+    kind: measure ? 'number' : 'other',
+    start: measure && startValue !== null ? formatAmount(startValue, measure.unit) : null,
     startValue,
-    reached: reachedValue === null ? null : formatAmount(reachedValue, target.unit),
-    reachedValue,
-    reachedWeek,
-    goal: shown(goalValue),
-    goalValue,
-    unit: target.unit,
-    direction: target.direction,
-    dayNinetyTarget: lowered ? shown(target.value) : null,
-    reachedDayNinety: lowered && reaches(reachedValue, target.value),
-    madeIt,
-    nearGoal,
-    weeksFinished,
-    lastDone: null,
+    goal: typeof roadmap.finalGoal === 'string' && roadmap.finalGoal.trim() ? roadmap.finalGoal.trim() : null,
+    unit: measure?.unit ?? null,
+    direction: measure?.direction ?? null,
+    weeksFinished: weeks.filter((week) => week.status === 'completed' && week.jumped !== true).length,
+    sessionsDone: practice.filter((task) => task.status === 'completed').length,
+    sessionsPlanned: practice.length,
     ...lengthOf(goal),
   };
 }
 
 /** NP-8: the Progress line's summary of a plan. */
 export function journeySummary(result: JourneyResult): string {
-  if (result.kind === 'number' && result.reached) return result.start ? `${result.start} → ${result.reached}` : `reached ${result.reached}`;
-  return `${result.weeksFinished} of ${result.totalWeeks ?? TOTAL_WEEKS} weeks`;
+  const weeks = `${result.weeksFinished} of ${result.totalWeeks ?? TOTAL_WEEKS} weeks`;
+  return result.sessionsPlanned > 0 ? `${weeks}, ${result.sessionsDone} of ${result.sessionsPlanned} sessions` : weeks;
 }
 
 /** `Goal.roadmap.previousPlan`; missing or unreadable means none. */
@@ -185,7 +130,7 @@ export function readPreviousPlan(roadmap: unknown): PreviousPlan | null {
   return plan as unknown as PreviousPlan;
 }
 
-/** The level a next plan starts from (NP-3, NP-9, NP-10): the one the person gave, else the last measured result. */
+/** The level a next plan starts from (NP-3, NP-9, NP-10): the one the person gave. */
 export interface NextPlanStart {
   value: number | null;
   unit: string | null;
@@ -193,33 +138,29 @@ export interface NextPlanStart {
 }
 
 /**
- * NP-3: the answer goal create adds, worded for the roadmap prompt. `given` is the level the person typed (after a
- * break, or with no result logged); it wins over the last measured result. Null when a number goal has neither.
+ * NP-3: the answer goal create adds, worded for the roadmap prompt. A goal measured in a number needs `given`, the
+ * level the person typed (there is no measured result any more): null without it. Any other goal says how much of the
+ * last plan they did, and starts from there.
  */
 export function nextPlanStart(result: JourneyResult, mode: NextPlanMode, given: number | null): NextPlanStart | null {
-  const question = 'Their level now, measured at the end of their last 90-day plan';
-  if (result.kind === 'deliverable') {
-    const done = result.lastDone ? `; the last piece of work they finished: ${result.lastDone}` : '';
+  const question = 'Their level now, at the end of their last plan';
+  const did = `They finished ${journeySummary(result)} of a plan for "${result.goal ?? 'this goal'}".`;
+  if (result.kind !== 'number' || !result.unit) {
     return {
       value: null,
       unit: null,
-      answer: {
-        id: MEASURED_LEVEL_ID,
-        question,
-        answer: `They finished ${result.weeksFinished} of ${result.totalWeeks ?? TOTAL_WEEKS} weeks of a plan for "${result.goal}"${done}. Start from there, not from the beginning.`,
-      },
+      answer: { id: MEASURED_LEVEL_ID, question, answer: `${did} ${mode === 'fresh' ? 'Start again at a level they can keep up.' : 'Start from there, not from the beginning.'}` },
     };
   }
-  const value = given ?? (mode === 'fresh' ? null : result.reachedValue);
-  if (value === null || !result.unit) return null;
+  if (given === null) return null;
   const from = result.start ? ` (that plan started at ${result.start})` : '';
   return {
-    value,
+    value: given,
     unit: result.unit,
     answer: {
       id: MEASURED_LEVEL_ID,
       question,
-      answer: `${formatAmount(value, result.unit)}${from}. This is where they are now; it replaces any earlier level in these answers.`,
+      answer: `${formatAmount(given, result.unit)}${from}. ${did} This is where they are now; it replaces any earlier level in these answers.`,
     },
   };
 }

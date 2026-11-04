@@ -41,14 +41,11 @@ export type ActionReason =
   | 'out_of_order'
   | 'rest_gap'
   | 'would_not_move'
-  | 'week_not_open'
   | 'week_close_disabled'
   | 'not_auto_closed'
   | 'reflection_saved'
   | 'choice_needed'
-  | 'weekly_update_disabled'
   | 'no_daily_time_check'
-  | 'no_checkpoint'
   | 'last_week'
   | 'week_closing';
 
@@ -63,6 +60,7 @@ export const ACTION_ERRORS: Record<ActionReason, string> = {
   not_held: 'There is no open swap offer for this day.',
   not_same_week: 'Both days must be in the same week.',
   not_open: 'Both days must still be open.',
+  // A test day stored before the weekly tests went (2026-10-30) stays where it is.
   test_day: 'The test day cannot be swapped.',
   holds_carry: 'A day that already received a moved step cannot be swapped.',
   past_due: 'That step is due before then, so it cannot move there.',
@@ -77,8 +75,6 @@ export const ACTION_ERRORS: Record<ActionReason, string> = {
   out_of_order: 'This swap would put steps out of order.',
   rest_gap: 'This swap would put two hard sessions too close together.',
   would_not_move: 'This step cannot be moved this week.',
-  // B-68: a test result for a week that is still pending.
-  week_not_open: "That week hasn't started yet.",
   // Weekly update M1.2b (WU-28, WU-31): the close's line and a late reflection.
   week_close_disabled: 'This action is not available yet.',
   not_auto_closed: 'This week did not close on its own.',
@@ -86,11 +82,8 @@ export const ACTION_ERRORS: Record<ActionReason, string> = {
   // Weekly update M1.5b (WU-38 (1)): a break past the limit waits for the person's choice on Today.
   choice_needed: 'Choose how to continue on Today first.',
   // Weekly update M3.3b (WU-58 (4)): the daily-time answer.
-  weekly_update_disabled: 'This action is not available yet.',
   no_daily_time_check: 'There is no daily-time question to answer.',
-  // Checkpoints (section 7): no open offer for that week, or "accept" on a line-only one.
-  no_checkpoint: 'There is no checkpoint to answer.',
-  // Edit my schedule (B-108): week 12 has no week after it to change.
+  // Edit my schedule (B-108): the final week has no week after it to change.
   last_week: "This is your plan's final week, so there is no next week to change.",
   week_closing: 'Your next week is being prepared. Open Today first, then change your schedule.',
 };

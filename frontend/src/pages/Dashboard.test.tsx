@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Dashboard } from './Dashboard';
 import { useGoal } from '../context/GoalContext';
@@ -49,20 +49,30 @@ const renderWith = (goal: Goal, reconciliation: Reconciliation | null = null) =>
 describe('Dashboard', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('shows the day ring, a status sentence from real state, and what is inside the session', () => {
+  it('ND-29, ND-33: today first with one way in, the goal ring, the numbers, the 90-day map, what comes next and a status sentence from real state', () => {
     renderWith(buildGoal('pending'));
 
-    expect(screen.getByRole('img', { name: 'Day 28 of 90' })).toBeInTheDocument();
-    expect(screen.getByText('62 days to go')).toBeInTheDocument();
     expect(screen.getByText('1 of 3 sessions done this week. Keep the rhythm.')).toBeInTheDocument();
+    // ND-18: the goal the person chose, never the stored outcome.
+    expect(screen.getByText('Run a 10K')).toBeInTheDocument();
+    expect(screen.queryByText('Run 10 kilometers in under 50 minutes')).not.toBeInTheDocument();
+
+    expect(screen.getByText('1 session done, 30 min of practice.')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '1 of 1 practice days done so far. Day 28 of 90.' })).toBeInTheDocument();
+    // ND-33: the goal ring, the numbers and what comes next.
+    expect(screen.getByRole('progressbar', { name: 'Progress toward your goal' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Your numbers' })).toBeInTheDocument();
+    expect(screen.getByText('Streak')).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: '1 of 3 sessions done this week' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Coming up' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /See the whole roadmap/ })).toHaveAttribute('href', '/roadmap');
 
     expect(screen.getByRole('heading', { level: 2, name: 'Tempo intervals' })).toBeInTheDocument();
     expect(screen.getByText('Key session')).toBeInTheDocument();
-    const steps = screen.getByRole('list', { name: 'Inside this session' });
-    expect(within(steps).getAllByRole('listitem')).toHaveLength(3);
-    expect(within(steps).getByText('Warm up jog')).toBeInTheDocument();
-    expect(screen.getByText('+ 1 more step')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Begin today/i })).toHaveAttribute('href', '/');
+    expect(screen.getByText('30 min · 4 steps · at 07:00')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Start session/i })).toHaveAttribute('href', '/');
+    // ND-19: an overview; nothing here writes.
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it("B-50, B-52: steps from a done day are left out of today's card and the later day's title", () => {
@@ -88,10 +98,6 @@ describe('Dashboard', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Warm up jog' })).toBeInTheDocument();
     expect(screen.queryByText('Hill repeats build strength.')).not.toBeInTheDocument();
     expect(screen.getByText('18 min · 2 steps · at 07:00')).toBeInTheDocument();
-    const steps = screen.getByRole('list', { name: 'Inside this session' });
-    expect(within(steps).queryByText('Hill repeats')).not.toBeInTheDocument();
-    expect(within(steps).getAllByRole('listitem')).toHaveLength(2);
-    expect(within(screen.getByRole('region', { name: 'Coming up' })).getByText('Wednesday · Lesson review')).toBeInTheDocument();
   });
 
   it('B-55: a done day that no longer holds the step (it gave it up) hides nothing', () => {
@@ -106,24 +112,18 @@ describe('Dashboard', () => {
     };
     renderWith(goal);
     expect(screen.getByRole('heading', { level: 2, name: 'Hill repeats' })).toBeInTheDocument();
-    expect(within(screen.getByRole('list', { name: 'Inside this session' })).getAllByRole('listitem')).toHaveLength(2);
+    expect(screen.getByText(/2 steps/)).toBeInTheDocument();
   });
 
-  it('shows what is coming up without inventing anything', () => {
-    renderWith(buildGoal('pending'));
-
-    const strip = screen.getByRole('region', { name: 'Coming up' });
-    expect(within(strip).getByText('Later this week')).toBeInTheDocument();
-    expect(within(strip).getByText(/Wednesday/)).toBeInTheDocument();
-    expect(within(strip).getByText('First 5km continuous run')).toBeInTheDocument();
-  });
-
-  it('celebrates a finished day and hides the step preview', () => {
+  // ND-31: the Dashboard has no goal box; the goal's own page is the Roadmap (RoadmapPage.test.tsx).
+  it('celebrates a finished day, counts it, and leads back to Today without starting anything', () => {
     renderWith(buildGoal('completed'));
 
-    expect(screen.getByText('Well done. Today is complete.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Review today/i })).toBeInTheDocument();
-    expect(screen.queryByRole('list', { name: 'Inside this session' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Today is done.' })).toBeInTheDocument();
+    expect(screen.getByText('Session 2 is in the books. Come back tomorrow.')).toBeInTheDocument();
+    expect(screen.getByText('2 sessions done, 1 hour of practice.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /See today/i })).toHaveAttribute('href', '/');
+    expect(screen.queryByText(/min · /)).not.toBeInTheDocument();
   });
 
   describe('status line from the reconcile signals (missed sessions M3.1, ND-19)', () => {
@@ -254,12 +254,12 @@ describe('Dashboard: swap offer and a day set aside (missed sessions M3.3, ND-19
 
   beforeEach(() => vi.clearAllMocks());
 
-  it('says the swap-offer line, with no buttons; "Begin today" leads to Today', () => {
+  it('says the swap-offer line, with no buttons; "Start session" leads to Today', () => {
     renderWith(buildGoal('pending'), body(offer('t1', -1, 't2', 0)));
     expect(screen.getByText("Yesterday's key session didn't happen. Do it today instead?")).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Swap the days' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Just move its main step' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Begin today/i })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: /Start session/i })).toHaveAttribute('href', '/');
     calm();
   });
 
@@ -339,5 +339,27 @@ describe('Dashboard: method-aware recovery lines (M3.3, section 6, AC-7)', () =>
   it.each(LINES.filter(([, to]) => to !== 0))('%s (to %s): set aside today', (kind, to) => {
     renderWith(buildGoal('pending'), body(kind, 0, to));
     expect(screen.getByText("Today's session is set aside. No catching up needed.")).toBeInTheDocument();
+  });
+});
+
+describe('Dashboard: the count since the last visit (ND-29)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
+
+  it('names what was added since the last visit, and remembers the count for next time', () => {
+    localStorage.setItem('achivii:dashboard-seen:g', '0');
+    renderWith(buildGoal('completed'));
+    expect(screen.getByText('2 more since your last visit.')).toBeInTheDocument();
+    expect(localStorage.getItem('achivii:dashboard-seen:g')).toBe('2');
+  });
+
+  it('a first visit, or nothing new, names nothing', () => {
+    const { unmount } = renderWith(buildGoal('pending'));
+    expect(screen.queryByText(/since your last visit/)).not.toBeInTheDocument();
+    unmount();
+    renderWith(buildGoal('pending'));
+    expect(screen.queryByText(/since your last visit/)).not.toBeInTheDocument();
   });
 });

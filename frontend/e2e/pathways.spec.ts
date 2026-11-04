@@ -81,7 +81,7 @@ const expectTapTarget = async (target: Locator) => {
   expect(Math.min(box!.width, box!.height)).toBeGreaterThanOrEqual(44);
 };
 
-test.describe('Home without a goal (ND-28)', () => {
+test.describe('Home without a goal (ND-36)', () => {
   test('Home asks for the goal and starts onboarding with it', async ({ page }) => {
     const calls = await mockApi(page, { clarify: baseline.presetClarify });
     await signIn(page);

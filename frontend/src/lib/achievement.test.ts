@@ -5,7 +5,6 @@ import {
   computeTotalPracticeMinutes,
   formatPracticeDuration,
   formatAchievementDate,
-  extractFinalTestEvaluation,
 } from './achievement';
 
 describe('Achievement Metrics Calculation Engine (M9.3-R4)', () => {
@@ -38,17 +37,6 @@ describe('Achievement Metrics Calculation Engine (M9.3-R4)', () => {
         keyMilestone: 'Consistent pacing',
         targetIntensity: 3,
         plannedMinutes: 200,
-        test: {
-          type: 'timer',
-          instructions: 'Run 5k at threshold pace',
-          passIf: 'Under 22:30',
-        },
-        testResult: {
-          value: '22:10',
-          passed: true,
-          unit: 'mm:ss',
-          note: 'Strong finish',
-        },
         created_at: '2026-06-01T00:00:00Z',
       },
       {
@@ -62,16 +50,6 @@ describe('Achievement Metrics Calculation Engine (M9.3-R4)', () => {
         keyMilestone: 'Negative splits',
         targetIntensity: 4,
         plannedMinutes: 240,
-        test: {
-          type: 'timer',
-          instructions: 'Run 8k with progressive splits',
-          passIf: 'Under 36:00',
-        },
-        testResult: {
-          value: '35:45',
-          passed: true,
-          unit: 'mm:ss',
-        },
         created_at: '2026-06-01T00:00:00Z',
       },
       {
@@ -85,24 +63,6 @@ describe('Achievement Metrics Calculation Engine (M9.3-R4)', () => {
         keyMilestone: 'Official sub-45 10k',
         targetIntensity: 5,
         plannedMinutes: 260,
-        target: {
-          kind: 'number',
-          metric: '10k Race Time',
-          value: 45,
-          unit: 'min',
-          direction: 'lower_is_better',
-        },
-        test: {
-          type: 'timer',
-          instructions: 'Run 10 kilometers all out on verified flat course',
-          passIf: 'Sub-45:00',
-        },
-        testResult: {
-          value: '44:18',
-          passed: true,
-          unit: 'mm:ss',
-          note: 'Goal achieved!',
-        },
         created_at: '2026-06-01T00:00:00Z',
       },
     ],
@@ -117,7 +77,7 @@ describe('Achievement Metrics Calculation Engine (M9.3-R4)', () => {
     ],
   };
 
-  it('1. Computes verified summary metrics with accurate adherence and benchmark counts', () => {
+  it('1. Computes verified summary metrics with accurate adherence and weeks done (no benchmarks since 2026-10-30)', () => {
     const summary = computeAchievementSummary(baseGoal);
 
     expect(summary.goalId).toBe('goal-achieve-1');
@@ -129,20 +89,16 @@ describe('Achievement Metrics Calculation Engine (M9.3-R4)', () => {
     expect(summary.adherenceRate).toBe(75);
     // Completed weeks: 3
     expect(summary.completedWeeks).toBe(3);
-    // Total benchmarks: 3, achieved: 3
-    expect(summary.totalBenchmarks).toBe(3);
-    expect(summary.benchmarksAchieved).toBe(3);
+    expect(summary).not.toHaveProperty('totalBenchmarks');
     expect(summary.completedAt).toBe('2026-08-30T10:00:00Z');
   });
 
-  it('weekly update M1.5b: a jumped week is not a week done and not a benchmark (WU-40 (1))', () => {
+  it('weekly update M1.5b: a jumped week is not a week done (WU-40 (1))', () => {
     const jumped = baseGoal.roadmapWeeks!.map((w) =>
       w.weekNumber === 8 ? { ...w, jumped: true, closedBy: 'jumped' as const, testResult: null } : w
     );
     const summary = computeAchievementSummary({ ...baseGoal, roadmapWeeks: jumped });
     expect(summary.completedWeeks).toBe(2);
-    expect(summary.totalBenchmarks).toBe(2);
-    expect(summary.benchmarksAchieved).toBe(2);
   });
 
   it('2. Handles 100% adherence and bounds percentage safely', () => {
@@ -169,8 +125,6 @@ describe('Achievement Metrics Calculation Engine (M9.3-R4)', () => {
     expect(summary.completedSessions).toBe(0);
     expect(summary.totalPlannedSessions).toBe(0);
     expect(summary.adherenceRate).toBe(0);
-    expect(summary.benchmarksAchieved).toBe(0);
-    expect(summary.totalBenchmarks).toBe(0);
     expect(summary.completedAt).toBeDefined();
   });
 
@@ -192,17 +146,5 @@ describe('Achievement Metrics Calculation Engine (M9.3-R4)', () => {
     expect(formatAchievementDate('2026-08-30T10:00:00Z')).toBe('August 30, 2026');
     expect(formatAchievementDate(null)).toBe('Completed');
     expect(formatAchievementDate('invalid')).toBe('Completed');
-  });
-
-  it('7. Extracts final capstone test evaluation accurately', () => {
-    const evalData = extractFinalTestEvaluation(baseGoal);
-    expect(evalData).not.toBeNull();
-    expect(evalData?.testType).toBe('timer');
-    // B-84: a lower-is-better target says so.
-    expect(evalData?.targetDeliverable).toBe('10k Race Time: 45 min or less');
-    expect(evalData?.instructions).toBe('Run 10 kilometers all out on verified flat course');
-    expect(evalData?.passCriteria).toBe('Sub-45:00');
-    expect(evalData?.result?.value).toBe('44:18');
-    expect(evalData?.result?.passed).toBe(true);
   });
 });

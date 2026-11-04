@@ -1,7 +1,7 @@
 import type { FollowUpQuestion } from '../../types';
 
 /**
- * ND-28: onboarding asks one thing per page. The essentials need no AI call, so they come first while clarify reads
+ * ND-36: onboarding asks one thing per page. The essentials need no AI call, so they come first while clarify reads
  * the goal in the background; a vague goal gets a page of concrete goals to choose from; then clarify's questions, one
  * per page; then the summary.
  */

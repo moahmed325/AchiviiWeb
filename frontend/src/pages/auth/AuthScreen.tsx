@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Button, Field, IconButton, Input, LoadingState, TextLink } from '../../components/ui';
+import { FIRST_NAME_MAX } from '../../lib/firstName';
 import { useAuth } from '../../context/AuthContext';
 import { useGoal } from '../../context/GoalContext';
 import {
@@ -68,6 +69,7 @@ export const AuthScreen: React.FC<{ mode: AuthMode }> = ({ mode }) => {
 
   const prefillEmail = (location.state as { email?: string } | null)?.email ?? '';
   const [email, setEmail] = useState(prefillEmail);
+  const [firstName, setFirstName] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [attempted, setAttempted] = useState(false);
@@ -103,7 +105,7 @@ export const AuthScreen: React.FC<{ mode: AuthMode }> = ({ mode }) => {
     setPending(true);
     try {
       if (mode === 'signup') {
-        if ((await signup(email.trim(), password)) === 'confirm_email') {
+        if ((await signup(email.trim(), password, firstName)) === 'confirm_email') {
           setConfirmSent(true);
           setPending(false);
           submitting.current = false;
@@ -167,6 +169,17 @@ export const AuthScreen: React.FC<{ mode: AuthMode }> = ({ mode }) => {
         <>
           {apiStatus === 'offline' && <OfflineNotice />}
           <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-5">
+            {mode === 'signup' && (
+              <Field label="First name" showOptional>
+                <Input
+                  name="first-name"
+                  autoComplete="given-name"
+                  maxLength={FIRST_NAME_MAX}
+                  value={firstName}
+                  onChange={(event) => setFirstName(event.target.value)}
+                />
+              </Field>
+            )}
             <Field label="Email" error={errors.email}>
               <Input
                 ref={emailRef}

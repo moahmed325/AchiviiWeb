@@ -18,7 +18,7 @@ interface StepFocusProps {
 }
 
 /**
- * ND-28: a goal with no clear finish line ("get fit") becomes one the person can reach or measure by day 90. They pick
+ * ND-36: a goal with no clear finish line ("get fit") becomes one the person can reach or measure by day 90. They pick
  * one of clarify's suggestions or write their own; the plan is then built for that goal.
  */
 export const StepFocus: React.FC<StepFocusProps> = ({ goal, options, chosen, onChoose, onChangeGoal, onBack }) => {

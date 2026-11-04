@@ -25,15 +25,10 @@ export const AppShell: React.FC<AppShellProps> = ({ children, previewPath }) => 
   const { pathname } = useLocation();
   const { token } = useAuth();
   const navigate = useNavigate();
-  const { activeGoal, heldClose, answerHeldClose, pendingChoice } = useGoal();
+  const { activeGoal, pendingChoice } = useGoal();
   const [pathwaysOpen, setPathwaysOpen] = useState(false);
   const [coachOpen, setCoachOpen] = useState(false);
   const mode = shellMode(pathname, Boolean(token), previewPath);
-
-  // WU-14: going to another screen while Today's test card waits counts as Skip (GoalProvider sits above the router).
-  useEffect(() => {
-    if (heldClose && pathname !== '/') void answerHeldClose();
-  }, [pathname, heldClose, answerHeldClose]);
 
   // M1.5b (WU-38 (1)): while a choice past the limit waits, a screen that shows the goal sends them to Today's card.
   // Leaving answers nothing (unlike the test card), and goal creation stays open for "Start a fresh plan".

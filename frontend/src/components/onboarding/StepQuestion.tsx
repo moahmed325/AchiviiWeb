@@ -24,7 +24,7 @@ interface StepQuestionProps {
   onContinue: () => void;
 }
 
-/** One of clarify's questions on its own page (ND-28): options, an answer in the person's own words, and skip. */
+/** One of clarify's questions on its own page (ND-36): options, an answer in the person's own words, and skip. */
 export const StepQuestion: React.FC<StepQuestionProps> = ({
   question,
   shown,

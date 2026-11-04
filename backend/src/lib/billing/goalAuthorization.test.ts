@@ -18,7 +18,7 @@ describe("new custom-goal authorization", () => {
     expect(hasProEntitlement).toHaveBeenCalledWith("user-a");
   });
 
-  it("allows anyone their first plan (ND-28)", async () => {
+  it("allows anyone their first plan (ND-36)", async () => {
     hasProEntitlement.mockResolvedValue(false);
     count.mockResolvedValue(0);
     const { authorizeNewCustomGoal } = await import("./goalAuthorization.js");

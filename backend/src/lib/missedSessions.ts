@@ -65,7 +65,7 @@ function parseClockTime(value: unknown): number | null {
   return match ? Number(match[1]) * 60 + Number(match[2]) : null;
 }
 
-function addDays(dateStr: string, days: number): string {
+export function addDays(dateStr: string, days: number): string {
   const t = Date.parse(`${dateStr}T00:00:00Z`);
   return new Date(t + days * 86_400_000).toISOString().slice(0, 10);
 }

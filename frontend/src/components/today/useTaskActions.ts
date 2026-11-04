@@ -2,7 +2,7 @@ import { useCallback, useLayoutEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useGoal } from '../../context/GoalContext';
 import { updateDailyTask } from '../../lib/api';
-import type { DailyTask, Goal } from '../../types';
+import type { DailyTask, Feel, Goal } from '../../types';
 
 export type TaskWriteResult = { ok: true; task: DailyTask } | { ok: false; error: Error };
 
@@ -75,5 +75,8 @@ export function useTaskActions() {
     [latest, write],
   );
 
-  return { toggleComplete, saveNote, finishFocus };
+  /** How a done session felt (no weekly tests, section 7); null clears it. The server keeps it only on a done task. */
+  const saveFeel = useCallback((task: DailyTask, feel: Feel | null) => write(latest(task).id, { feel }), [latest, write]);
+
+  return { toggleComplete, saveNote, finishFocus, saveFeel };
 }

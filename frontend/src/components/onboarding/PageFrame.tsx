@@ -22,7 +22,7 @@ interface PageFrameProps {
   children?: React.ReactNode;
 }
 
-/** One onboarding page (ND-28): one question, its answer, and Continue. */
+/** One onboarding page (ND-36): one question, its answer, and Continue. */
 export const PageFrame: React.FC<PageFrameProps> = ({
   eyebrow,
   title,

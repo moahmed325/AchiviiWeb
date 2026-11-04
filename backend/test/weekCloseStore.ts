@@ -82,6 +82,9 @@ function goalWith(goal: Row, args: Row): Row {
   if (relations.dailyTasks) {
     full.dailyTasks = db.state.tasks.filter((t) => t.goalId === goal.id && matches(t, relations.dailyTasks.where)).sort(byDay);
   }
+  if (relations.weeklyReviews) {
+    full.weeklyReviews = db.state.reviews.filter((r) => r.goalId === goal.id).sort((a, b) => a.weekNumber - b.weekNumber);
+  }
   return structuredClone(args.select ? project(full, args.select) : full);
 }
 
@@ -127,6 +130,13 @@ db.prisma = {
       else db.state.reviews.push({ id: `rev-${++nextId}`, ...structuredClone(create) });
       return structuredClone(found ?? db.state.reviews.at(-1)!);
     }),
+    update: vi.fn(async ({ where, data }: Row) => {
+      const key = where.goalId_weekNumber;
+      const review = key ? db.state.reviews.find((r) => r.goalId === key.goalId && r.weekNumber === key.weekNumber) : db.state.reviews.find((r) => r.id === where.id);
+      if (!review) throw new Error('review not found');
+      apply(review, data);
+      return structuredClone(review);
+    }),
     updateMany: vi.fn(async ({ where, data }: Row) => {
       const rows = db.state.reviews.filter((r) => matches(r, where));
       rows.forEach((r) => apply(r, data));
@@ -134,6 +144,19 @@ db.prisma = {
     }),
   },
   dailyTask: {
+    // The scenario sweep drives the task route (`PATCH /tasks/:id`), which reads one task with its goal.
+    findUnique: vi.fn(async ({ where, include }: Row) => {
+      const task = db.state.tasks.find((t) => t.id === where.id);
+      if (!task) return null;
+      const goal = include?.goal ? db.state.goals.find((g) => g.id === task.goalId) : undefined;
+      return structuredClone(goal ? { ...task, goal } : task);
+    }),
+    update: vi.fn(async ({ where, data }: Row) => {
+      const task = db.state.tasks.find((t) => t.id === where.id);
+      if (!task) throw new Error('task not found');
+      apply(task, data);
+      return structuredClone(task);
+    }),
     findMany: vi.fn(async ({ where }: Row) => structuredClone(db.state.tasks.filter((t) => matches(t, where)).sort(byDay))),
     deleteMany: vi.fn(async ({ where }: Row) => {
       const before = db.state.tasks.length;

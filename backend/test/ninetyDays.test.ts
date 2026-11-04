@@ -184,11 +184,10 @@ beforeEach(() => {
   vi.mocked(getAuthUser).mockResolvedValue(USER as never);
   vi.mocked(generateWeekPlan).mockImplementation(async (input) => lessonWeek(input.weekStart, input.whereTheyAre, input.planVariant, input.restWeekdays));
   for (const method of ['log', 'warn', 'error', 'info'] as const) vi.spyOn(console, method).mockImplementation(() => {});
-  // The production switch states (WEEKLY_UPDATE_ENABLED is off there).
+  // The production switch states.
   vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
   vi.stubEnv('MISSED_SESSIONS_CARRY_ENABLED', 'true');
   vi.stubEnv('METHOD_RECOVERY_ENABLED', 'true');
-  vi.stubEnv('WEEKLY_UPDATE_ENABLED', '');
   vi.stubEnv('CUSTOM_RECOVERY_PROFILES_ENABLED', '');
 });
 

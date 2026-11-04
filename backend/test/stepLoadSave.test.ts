@@ -78,22 +78,16 @@ function step(title: string, priority: number, minutes: number, extra: Record<st
 
 const RUN_LOAD = { runMinutes: 20, runKm: 3, hardRun: false };
 
-/** Steady: days 1-3 and 5-6 practice, 4 and 7 rest, day 6 the test; 30 minutes a day. */
+/** Steady: days 1-3 and 5-6 practice, 4 and 7 rest; 30 minutes a day. */
 function runWeek() {
   return {
     days: Array.from({ length: 7 }, (_, index) => {
       const dayNumber = index + 1;
       if (dayNumber === 4 || dayNumber === 7) return { dayNumber, isKeySession: false, title: 'Rest and recover', whyToday: 'Recovery.', steps: [] };
-      const steps =
-        dayNumber === 6
-          ? [
-              step('Jog gently before the test', 2, 5, { kind: 'weekly_test' }),
-              step('Weekly test: 5 km at a steady effort', 1, 25, { kind: 'weekly_test', highLoad: true, load: { runKm: 5, hardRun: false } }),
-            ]
-          : [
-              step(`Easy run ${dayNumber}`, 1, 20, { kind: 'easy_session', highLoad: true, load: RUN_LOAD }),
-              step(`Calf and hip circuit ${dayNumber}`, 2, 10, { kind: 'strength_and_mobility' }),
-            ];
+      const steps = [
+        step(`Easy run ${dayNumber}`, 1, 20, { kind: 'easy_session', highLoad: true, load: RUN_LOAD }),
+        step(`Calf and hip circuit ${dayNumber}`, 2, 10, { kind: 'strength_and_mobility' }),
+      ];
       return {
         dayNumber,
         isKeySession: dayNumber === 2,

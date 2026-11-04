@@ -138,8 +138,8 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-10 | Custom-goal gating | Product | Decided (A) | 10 |
 | ND-11 | Coach scope | Product | Decided (A) | 10 |
 | ND-12 | Phase 2 frontend scope additions (`api.ts` status, `GoalContext` failure flag) | Architecture | Decided (A) | 2 |
-| ND-13 | Onboarding step order around the clarify wait | Design | Superseded by ND-28 | 3 |
-| ND-14 | Grouping clarify questions into "starting point" and "success" | Design | Superseded by ND-28 | 3 |
+| ND-13 | Onboarding step order around the clarify wait | Design | Superseded by ND-36 | 3 |
+| ND-14 | Grouping clarify questions into "starting point" and "success" | Design | Superseded by ND-36 | 3 |
 | ND-15 | Scope of the single pathway library | Architecture | Decided (A) | 3 |
 | ND-16 | Pre-existing onboarding bugs fixed in Phase 3 | Architecture | Decided (A) | 3 |
 | ND-17 | TED-style speech pathway matching | Product | Decided (A) | 4 |
@@ -150,7 +150,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-22 | Gemini only; no fallback model for now | Architecture | Decided | — |
 | ND-26 | The landing page is built around picking a goal | Product | Decided | — |
 | ND-27 | Visitors see their plan before signing up | Product | Decided | — |
-| ND-28 | Achivii starts from the goal the person types | Product | Decided | — |
+| ND-36 | Achivii starts from the goal the person types | Product | Decided | — |
 
 **What blocks the next phase:** Phases 0–9 are complete. Phase 10 (Premium Architecture) is unblocked and **IN PROGRESS** (M10.1 complete: ND-9 Decided A, ND-10 Decided A, ND-11 Decided A, OD-1c Decided B). M10.2 (Coach placement and honest state) is active.
 
@@ -1494,7 +1494,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Superseded by ND-28 |
+| Status | Superseded by ND-36 |
 | Category | Design |
 | Needed by | 3 (M3.5) |
 | Raised | 2026-09-23 — Phase 3 kickoff (W2) |
@@ -1519,7 +1519,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Superseded by ND-28 |
+| Status | Superseded by ND-36 |
 | Category | Design |
 | Needed by | 3 (M3.5) |
 | Raised | 2026-09-23 — Phase 3 kickoff (W2) |
@@ -1826,6 +1826,122 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 ---
 
+### ND-28 — A missed-day reminder email, on by default
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-26 — Mo: the missed-sessions work only helps people who come back to the app |
+| Decided | 2026-10-26 — Mo |
+
+**Context.** Nothing brought people back after a miss: the app sent no reminders of any kind, so the calm notices, the gentle return and the 10-minute version reached only people who opened the app anyway.
+
+**Decision.** **Email only, on by default, sent through Resend.** One gentle email the morning after a missed practice day ("No catch-up needed", a link to today's step, the 10-minute version; the step is not named, as opening the app can still move it), at most one per gap and never two within three days, never on a rest day. Off from the email (its link asks to confirm; the mail app's one-click unsubscribe) or from the Account menu, which shows the setting only while reminders are really sent. Behind the `MISSED_DAY_REMINDERS_ENABLED` switch. How it works and the setup steps: `docs/architecture/reminders.md`.
+
+**Consequences.**
+* `User` gains `remindersEnabled` (default true) and `lastReminderAt` (migration `20261026180000_add_user_reminders`).
+* An hourly GitHub Action calls the API, because the free Render service sleeps. Nothing is sent until Resend, the Render settings and the repository secret are set up and the switch is turned on.
+* Web push is not built; it can follow later for people who install the app.
+
+**Related.** ND-25; `lib/reminders/`, `routes/reminders.ts`, `.github/workflows/reminders.yml`.
+
+---
+
+### ND-29 — The Dashboard shows how the person is doing
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-29 — Mo: the Dashboard's look and features; a review found it repeated Today almost one for one |
+| Decided | 2026-10-29 — Mo ("make it as visually appealing as possible while keeping visual noise as low as possible") |
+
+**Context.** The Dashboard (ND-19) showed the same day count, step card and week dots as Today, and its only action led to Today, where a second tap started the step. Nothing on it showed change over time, its big ring measured days passed rather than work done, and its goal line showed the stored outcome (ND-18 says the person's own goal leads).
+
+**Decision.** **Today is "what do I do now"; the Dashboard is "how am I doing, and what's next".** Top to bottom: a greeting with the status line and the person's goal (`rawGoal`); every session ever done, counted up on arrival from the count at the last visit, with "+N since your last visit"; today's session with one Start that opens the session on Today at once; the goal's own measure (a number goal: the share of the gap from the start to the target closed, its line with better always up, "New best"; a deliverable goal: milestones reached, or this week's milestone); the whole plan as a 90-day map, a cell per day, done days lit in order on arrival, a day not done only an empty cell. Every number is stored state; the page still writes nothing (ND-19). Celebration is light and count-based, not confetti (BP 18), and every animation has the reduced-motion path.
+
+**Consequences.**
+* `lib/dashboard.ts` (`journeyDays`, `practiceTotals`, `goalTrend`, `milestones`, `nextTestDay`, `greetingFor`), `components/dashboard/` (`Momentum`, `GoalProgress`, `JourneyMap`), styles in `index.css` ("Dashboard v3"), token `--text-tally`.
+* Today reads `startSession` from the Start link's router state and opens Focus once, only when today's step can be started there (not ahead, done or a rest day, no swap question waiting).
+* The day ring, the step list and the coming-up strip are gone from the Dashboard; the last visit's count is kept per browser (`localStorage`), so a new device counts up from zero.
+
+**Related.** ND-18, ND-19.
+
+---
+
+### ND-30 — Today puts the step first
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-29 — Mo: Today's look and features; a review found the step below a large header, its steps folded away, and little change when a session was done |
+| Decided | 2026-10-29 — Mo ("Everything sounds great, make sure everything you build is visually satisfying") |
+
+**Context.** Today opened with the goal, "90-day outcome: 49.98" (the stored `clarifiedOutcome`, raw), a giant "33 / 90" and a progress line; on a phone Start sat behind the bottom bar. The session's steps were behind "Show the 2 steps", Start and Mark complete looked equally important, up to five folded rows sat under the card, finishing changed only one small line, and the same review was offered from the week and from a footer. Some copy was filler ("This is your pivotal session…", "Implementation intention", "Deliberate practice logged"), and a test day's heading printed the stored test type ("TYPING_TEST BENCHMARK").
+
+**Decision.** **Today is "do the thing", fast.** A one-line header (day, week, phase, the goal) over a thin thread; the step with its steps listed and opening in place; one gold Start with "Already did it? Mark complete" beneath; a real done state ("Session N is in the books.", the light, the next day's preview, quiet "Do it again" and "Mark not done"); the 10-minute version, when and where, and the resource in one "More" row; a test day's "Today's check"; plain rest-day words. The end of a focus session names the session's number and the week, with today's mark lighting up. The week's marks are the day buttons; the review is offered only where it is due; no footer links. Everything the plan does (missed sessions, swaps, carry, checkpoints, week close) is unchanged.
+
+**Consequences.**
+* Today no longer shows the stored outcome (ND-18's "beneath it" applies to the Roadmap only); `90-day outcome` stays on the Roadmap.
+* The weekly review can no longer be opened (to draft) before its last day from Today; the bridge says when it opens (ND-24).
+* `Design.md` §6 describes the new order; styles in `index.css` ("Today v2", and the focus completion block).
+
+**Related.** ND-18, ND-24, ND-29.
+
+### ND-35 — No weekly tests: next week follows what was done
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-30 — Mo: "remove the whole weekly test thing ... next week's plan should just be made based on what tasks the user completed or not" |
+| Decided | 2026-10-30 — Mo: drop weekly targets and checkpoints too, remove the final test, hide tests on running goals from the next week written; yes to the pace rule, removing the weekly update call, keeping the review, and keeping the safety limits on sessions; plus a one-tap "how did it feel" after each session, used weekly |
+
+**Context.** Every week had a target and a test day; the weekly update call set the remaining targets from the logged result, checkpoints at weeks 4 and 8 offered to lower the day-90 target, and the plan ended in a final test. A week whose test wasn't logged was held behind a test card, re-tests followed two hard weeks, and many results were never logged, so the plan often adapted to nothing.
+
+**Decision.** **No weekly tests, targets, checkpoints or final test.** Each week has a focus inside the method's phases; a goal counted in one number keeps its `measure` and starting point (for the safety limits and a next plan). The next week is written from last week's sessions done and planned, the key sessions skipped, a one-tap feel after each done session (Too easy, Just right, Too hard) and the day notes, word for word, with a pace line code picks: 80%+ done and mostly too easy, a bigger step; 80%+, move on; 50-79% or mostly too hard, the same level with a small step; under 50%, repeat a little lighter. The weekly review stayed as "how did it go" and a note, but since ND-32 the app no longer offers it; weeks close on their own. The week load limits still check every session. The running week is never rewritten (mid-week changes are idea I-32).
+
+**Consequences.**
+* Removed: the weekly update call and `WEEKLY_UPDATE_ENABLED` (nothing reads it; delete it in Render), checkpoints, re-tests, late tests, the test-result route, the safe target climb and the week-12 line, the light-test swap, the final test, and their app screens.
+* A next plan of a measured goal always asks the level now; the end screen says weeks and sessions done.
+* Stored targets, tests and results on goals made before stay in the database, unread and never sent (backlog B-111 drops them). `DailyTask.feel` is one additive column.
+* Spec: `docs/features/no-weekly-tests/plan.md`; how it works: `docs/architecture/plan-v2.md`.
+
+**Related.** ND-21, ND-24, ND-31, ND-32, B-109.
+
+---
+
+### ND-31 — A calmer app: no glow, one Roadmap page, a plain Pathways dialog
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-30 — Mo: "remove the fact that everything is super glowy", "roadmap and progress can be in one single page", "fix pathway tab it's too much", Today "too much info", the Dashboard's map cells too big and its right-hand box unwanted |
+| Decided | 2026-10-30 — Mo |
+
+**Context.** Every in-app page carried glow: gold halos on marks and buttons, breathing lights, warm light washes and an orb behind cards, a light sweep on done cards, a shiny gold button. The Roadmap repeated the day count and a "You are here" card above a stack of folding phase cards, while the Progress page (a separate menu entry) held a percentage, a phase strip and a hidden history; neither showed the weekly targets or the results against them. The Pathways dialog had an eyebrow, icon tabs, gold cards with a methods line, an empty preview panel and a footer status.
+
+**Decision.**
+* **No glow anywhere in the app.** Gold is a flat colour; raised surfaces keep `shadow-raised`, never a coloured shadow (Design.md §1).
+* **Roadmap and Progress are one page at `/roadmap`** (`/progress` redirects; one menu entry): the goal, the climb (the weekly targets as a staircase with each check), every week by phase with dates, target and what was done, the finish line, and why the plan works. Supersedes ND-8's separate Progress page.
+* **Dashboard:** GitHub-sized map cells; the goal box on the right is removed (the climb lives on the Roadmap).
+* **Pathways dialog:** plain tabs and a plain list (title, summary, daily time), the custom goal beneath; no preview panel, gold cards or footer status.
+* **Today:** no progress line under the header; the week sits under the card without a box.
+
+**Consequences.** `ProgressPage`, `components/progress/`, `StrategicRoadmap`, `GoalProgress`, `PathwayCard`, `PathwayAscent` and their styles are removed. New: `lib/plan.ts` (week rows, `formatMetric`: times as 54:40), `components/journey/Staircase.tsx`.
+
+**Related.** ND-8, ND-29, ND-30.
+
+---
+
 # 5 — SUPERSEDED AND REJECTED
 
 * **OD-3** — Superseded by **ND-19** on 2026-10-07.
@@ -1874,7 +1990,57 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-10-26 | ND-25 Decided by Mo: a missed key session is swapped onto its receiving day without asking (the question only if the swap is refused); moved steps show the day they came from. |
 | 2026-10-26 | ND-26 Decided by Mo: the landing page is rebuilt around picking a goal, calmer and without invented proof; D-15, D-17 and D-18 marked Superseded. |
 | 2026-10-29 | ND-27 Decided by Mo: a free goal card opens a plan preview (two schedule questions, then the shape of the visitor's 90 days) before sign-up. |
-| 2026-10-29 | ND-28 Decided by Mo (stage 1 of 4): the landing page and Home ask for the goal first; onboarding asks one thing per page, routine first, turns a vague goal into a measurable one, and is open to visitors, who sign up from the summary. ND-13 and ND-14 marked Superseded. |
+| 2026-10-26 | ND-28 Decided by Mo: a missed-day reminder email, on by default, sent through Resend, behind `MISSED_DAY_REMINDERS_ENABLED`. |
+| 2026-10-29 | ND-29 Decided by Mo: the Dashboard shows how the person is doing (sessions counted up, goal measure, 90-day map); its Start opens the session on Today in one tap. |
+| 2026-10-29 | ND-30 Decided by Mo: Today puts the step first (one-line header, steps listed, one Start, a real done state, the focus session's end names the session and the week). |
+| 2026-10-30 | ND-31 Decided by Mo: no glow in the app; Roadmap and Progress are one page; a plain Pathways dialog; GitHub-sized map cells and no goal box on the Dashboard; less on Today. |
+| 2026-10-30 | ND-32 Decided by Mo: the Roadmap at a glance (progress card, week cells, this week, finish line); the Dashboard's map spread wide; greeting by first name; no weekly review by hand (weeks close on their own). |
+| 2026-10-30 | ND-33 Decided by Mo: the Dashboard with a goal ring, streak and number tiles, the map with a key and Coming up; the Roadmap with a progress card and the whole plan by phase, week details folded; no late-test card on Today. |
+| 2026-10-31 | ND-35 Decided by Mo: no weekly tests, targets, checkpoints or final test; next week follows sessions done, the feel taps and the notes. The ND-33 goal ring and Roadmap progress count the plan's weeks and days instead of a measured number, and Coming up has no weekly check. |
+| 2026-11-04 | ND-36 Decided by Mo (stage 1 of 4): the landing page and Home ask for the goal first; onboarding asks one thing per page, routine first, turns a vague goal into a measurable one, and is open to visitors, who sign up from the summary. ND-13 and ND-14 marked Superseded. |
+
+### ND-32 — The Roadmap at a glance, a name in the greeting, no weekly review by hand
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-30 — Mo: the Roadmap "too complicated and feels overwhelming … only keeping the info the users would want to see, nothing excess"; the Dashboard's map "very compacted"; "greet the people by their name"; Today's weekly review: "if we don't need to log the week … remove that" |
+| Decided | 2026-10-30 — Mo |
+
+**Context.** ND-31's Roadmap showed a staircase chart with phase bands, axis labels and a legend, then every week by phase with dates, target, check, result, days done and the review's insight. The Dashboard's map used fixed 12px cells in a corner of its panel. The Dashboard said "Good morning." with no name, and no name was stored. Today still offered "Start weekly review" on a week's last day, although weeks close on their own the morning after (`WEEK_CLOSE_ENABLED`, on in production since 2026-10-19), with the week's test asked on Today first.
+
+**Decision.**
+* **Roadmap, top to bottom:** the goal and "Week N of N · phase · finishes {date}"; one progress card (now and the goal as large numbers, one bar for the share of the way covered, "Started at …"; milestones reached for a goal of deliverables); every week as one cell under its phase (done filled, this week ringed, a jumped week dashed); this week's focus, target, check and days done; the finish line (date and final test); "Why this plan works", closed. No chart, legend, per-week dates, results or review lines.
+* **Dashboard map:** the cells share the panel's width (square, up to 2.75rem), the plan's first and last dates beneath.
+* **Greeting by name:** "Good morning, Mo." The first name is kept in the Supabase user's metadata (`first_name`), asked (optional) at sign-up, editable in Account, offered once on the Dashboard ("Add your name") when missing; a Google sign-in uses Google's given name. Nothing in the database changes.
+* **No weekly review by hand:** Today and the Dashboard no longer offer it. A week closes on its own after its last day; Today's bridge says "Next week opens after {day}."
+
+**Consequences.** `WeeklyReviewModal` and the parts only it used (`ReviewSummaryCard`, `ReviewReflectionStep`, `PhaseGateOutcomeCard`, `AdaptationMomentStep`, `lib/reviewDraft.ts`, `submitWeeklyReview`, `isWeekReviewDue`), `Staircase` and its styles are removed. The test entry (`ReviewTestResultStep`, `LightTestEntry`) stays, used by Today's week-close card and the late-test card. The backend review route stays (B-110). With `WEEK_CLOSE_ENABLED` off, weeks would no longer close at all; it must stay on.
+
+**Related.** ND-24, ND-29, ND-31.
+
+### ND-33 — A Dashboard worth opening, the Roadmap with progress and every week, no late-test card
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-30 — Mo: the Dashboard "looks ugly … make it visually appealing and add things that are valuable"; "the weekly log thing is still displayed on the today page"; the Roadmap should show progress "in a visually pleasing way" and "the whole roadmap too with details … collapsing the details while keeping the main titles" |
+| Decided | 2026-10-30 — Mo |
+
+**Context.** After ND-32 the Dashboard was a greeting, one card and a large map; the Roadmap showed week cells without titles or details. Today still showed "This week's test is still open" with "Log my result" after a test day passed, although the week's test is asked for when the week closes.
+
+**Decision.**
+* **Dashboard:** the greeting and one status line; today's session beside a goal card (a ring for the share of the way covered: the goal's own measure, else milestones, else the plan's days; now and the goal); four tiles (streak, sessions counted up since the last visit, practice time, this week with a dot per day); the map of days with a key; "Coming up" (this week's check, the next phase, the finish line) with a link to the Roadmap.
+* **Roadmap:** a progress card (ring, now and goal, the weekly checks as a small line toward a dashed goal line, weeks done, sessions, checks met), then the whole plan by phase: each phase's name, weeks, state, purpose and a bar of its weeks; every week's title and state always shown; a week's dates, days done, target, check, result and the review's line fold open on tap (this week open); the finish line; why the plan works, closed.
+* **No late-test card on Today:** the week's test is asked for once, when the week closes (`WeekTestFirst`). The re-test entry stays.
+
+**Consequences.** New: `ProgressRing` (ui), `practiceStreak` (`lib/dashboard.ts`), `comingUp` (`lib/plan.ts`). Removed: `LateTestCard`, `lib/lateTest.ts`, the old roadmap styles.
+
+**Related.** ND-29, ND-31, ND-32.
 
 ### PAY-1 — Achivii Pro pricing
 
@@ -1955,7 +2121,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 ---
 
-### ND-28 — Achivii starts from the goal the person types
+### ND-36 — Achivii starts from the goal the person types
 
 | Field | Value |
 |---|---|

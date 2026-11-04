@@ -4,7 +4,7 @@ import { GoalStartForm } from '../../onboarding/GoalStartForm';
 import { Eyebrow } from '../Section';
 import { GoalPreview } from '../GoalPreview';
 
-/** ND-28: the landing page asks one question first. Enter opens onboarding on its first page, no account needed. */
+/** ND-36: the landing page asks one question first. Enter opens onboarding on its first page, no account needed. */
 export const Hero: React.FC = () => {
   const { startTypedGoal } = usePathwayLaunch();
   return (

@@ -7,7 +7,7 @@ interface StepGoalProps {
   onStartGoal: (goal: string) => void;
 }
 
-/** ND-28: one question to start, in the person's own words. A vague goal is turned into a measurable one later. */
+/** ND-36: one question to start, in the person's own words. A vague goal is turned into a measurable one later. */
 export const StepGoal: React.FC<StepGoalProps> = ({ rawGoal, onStartGoal }) => (
   <div className="flex flex-col">
     <StepHeader

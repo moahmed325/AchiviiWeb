@@ -57,25 +57,20 @@ import { PATHWAY_PROFILES, RECOVERY_TEMPLATES, templateProfile } from '../src/li
 import { goalRouter } from '../src/routes/goal.js';
 
 const SWITCH = 'CUSTOM_RECOVERY_PROFILES_ENABLED';
-const number = { kind: 'number', metric: 'Loaves', value: 1, unit: 'loaves', direction: 'higher_is_better' };
-const deliverable = { kind: 'deliverable', description: 'A finished talk' };
-const weekTest = { type: 'checklist', instructions: 'Do the test', passIf: 'Done' };
 const phases = [{ name: 'Base', purpose: 'Build.', startWeek: 1, endWeek: 12 }];
 
-const roadmapResult = (week12Target: object = number) => ({
+const roadmapResult = () => ({
   ok: true,
   roadmap: {
     finalGoal: 'The goal',
-    finalTest: 'The final test',
     startingPoint: { value: null, description: 'Now' },
+    measure: null,
     method: { name: 'Tartine method', creator: '', summary: 'Long fermentation.', whyChosen: 'Fits.', rules: ['Feed the starter'] },
     phases,
     weeks: Array.from({ length: 12 }, (_, index) => ({
       weekNumber: index + 1,
       phase: 'Base',
       focus: 'Focus',
-      target: index === 11 ? week12Target : number,
-      test: weekTest,
     })),
   },
 });
@@ -125,8 +120,8 @@ afterEach(() => {
 
 const savedRecovery = () => db.goalCreate.mock.calls[0][0].data.roadmap.recovery;
 
-async function create(body: object, week12Target: object = number, stream = false) {
-  vi.mocked(generateRoadmap).mockResolvedValue(roadmapResult(week12Target) as never);
+async function create(body: object, stream = false) {
+  vi.mocked(generateRoadmap).mockResolvedValue(roadmapResult() as never);
   const res = await fetch(`${baseUrl}/api/goal/create`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t', ...(stream ? { Accept: 'text/event-stream' } : {}) },
@@ -161,7 +156,8 @@ describe('goal create and the profile call', () => {
       answers: [{ id: 'current_level', question: 'Level?', answer: 'New' }],
       method: { name: 'Tartine method', summary: 'Long fermentation.', rules: ['Feed the starter'] },
       phases,
-      weeklyTargets: Array.from({ length: 12 }, () => number),
+      weeklyFocus: Array.from({ length: 12 }, () => 'Focus'),
+      measure: null,
     });
     expect(vi.mocked(generateRecoveryProfile).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(generateWeekPlan).mock.invocationCallOrder[0]);
     expect(savedRecovery()).toEqual(modelProfile);
@@ -210,9 +206,9 @@ describe('goal create and the profile call', () => {
     expect(db.goalCreate).not.toHaveBeenCalled();
   });
 
-  it('MR-22: a pathway goal with a deliverable week 12 is saved with its profile', async () => {
+  it('MR-22: a pathway goal that makes one thing (a talk) is saved with its profile', async () => {
     const speech = { rawGoal: 'Give a TED talk', clarifiedOutcome: 'Deliver a 15-minute TED-style keynote' };
-    const { status } = await create(speech, deliverable);
+    const { status } = await create(speech);
     expect(status).toBe(201);
     expect(savedRecovery()).toEqual(PATHWAY_PROFILES.ted_speech_15min);
   });
@@ -230,9 +226,9 @@ describe('goal create and the profile call', () => {
   });
 
   it('the stream sends the same events with the switch on: no new step', async () => {
-    const { events: off } = await create(ORIGAMI, number, true);
+    const { events: off } = await create(ORIGAMI, true);
     process.env[SWITCH] = 'true';
-    const { events: on } = await create(ORIGAMI, number, true);
+    const { events: on } = await create(ORIGAMI, true);
     const shape = (events: Array<{ type: string; id?: string }>) => events.map((event) => `${event.type}:${event.id ?? ''}`);
     expect(shape(on)).toEqual(shape(off));
     expect(shape(on)).toEqual(['step:search', 'step:method', 'step:plan', 'done:']);

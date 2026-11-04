@@ -21,7 +21,7 @@ export const pathwayLaunch = (pathway: CertifiedPathway): GoalLaunch => ({
   draftGoal: pathway.title,
 });
 
-/** ND-28: a goal typed on the landing page or Home; onboarding opens on its first question with clarify under way. */
+/** ND-36: a goal typed on the landing page or Home; onboarding opens on its first question with clarify under way. */
 export const typedGoalLaunch = (goal: string): GoalLaunch => ({
   to: '/onboarding',
   state: { draftGoal: goal, switchGoal: true },

@@ -90,7 +90,7 @@ test.describe('onboarding payload (R-4 baseline)', () => {
     expect(normalizeCreateBody(calls.create[0].body)).toEqual(normalizeCreateBody(baseline.customCreate.body));
   });
 
-  test('a visitor types the goal on the landing page, answers everything, signs up, and the plan is built (ND-28)', async ({ page }) => {
+  test('a visitor types the goal on the landing page, answers everything, signs up, and the plan is built (ND-36)', async ({ page }) => {
     const calls = await mockApi(page, { clarify: baseline.customClarify });
     await page.goto('/');
     await page.getByRole('textbox', { name: 'What do you want to achieve?' }).first().fill(CUSTOM_GOAL);
@@ -164,7 +164,7 @@ test.describe('onboarding payload (R-4 baseline)', () => {
   });
 });
 
-test.describe('a vague goal (ND-28)', () => {
+test.describe('a vague goal (ND-36)', () => {
   test('gets a page of concrete goals after the daily time, and the plan is built for the one chosen', async ({ page }) => {
     const options = ['Run 5K without stopping', 'Do 20 push-ups in a row', 'Walk 10,000 steps a day'];
     const calls = await mockApi(page, {

@@ -21,15 +21,14 @@ import { getAuthUser } from '../src/routes/auth.js';
 import { goalRouter } from '../src/routes/goal.js';
 import { generateWeekPlan, weekLayout, type WeekDayPlan } from '../src/lib/ai/weekPlan.js';
 import { RECOVERY_TEMPLATES } from '../src/lib/recovery/index.js';
-import { weekCloseEnabled, weeklyUpdateEnabled } from '../src/lib/weekClose/switch.js';
+import { weekCloseEnabled } from '../src/lib/weekClose/switch.js';
 import { AUTO_CLOSE_INSIGHT, gapDays } from '../src/lib/weekClose/close.js';
-import { FALLBACK_HOLD_INSIGHT } from '../src/lib/weekClose/update.js';
 
 const USER = { id: 'u1', email: 'u1@achivii.com', timezone: 'UTC' };
 const START = new Date('2026-09-21T00:00:00Z'); // a Monday
 const target = { kind: 'number', metric: 'Words', value: 100, unit: 'words', direction: 'higher_is_better' };
 const test = { type: 'quiz', instructions: 'Take the quiz', passIf: '80%' };
-const SWITCHES = ['WEEK_CLOSE_ENABLED', 'WEEKLY_UPDATE_ENABLED'] as const;
+const SWITCHES = ['WEEK_CLOSE_ENABLED'] as const;
 
 /** Week 1 closes at 01:00 on Monday 2026-09-28 (bedtime 23:00 plus 2 hours, UTC). */
 const BEFORE_CLOSE = '2026-09-28T00:30:00Z';
@@ -179,24 +178,18 @@ function holdModelCalls(count: number) {
 }
 
 describe('the switches (RULE-18)', () => {
-  it('each is on only when exactly "true"; the update switch acts only with the week close on', () => {
+  it('on only when exactly "true"', () => {
     expect(weekCloseEnabled()).toBe(false);
     vi.stubEnv('WEEK_CLOSE_ENABLED', 'TRUE');
     expect(weekCloseEnabled()).toBe(false);
-    vi.stubEnv('WEEKLY_UPDATE_ENABLED', 'true');
-    expect(weeklyUpdateEnabled()).toBe(false);
     vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
     expect(weekCloseEnabled()).toBe(true);
-    expect(weeklyUpdateEnabled()).toBe(true);
-    vi.stubEnv('WEEKLY_UPDATE_ENABLED', '1');
-    expect(weeklyUpdateEnabled()).toBe(false);
   });
 });
 
 describe.each([
-  ['both switches off', {}],
-  ['only WEEK_CLOSE_ENABLED on', { WEEK_CLOSE_ENABLED: 'true' }],
-  ['both switches on', { WEEK_CLOSE_ENABLED: 'true', WEEKLY_UPDATE_ENABLED: 'true' }],
+  ['the switch off', {}],
+  ['WEEK_CLOSE_ENABLED on', { WEEK_CLOSE_ENABLED: 'true' }],
 ])('the review guard (B-59, WU-27), %s', (_name, env: Record<string, string>) => {
   beforeEach(() => {
     for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
@@ -207,15 +200,15 @@ describe.each([
     vi.setSystemTime(new Date('2026-09-27T15:00:00Z'));
     const res = await review();
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ nextWeekNumber: 2, scorePercentage: 60, testResult: null });
+    expect(res.body).toMatchObject({ nextWeekNumber: 2, scorePercentage: 60 });
+    expect(res.body).not.toHaveProperty('testResult');
     expect(res.body.nextWeekTasks).toHaveLength(7);
     expect(db.week(1)).toMatchObject({ status: 'completed', closedBy: 'review', closedAt: new Date('2026-09-27T15:00:00Z'), reviewNotes: 'Went fine', executionScore: 60 });
     expect(db.week(2).status).toBe('active');
     expect(db.goal().currentWeek).toBe(2);
     expect(db.tasksOf(2)).toHaveLength(7);
-    // M3.1: with both switches on the review runs the weekly update; with no model here it is the fallback, and the test
-    // was not logged, so it keeps next week at this week's target with its own line (WU-48).
-    const insight = env.WEEKLY_UPDATE_ENABLED ? FALLBACK_HOLD_INSIGHT : '3 of 5 sessions done.';
+    // No weekly tests (2026-10-30): no weekly update; the review's line is what was done.
+    const insight = '3 of 5 sessions done.';
     expect(db.state.reviews).toEqual([expect.objectContaining({ weekNumber: 1, reflection: 'Went fine', aiAdaptationInsight: insight })]);
     expect(db.prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(closeLines()).toEqual([expect.stringMatching(/^\[WeekClose\] goal g1 week 1 by review gapDays 0 ms \d+$/)]);
@@ -288,7 +281,6 @@ describe('POST /api/goal/close-week (RULE-8, RULE-9)', () => {
     const before = snapshot();
     for (const value of ['', 'TRUE', '1', 'yes']) {
       vi.stubEnv('WEEK_CLOSE_ENABLED', value);
-      vi.stubEnv('WEEKLY_UPDATE_ENABLED', 'true');
       expect(await closeWeek()).toEqual({ status: 200, body: { due: false } });
     }
     expect(db.prisma.goal.findFirst).not.toHaveBeenCalled();
@@ -296,9 +288,8 @@ describe('POST /api/goal/close-week (RULE-8, RULE-9)', () => {
     expect(db.state).toEqual(before);
   });
 
-  it('M4.1b, AC-19 state A: with both switches unset, { due: false } in both modes, reading and writing nothing', async () => {
+  it('M4.1b, AC-19 state A: with the switch unset, { due: false } in both modes, reading and writing nothing', async () => {
     vi.stubEnv('WEEK_CLOSE_ENABLED', '');
-    vi.stubEnv('WEEKLY_UPDATE_ENABLED', '');
     seed(1);
     const before = snapshot();
     expect(await closeWeek({ mode: 'check' })).toEqual({ status: 200, body: { due: false } });
@@ -330,9 +321,9 @@ describe('POST /api/goal/close-week (RULE-8, RULE-9)', () => {
     seed(1);
     const res = await closeWeek();
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ due: true, closedBy: 'auto', nextWeekNumber: 2, scorePercentage: 60, isMilestoneCheckpoint: false, testResult: null });
+    expect(res.body).toMatchObject({ due: true, closedBy: 'auto', nextWeekNumber: 2, scorePercentage: 60, isMilestoneCheckpoint: false });
     expect(res.body.review).toMatchObject({ weekNumber: 1, reflection: '', aiAdaptationInsight: AUTO_CLOSE_INSIGHT });
-    expect(AUTO_CLOSE_INSIGHT).toBe('Next week is ready. Your targets stay as planned.');
+    expect(AUTO_CLOSE_INSIGHT).toBe('Next week is ready.');
     expect(res.body.nextWeekTasks).toHaveLength(7);
     const now = new Date(MORNING_AFTER);
     expect(db.week(1)).toMatchObject({ status: 'completed', closedBy: 'auto', closedAt: now, reviewNotes: '', executionScore: 60 });
@@ -390,16 +381,14 @@ describe('POST /api/goal/close-week (RULE-8, RULE-9)', () => {
     expect(db.prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), { timeout: 15_000 });
   });
 
-  it('check mode answers due, the week and whether its test is logged, and closes nothing', async () => {
+  it('check mode answers due and the week, and closes nothing', async () => {
     closeOn();
     seed(1);
-    expect(await closeWeek({ mode: 'check' })).toEqual({ status: 200, body: { due: true, weekNumber: 1, testLogged: false, break: false, choice: null } });
+    expect(await closeWeek({ mode: 'check' })).toEqual({ status: 200, body: { due: true, weekNumber: 1, break: false, choice: null } });
     expect(generateWeekPlan).not.toHaveBeenCalled();
     expect(db.week(1).status).toBe('active');
     expect(db.goal()).toMatchObject({ currentWeek: 1, closeTriedAt: new Date(MORNING_AFTER), closeTriedWeek: 1 });
 
-    db.week(1).testResult = { value: 12, passed: true };
-    expect((await closeWeek({ mode: 'check' })).body).toEqual({ due: true, weekNumber: 1, testLogged: true, break: false, choice: null });
   });
 
   it('the first try is kept: a failed week write saves only the try, and later tries keep its time', async () => {
@@ -497,7 +486,6 @@ describe('the close line and a late reflection (weekly update M1.2b, WU-28, WU-3
     it('both refuse and read nothing (RULE-18)', async () => {
       await closedAuto();
       vi.stubEnv('WEEK_CLOSE_ENABLED', value);
-      vi.stubEnv('WEEKLY_UPDATE_ENABLED', 'true');
       const before = snapshot();
       vi.mocked(db.prisma.goal.findFirst).mockClear();
       for (const answer of [await lineSeen(), await reflect()]) {
@@ -508,10 +496,9 @@ describe('the close line and a late reflection (weekly update M1.2b, WU-28, WU-3
     });
   });
 
-  it('M4.1b, AC-19 state A: with both switches unset, both refuse and read nothing', async () => {
+  it('M4.1b, AC-19 state A: with the switch unset, both refuse and read nothing', async () => {
     await closedAuto();
     vi.stubEnv('WEEK_CLOSE_ENABLED', '');
-    vi.stubEnv('WEEKLY_UPDATE_ENABLED', '');
     const before = snapshot();
     vi.mocked(db.prisma.goal.findFirst).mockClear();
     for (const answer of [await lineSeen(), await reflect()]) {

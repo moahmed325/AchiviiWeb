@@ -9,7 +9,7 @@ import {
   type CarryTask,
 } from '../src/lib/carryForward.js';
 import { findOpenGap, type DayClassification, type DayKind } from '../src/lib/missedSessions.js';
-import { codeMadeRetestStep, retestStepFor } from '../src/lib/ai/retestStep.js';
+import { codeMadeRetestStep } from '../src/lib/ai/retestStep.js';
 
 // Missed sessions M2.2: the pure carry planner (ND-9 to ND-17, RULE-1, RULE-10).
 
@@ -377,9 +377,14 @@ describe('planCarries: swapped days (ND-18, M2.4)', () => {
 });
 
 // Weekly update M3.3a review: the re-test step ranks right after the day's own lead and is never carried or removed.
-describe('the re-test step in carry-forward (METHOD_RECOVERY_ENABLED off)', () => {
-  const TEST = { type: 'timer', instructions: 'Run 5 km; note the time', passIf: '5 km in 30 minutes' } as const;
-  const retest = (minutes: number): CarriedStep => ({ ...retestStepFor(TEST, minutes), stepNumber: 1, priority: 2 });
+// No weekly tests (2026-10-30): none is written now, but a week stored before can still hold one, as below.
+describe('a stored re-test step in carry-forward (METHOD_RECOVERY_ENABLED off)', () => {
+  const retest = (minutes: number): CarriedStep =>
+    step('Re-test: Run 5 km; note the time', 2, minutes, {
+      stepNumber: 1,
+      focusCue: "Your honest best on last week's test, done exactly as written.",
+      pitfallToAvoid: 'Changing the test to make it easier.',
+    });
   /** A re-test day as `checkWeekAnswer` writes it: the re-test first in order, ranked 2; the day's lead ranked 1. */
   const retestDay = (tag: string): CarriedStep[] => [
     retest(10),

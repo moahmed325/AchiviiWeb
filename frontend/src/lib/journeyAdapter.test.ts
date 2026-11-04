@@ -36,7 +36,6 @@ describe('journeyAdapter', () => {
     planVersion: 2,
     roadmap: {
       finalGoal: 'Run 10 kilometers in under 50 minutes',
-      finalTest: '10K time trial',
       startingPoint: { value: 0, description: 'Start' },
       method: { name: 'M', creator: 'C', summary: 'S', whyChosen: 'W', runnerUp: null, safety: 5, rules: [] },
       phases: THREE_PHASES,
@@ -129,7 +128,6 @@ describe('journeyAdapter', () => {
     it('supports v2 goals with 2 phases (e.g. 6 weeks + 6 weeks)', () => {
       const roadmap2Phases: GoalRoadmap = {
         finalGoal: 'Sub-50 10K',
-        finalTest: 'Run 10K time trial in under 50 minutes',
         startingPoint: { value: 65, description: 'Current 10K: 65 mins' },
         method: {
           name: 'Two-Stage Periodization',
@@ -174,7 +172,6 @@ describe('journeyAdapter', () => {
     it('supports v2 goals with 3 phases (e.g. 4 + 4 + 4)', () => {
       const roadmap3Phases: GoalRoadmap = {
         finalGoal: 'Sub-50 10K',
-        finalTest: 'Run 10K in 49:59',
         startingPoint: { value: 60, description: 'Base 60 mins' },
         method: {
           name: 'Classic 3-Phase Method',
@@ -210,7 +207,6 @@ describe('journeyAdapter', () => {
     it('supports v2 goals with 4 phases (e.g. 3 + 3 + 3 + 3)', () => {
       const roadmap4Phases: GoalRoadmap = {
         finalGoal: 'Complete B2 French',
-        finalTest: 'Pass DELF B2 Exam',
         startingPoint: { value: 1, description: 'A2 level' },
         method: {
           name: 'CEFR Quad-Step',
@@ -261,7 +257,6 @@ describe('journeyAdapter', () => {
         dailyTasks: createMockTasks(2),
         roadmap: {
           finalGoal: 'Goal',
-          finalTest: 'Test',
           startingPoint: { value: 0, description: 'Start' },
           method: { name: 'M', creator: 'C', summary: 'S', whyChosen: 'W', runnerUp: null, safety: 5, rules: [] },
           phases: THREE_PHASES,
@@ -294,11 +289,10 @@ describe('journeyAdapter', () => {
 
   describe('R3: Closing Stretch (OD-2 Option A)', () => {
     it('constructs closing stretch with days 85-90 and proper defaults', () => {
-      const result = toJourneyData({ ...baseGoal, roadmap: { ...baseGoal.roadmap!, finalTest: '' } }, '2026-09-01');
+      const result = toJourneyData(baseGoal, '2026-09-01');
       expect(result?.closingStretch).toEqual({
         startDay: 85,
         endDay: 90,
-        finalTest: 'Complete your 90-day final evaluation',
         finalGoal: 'Run 10 kilometers in under 50 minutes',
         status: 'upcoming',
         isCurrent: false,
@@ -415,7 +409,6 @@ describe('journeyAdapter', () => {
         currentWeek: 5,
         roadmap: {
           finalGoal: 'Goal',
-          finalTest: 'Test',
           startingPoint: { value: 0, description: '' },
           method: { name: 'M', creator: 'C', summary: 'S', whyChosen: 'W', runnerUp: null, safety: 5, rules: [] },
           phases: THREE_PHASES,
@@ -447,8 +440,6 @@ describe('journeyAdapter', () => {
       applyReconciliation: vi.fn(),
       reloadPlan: vi.fn(),
       closingWeek: false,
-      heldClose: null,
-      answerHeldClose: vi.fn(),
       pendingChoice: null,
       answerChoice: vi.fn(),
       closeFailed: false,

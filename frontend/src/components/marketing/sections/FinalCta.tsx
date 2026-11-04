@@ -4,7 +4,7 @@ import { Section, HEADING } from '../Section';
 import { usePathwayLaunch } from '../../pathways/launch';
 import { GoalStartForm } from '../../onboarding/GoalStartForm';
 
-/** ND-28: the page ends where it starts, with the goal in the visitor's own words. */
+/** ND-36: the page ends where it starts, with the goal in the visitor's own words. */
 export const FinalCta: React.FC = () => {
   const { startTypedGoal } = usePathwayLaunch();
   return (

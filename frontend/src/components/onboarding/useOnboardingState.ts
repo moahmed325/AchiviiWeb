@@ -48,7 +48,7 @@ export function resetPlanCreateGuardForTests(options?: { keepPrior?: boolean }) 
 }
 
 export interface OnboardingStateOptions {
-  /** Null for a visitor: they answer everything first and sign up from the summary (ND-28). */
+  /** Null for a visitor: they answer everything first and sign up from the summary (ND-36). */
   token: string | null;
   onGoalCreated: (goal: Goal) => void;
   /** A visitor or a signed-in person on the summary without an account yet: keep the answers and go to sign-up. */
@@ -85,7 +85,7 @@ const restorable = (draft: string, nextPlan: NextPlanLaunch | null): OnboardingS
 };
 
 /**
- * Onboarding flow state (ND-28): one page per question, browser history, clarify in the background, the vague-goal
+ * Onboarding flow state (ND-36): one page per question, browser history, clarify in the background, the vague-goal
  * page, answers, routine, the kept answers across sign-up, and plan creation. Presentation-only state (editors,
  * dialogs) stays with the page that renders it.
  */
@@ -219,7 +219,7 @@ export function useOnboardingState({
     }
   };
 
-  // Kept in this browser as the person goes, so a reload or the sign-up returns them to the same place (ND-28).
+  // Kept in this browser as the person goes, so a reload or the sign-up returns them to the same place (ND-36).
   useEffect(() => {
     if (nextPlan || !typedGoal || !page || page === 'goal') return;
     writeSnapshot({

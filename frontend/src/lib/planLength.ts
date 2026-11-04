@@ -3,8 +3,8 @@ import type { Goal } from '../types';
 /**
  * Plans that fit a fixed date (B-109, docs/features/fixed-date-plans/plan.md), as the server's `lib/planLength.ts`
  * works them out. Every plan was 12 weeks (90 days); a goal whose fixed date is under 12 weeks away has the whole weeks
- * that fit before it (4 to 11), the final test in the second-to-last week and an easier "ready" week after it. A goal
- * without `totalWeeks` (every goal made before it) is a 12-week plan, exactly as before.
+ * that fit before it (4 to 11), the last an easier "ready" week before the date. A goal without `totalWeeks` (every goal
+ * made before it) is a 12-week plan, exactly as before.
  */
 
 export const DEFAULT_WEEKS = 12;
@@ -20,30 +20,6 @@ type DaysGoal = Partial<Pick<Goal, 'totalWeeks' | 'startDate' | 'targetDate'>> |
 export function planWeeks(goal: LengthGoal): number {
   const weeks = goal?.totalWeeks;
   return typeof weeks === 'number' && Number.isInteger(weeks) && weeks >= MIN_WEEKS && weeks <= DEFAULT_WEEKS ? weeks : DEFAULT_WEEKS;
-}
-
-/** The week of the final test: week 12, or a shorter plan's week before its ready week. */
-export function finalWeekOf(goal: LengthGoal): number {
-  const weeks = planWeeks(goal);
-  return weeks === DEFAULT_WEEKS ? weeks : weeks - 1;
-}
-
-/** The easier week before the date, after the final test; null on a 12-week plan. */
-export function readyWeekOf(goal: LengthGoal): number | null {
-  const weeks = planWeeks(goal);
-  return weeks === DEFAULT_WEEKS ? null : weeks;
-}
-
-/** The weeks whose test measures the target: 4, 8 and 12, or every fourth week back from a shorter plan's final test. */
-export function bigTestWeeks(goal: LengthGoal): number[] {
-  const weeks: number[] = [];
-  for (let week = finalWeekOf(goal); week >= 3; week -= 4) weeks.unshift(week);
-  return weeks;
-}
-
-/** The big-test week a week builds toward; past the last big week (the ready week), the final week. */
-export function nextCheckWeekOf(weekNumber: number, goal: LengthGoal): number {
-  return bigTestWeeks(goal).find((week) => week >= weekNumber) ?? finalWeekOf(goal);
 }
 
 /**

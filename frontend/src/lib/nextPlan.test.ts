@@ -15,69 +15,51 @@ const result = (over: Partial<JourneyResult> = {}): JourneyResult => ({
   kind: 'number',
   start: '3 km',
   startValue: 3,
-  reached: '8 km',
-  reachedValue: 8,
-  reachedWeek: 12,
-  goal: '10 km',
-  goalValue: 10,
+  goal: 'Run 10 km without stopping',
   unit: 'km',
   direction: 'higher_is_better',
-  dayNinetyTarget: null,
-  reachedDayNinety: false,
-  madeIt: false,
-  nearGoal: false,
-  weeksFinished: 12,
-  lastDone: null,
+  weeksFinished: 11,
+  sessionsDone: 52,
+  sessionsPlanned: 60,
   ...over,
 });
 
-describe('day-90 words (NP-1, NP-2)', () => {
-  it('leads with where they started and what they reached', () => {
-    expect(journeyHeadline(result())).toBe('You went from 3 km to 8 km.');
-    expect(journeyHeadline(result({ start: null }))).toBe('You reached 8 km.');
-    expect(journeyHeadline(result({ reached: null, reachedValue: null }))).toBeNull();
-    expect(journeyHeadline(result({ kind: 'deliverable', weeksFinished: 11 }))).toBe('You finished 11 of 12 weeks.');
+// No weekly tests (2026-10-30): the end screen says what they did; a goal measured in a number always asks the level.
+describe('end-of-plan words (NP-1, NP-2)', () => {
+  it('leads with weeks and sessions done', () => {
+    expect(journeyHeadline(result())).toBe('You finished 11 of 12 weeks: 52 of 60 sessions.');
+    expect(journeyHeadline(result({ totalWeeks: 7, weeksFinished: 7 }))).toBe('You finished 7 of 7 weeks: 52 of 60 sessions.');
+    expect(journeyHeadline(result({ sessionsPlanned: 0, sessionsDone: 0 }))).toBe('You finished 11 of 12 weeks.');
     expect(journeyHeadline(null)).toBeNull();
   });
 
-  it('judges against the full goal and names a checkpoint’s day-90 target beside it', () => {
-    expect(journeyOutcome(result({ madeIt: true }))).toBe('You reached your goal: 10 km.');
-    expect(journeyOutcome(result())).toBe("Your goal: 10 km. That's your next plan.");
-    expect(journeyOutcome(result({ dayNinetyTarget: '7.5 km', reachedDayNinety: true }))).toBe(
-      "You reached your day-90 target: 7.5 km. Your goal: 10 km. That's your next plan."
-    );
-    expect(journeyOutcome(result({ dayNinetyTarget: '7.5 km' }))).toBe("Day-90 target: 7.5 km. Your goal: 10 km. That's your next plan.");
+  it('names where they started and the goal', () => {
+    expect(journeyOutcome(result())).toBe('You started at 3 km. Your goal: Run 10 km without stopping.');
+    expect(journeyOutcome(result({ kind: 'other', start: null }))).toBe('Your goal: Run 10 km without stopping.');
+    expect(journeyOutcome(result({ goal: null }))).toBeNull();
   });
 
   it('never says failed or missed', () => {
-    for (const r of [result(), result({ dayNinetyTarget: '7.5 km' }), result({ reached: null })]) {
+    for (const r of [result(), result({ weeksFinished: 2, sessionsDone: 3 })]) {
       expect(`${journeyHeadline(r)} ${journeyOutcome(r)}`).not.toMatch(/fail|miss/i);
     }
   });
 });
 
-describe('next plan choices (NP-5 to NP-7)', () => {
-  it('none without Pro, whatever the outcome', () => {
+describe('next plan choices (NP-6, NP-7)', () => {
+  it('none without Pro', () => {
     expect(nextPlanChoices(result(), false)).toEqual([]);
-    expect(nextPlanChoices(result({ madeIt: true }), false)).toEqual([]);
   });
 
-  it('made it: go further only', () => {
-    expect(nextPlanChoices(result({ madeIt: true }), true).map((c) => c.label)).toEqual(['Go further']);
+  it('keep going first, then go further', () => {
+    expect(nextPlanChoices(result(), true).map((c) => c.label)).toEqual(['Keep going', 'Go further']);
   });
 
-  it('fell short: keep going first; within one safe step: go further first', () => {
-    expect(nextPlanChoices(result(), true).map((c) => c.label)).toEqual(['Keep going to 10 km', 'Go further']);
-    expect(nextPlanChoices(result({ nearGoal: true }), true).map((c) => c.label)).toEqual(['Go further', 'Keep going to 10 km']);
-  });
-
-  it('asks the level after a break or with nothing measured (NP-9, NP-10)', () => {
-    expect(needsLevel(result(), 'keep_going')).toBe(false);
-    expect(needsLevel(result(), 'fresh')).toBe(true);
-    expect(needsLevel(result({ reachedValue: null, reached: null }), 'go_further')).toBe(true);
-    expect(needsLevel(result({ kind: 'deliverable' }), 'fresh')).toBe(false);
-    expect(levelQuestion(result({ reached: '6 km', reachedWeek: 7 }))).toBe('Your last result was 6 km, in week 7. Where are you now?');
-    expect(levelQuestion(result({ reached: null, reachedWeek: null }))).toBe('Where are you now?');
+  it('a goal measured in a number always asks the level (NP-9, NP-10); any other goal never', () => {
+    expect(needsLevel(result())).toBe(true);
+    expect(needsLevel(result({ kind: 'other', unit: null }))).toBe(false);
+    expect(levelQuestion(result())).toBe('You started this plan at 3 km. Where are you now?');
+    expect(levelQuestion(result({ start: null }))).toBe('Where are you now?');
   });
 });
 
@@ -89,9 +71,9 @@ describe('what onboarding is opened with (NP-3, NP-4)', () => {
     roadmap: { answers: [{ id: 'equipment', question: 'Gear?', answer: 'Road shoes' }] },
   } as unknown as Goal;
 
-  it('keep going carries the goal text and the measured level', () => {
-    expect(nextPlanLaunch(goal, 'keep_going')).toEqual({
-      request: { fromGoalId: 'g1', mode: 'keep_going' },
+  it('keep going carries the goal text and the level they typed', () => {
+    expect(nextPlanLaunch(goal, 'keep_going', 8)).toEqual({
+      request: { fromGoalId: 'g1', mode: 'keep_going', level: 8 },
       goalText: 'Run 10 km',
       isPreset: false,
       startsFrom: '8 km',

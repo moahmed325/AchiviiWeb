@@ -4,7 +4,7 @@ import { playSessionStart, playStepTransition, playSessionComplete } from '../li
 import { FocusHeader } from './focus/FocusHeader';
 import { FocusTimer } from './focus/FocusTimer';
 import { FocusStepRunner } from './focus/FocusStepRunner';
-import { FocusCompletion } from './focus/FocusCompletion';
+import { FocusCompletion, type SessionProgress } from './focus/FocusCompletion';
 import { Button } from './ui';
 import { StepInstructions } from './today/StepInstructions';
 import { visibleDay, type DoneDays } from '../lib/stepLines';
@@ -31,6 +31,8 @@ export interface FocusSessionModalProps {
    * `visibleDay` does (B-50, B-52, B-55).
    */
   doneDays?: DoneDays;
+  /** ND-30: what finishing adds (the session's number, the week with today lit), shown on the completion screen. */
+  progress?: SessionProgress;
   /** The person's first practice step (`isFirstStep`): the completion screen says so. */
   isFirstStep?: boolean;
 }
@@ -44,6 +46,7 @@ interface FocusSessionContentProps {
   onCompleteSession: (reflectionNotes?: string, options?: FocusCompletionOptions) => Promise<void> | void;
   startWith: 'full' | 'minimum';
   doneDays?: DoneDays;
+  progress?: SessionProgress;
   isFirstStep?: boolean;
 }
 
@@ -56,6 +59,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
   onCompleteSession,
   startWith,
   doneDays,
+  progress,
   isFirstStep = false,
 }) => {
   // Timer & UI State initialized cleanly on mount
@@ -215,11 +219,6 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
       aria-labelledby="focus-session-heading"
       className="fixed inset-0 z-50 bg-background text-text flex flex-col justify-between pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6 w-full h-full overflow-y-auto select-none"
     >
-      {/* Subtle atmospheric ambient glow */}
-      <div
-        className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_65%_55%_at_50%_40%,rgba(200,169,107,0.07),transparent_76%)]"
-        aria-hidden="true"
-      />
 
       {/* Top Controls Bar */}
       <FocusHeader
@@ -244,7 +243,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
                 variant="primary"
                 size="lg"
                 onClick={startSession}
-                className="w-full max-w-md mx-auto min-h-[56px] text-base shadow-[0_14px_40px_rgba(199,167,92,0.2)]"
+                className="w-full max-w-md mx-auto min-h-[56px] text-base"
               >
                 Start focused session
               </Button>
@@ -294,6 +293,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
             onSave={handleSaveAndExit}
             isSubmitting={isSubmitting}
             saveError={saveError}
+            progress={progress}
           />
         )}
       </div>
@@ -310,6 +310,7 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
   onCompleteSession,
   startWith = 'full',
   doneDays,
+  progress,
   isFirstStep,
 }) => {
   // The day as shown (B-50, B-52): its steps, minutes and text. The session only shows it; completing goes by id.
@@ -332,6 +333,7 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
       onCompleteSession={onCompleteSession}
       startWith={startWith}
       doneDays={doneDays}
+      progress={progress}
       isFirstStep={isFirstStep}
     />
   );

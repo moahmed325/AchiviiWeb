@@ -11,9 +11,8 @@ import type {
 } from '../types/journey';
 import { useGoal } from '../context/GoalContext';
 import { useUserTimezone } from '../context/AuthContext';
-import { week12NoteText } from './week12Line';
 import { dayNumber, isRestLike, todayKey } from './today';
-import { closingStartDay, planDays, planLengthLabel, planWeeks } from './planLength';
+import { closingStartDay, planDays, planWeeks } from './planLength';
 import { doneDaysOf, visibleDay, type DoneDays } from './stepLines';
 
 const DAY_MS = 1000 * 60 * 60 * 24;
@@ -178,8 +177,6 @@ export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | 
         phaseName: p.name,
         theme: weekTheme,
         focus: weekFocus,
-        target: matchingWeek?.target || null,
-        test: matchingWeek?.test || null,
         keyMilestone: matchingWeek?.keyMilestone,
         status: weekStatus,
         // M1.5b (WU-40 (1)): a jumped week has no score.
@@ -204,7 +201,7 @@ export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | 
     };
   });
 
-  // Closing Stretch (OD-2 Option A): Days 85-90 (B-109: after a shorter plan's last week) for the final test, reflection & arrival
+  // Closing Stretch (OD-2 Option A): Days 85-90 (B-109: after a shorter plan's last week) for reflection & arrival
   const isClosingStretchActive = currentDay >= closingStart && goal.status !== 'completed';
   const isClosingStretchCompleted = goal.status === 'completed';
 
@@ -220,7 +217,6 @@ export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | 
   const closingStretch: JourneyClosingStretch = {
     startDay: closingStart,
     endDay: totalDays,
-    finalTest: goal.roadmap?.finalTest || `Complete your ${planLengthLabel(goal)} final evaluation`,
     finalGoal: goal.roadmap?.finalGoal || goal.clarifiedOutcome || goal.rawGoal,
     status: closingStretchStatus,
     isCurrent: isClosingStretchActive,
@@ -258,13 +254,11 @@ export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | 
     rawGoal: goal.rawGoal,
     clarifiedOutcome: goal.clarifiedOutcome || goal.rawGoal,
     finalGoal: goal.roadmap?.finalGoal || goal.clarifiedOutcome || goal.rawGoal,
-    finalTest: goal.roadmap?.finalTest || undefined,
     methodName: goal.roadmap?.method?.name || goal.canonicalMethodName || undefined,
     methodAuthor: goal.roadmap?.method?.creator || goal.canonicalAuthority || undefined,
     phases,
     closingStretch,
     metrics,
-    week12Line: week12NoteText(goal),
   };
 }
 

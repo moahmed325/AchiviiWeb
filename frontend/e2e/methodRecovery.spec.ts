@@ -87,7 +87,7 @@ test.describe('Method-aware recovery on Today, the Dashboard and Focus (M3.3)', 
     const card = stepCard(page);
     const pickUp = `Pick up where ${weekday(-1)} stopped.`;
     await expect(card.getByText("Yesterday's session didn't happen. Today's session picks up where you left off.")).toBeVisible();
-    await main(page).getByRole('button', { name: 'Show the 2 steps' }).click();
+    await card.getByRole('button', { name: new RegExp(steps[0].title) }).click();
     const first = main(page).getByRole('listitem').filter({ hasText: steps[0].title });
     await expect(first.getByText(pickUp, { exact: true })).toBeVisible();
     await expect(first.getByText(steps[0].instructions, { exact: true })).toBeVisible();

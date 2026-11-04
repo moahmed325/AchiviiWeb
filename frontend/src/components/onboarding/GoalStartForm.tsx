@@ -17,7 +17,7 @@ interface GoalStartFormProps {
 }
 
 /**
- * ND-28: the one thing Achivii asks first, on the landing page, on Home before a first goal, and in onboarding.
+ * ND-36: the one thing Achivii asks first, on the landing page, on Home before a first goal, and in onboarding.
  * Enter starts at once; an example fills the field and starts too.
  */
 export const GoalStartForm: React.FC<GoalStartFormProps> = ({

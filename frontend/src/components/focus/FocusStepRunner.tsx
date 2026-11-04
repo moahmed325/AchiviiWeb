@@ -27,7 +27,7 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
   minimumVersion, onUseMinimumVersion, isMinimumVersion, doneDays,
 }) => {
   if (!currentStep) return (
-    <section className="max-w-xl mx-auto p-6 sm:p-8 rounded-2xl bg-surface border border-accent/20 shadow-[0_16px_50px_rgba(199,167,92,0.08)] text-center">
+    <section className="max-w-xl mx-auto p-6 sm:p-8 rounded-2xl bg-surface border border-accent/20 text-center">
       <p className="text-base text-text leading-relaxed mb-5">{fallbackTitle}</p>
       <Button variant="primary" onClick={onCompleteFallback} className="min-h-[48px] w-full">Complete session</Button>
     </section>
@@ -69,7 +69,7 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
           </details>
         )}
 
-        <Button variant="primary" onClick={onNextStep} className="w-full min-h-[52px] text-base shadow-[0_12px_32px_rgba(200,169,107,0.16)]">
+        <Button variant="primary" onClick={onNextStep} className="w-full min-h-[52px] text-base">
           {isMinimumVersion ? 'Complete minimum' : currentStepIndex === totalSteps - 1 ? 'Complete session' : 'Done — next'}
           <ArrowRight className="size-4 ml-2" />
         </Button>

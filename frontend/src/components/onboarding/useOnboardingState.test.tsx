@@ -443,7 +443,7 @@ const VAGUE_CLARIFY: GoalClarification = {
   focusOptions: ['Run 5K without stopping', 'Do 20 push-ups in a row', 'Walk 10,000 steps a day'],
 };
 
-describe('one page at a time (ND-28)', () => {
+describe('one page at a time (ND-36)', () => {
   it('starts a typed goal on its first essential, with clarify already under way', () => {
     clarify.mockReturnValue(new Promise(() => {}));
     const { result } = setup();
@@ -501,7 +501,7 @@ describe('one page at a time (ND-28)', () => {
   });
 });
 
-describe('a vague goal (ND-28)', () => {
+describe('a vague goal (ND-36)', () => {
   it('brings in the focus page after the daily time, then clarifies the goal chosen there', async () => {
     const chosen = deferred<GoalClarification>();
     clarify.mockResolvedValueOnce(VAGUE_CLARIFY).mockReturnValueOnce(chosen.promise);
@@ -543,7 +543,7 @@ describe('a vague goal (ND-28)', () => {
   });
 });
 
-describe('a visitor (ND-28)', () => {
+describe('a visitor (ND-36)', () => {
   async function readyVisitor() {
     clarify.mockResolvedValue(CUSTOM_CLARIFY);
     const onSignUp = vi.fn();

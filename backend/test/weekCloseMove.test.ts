@@ -176,7 +176,7 @@ beforeEach(() => {
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'info').mockImplementation(() => {});
-  for (const name of ['WEEK_CLOSE_ENABLED', 'WEEKLY_UPDATE_ENABLED', 'MISSED_SESSIONS_CARRY_ENABLED', 'METHOD_RECOVERY_ENABLED']) vi.stubEnv(name, '');
+  for (const name of ['WEEK_CLOSE_ENABLED', 'MISSED_SESSIONS_CARRY_ENABLED', 'METHOD_RECOVERY_ENABLED']) vi.stubEnv(name, '');
 });
 
 afterEach(() => {
@@ -320,13 +320,11 @@ describe('a close after a gap (RULE-13, RULE-14, WU-13, WU-33 (2)), WEEK_CLOSE_E
 });
 
 describe('WEEK_CLOSE_ENABLED off (RULE-18, R-7, AC-19)', () => {
-  // M4.1b (WU-62 (1)): state A (both unset) and state D (only WEEKLY_UPDATE_ENABLED) must agree.
+  // M4.1b (WU-62 (1)): state A (the switch unset).
   it.each([
-    ['both switches unset', ''],
-    ['only WEEKLY_UPDATE_ENABLED on', 'true'],
-  ])('%s: a late review closes the week exactly as before: no gap, no move, no days not offered', async (_name, update) => {
+    ['the switch unset', ''],
+  ])('%s: a late review closes the week exactly as before: no gap, no move, no days not offered', async (_name, _update) => {
     vi.stubEnv('WEEK_CLOSE_ENABLED', '');
-    vi.stubEnv('WEEKLY_UPDATE_ENABLED', update);
     seed();
     expect((await reviewWeek2(atGap(4))).status).toBe(200);
     expect(db.goal()).toMatchObject({ currentWeek: 3, movedDays: 0, startDate: START, targetDate: TARGET });

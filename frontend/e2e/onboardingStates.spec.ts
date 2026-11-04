@@ -52,7 +52,7 @@ test.afterEach(async ({}, testInfo) => {
 const onlyLoggedFailures = () =>
   expect(consoleErrors.filter((e) => !/Clarification error|Failed to fetch|Couldn't design|TypeError/.test(e))).toEqual([]);
 
-/** ND-28: a goal typed on Home before a first plan, which (like the landing page) writes the draft goal. */
+/** ND-36: a goal typed on Home before a first plan, which (like the landing page) writes the draft goal. */
 const startFromHome = async (page: Page, goal = PRESET_GOAL) => {
   await page.goto('/');
   await startGoal(page, goal);

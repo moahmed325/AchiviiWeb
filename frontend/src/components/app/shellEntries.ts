@@ -14,7 +14,7 @@ export function shellMode(pathname: string, signedIn: boolean, previewPath?: str
   if ((pathname === '/' && !signedIn) || AUTH_ROUTES.includes(pathname) || (previewPath && pathname === previewPath)) {
     return 'chromeless';
   }
-  // ND-28: onboarding is open to visitors and keeps its top bar for them too.
+  // ND-36: onboarding is open to visitors and keeps its top bar for them too.
   if (pathname === '/onboarding') return 'focused';
   if (!signedIn) return 'bare';
   return 'app';
@@ -28,9 +28,6 @@ export interface ShellEntries {
   roadmapActive: boolean;
   /** Roadmap needs an active goal; without one ProtectedRoute would send it to onboarding, so it leads nowhere real. */
   showRoadmap: boolean;
-  progressActive: boolean;
-  /** Progress needs an active goal — same rationale as showRoadmap (ND-8 Option A). */
-  showProgress: boolean;
 }
 
 /** Today is active on `/` and `/achievement` (OD-3, M9.3). */
@@ -39,9 +36,8 @@ export function shellEntries(pathname: string, hasGoal: boolean): ShellEntries {
     dashboardActive: pathname === '/dashboard',
     showDashboard: hasGoal,
     todayActive: pathname === '/' || pathname === '/achievement',
-    roadmapActive: pathname === '/roadmap',
+    // ND-31: Progress lives on the Roadmap; /progress redirects there.
+    roadmapActive: pathname === '/roadmap' || pathname === '/progress',
     showRoadmap: hasGoal,
-    progressActive: pathname === '/progress',
-    showProgress: hasGoal,
   };
 }

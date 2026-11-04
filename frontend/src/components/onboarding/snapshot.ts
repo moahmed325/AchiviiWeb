@@ -2,7 +2,7 @@ import type { GoalClarification, RoutineSettings } from '../../types';
 import type { EssentialPage, PageId } from './pages';
 
 /**
- * ND-28: a visitor answers everything before signing up, so the answers are kept in this browser across the sign-up
+ * ND-36: a visitor answers everything before signing up, so the answers are kept in this browser across the sign-up
  * (and a reload, or an email confirmation in another tab). Cleared once the plan is built, or when a new goal is typed.
  */
 export const ONBOARDING_SNAPSHOT_KEY = 'achivii_onboarding';

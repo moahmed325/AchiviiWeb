@@ -100,7 +100,7 @@ const AFTER = {
   weeklyReviews: [{ id: 'r2', goalId: 'g1', weekNumber: 2, aiAdaptationInsight: KEEP_LINE } as WeeklyReview],
 } as unknown as Goal;
 
-const checkWith = (choice: PastLimitChoice | null, isBreak = true) => ({ due: true, weekNumber: 2, testLogged: false, break: isBreak, choice }) as CloseWeekAnswer;
+const checkWith = (choice: PastLimitChoice | null, isBreak = true) => ({ due: true, weekNumber: 2, break: isBreak, choice }) as CloseWeekAnswer;
 const CLOSED = { due: true, closedBy: 'auto' } as unknown as CloseWeekAnswer;
 
 let calls: string[];
@@ -203,7 +203,7 @@ describe('the choice card past the limit (WU-38, WU-40)', () => {
     expect(calls).toEqual(['close:check', 'fetch', 'close:keep_going', 'reconcile', 'fetch']);
     expect(mocked.closeWeek).toHaveBeenCalledWith('t', undefined, 'keep_going');
     expect(screen.getByText(/^Welcome back\. Your plan picks up at week 6 and now ends on (?!\{date\}).+\.$/)).toBeVisible();
-    expect(document.querySelector('header')).toHaveTextContent(/^Week 6 · Base · Theme 6/);
+    expect(document.querySelector('header')).toHaveTextContent(/Week 6 · BaseRun a 10K/);
     expect(screen.queryByRole('region', { name: 'Welcome back.' })).not.toBeInTheDocument();
   });
 
@@ -264,7 +264,7 @@ describe('the choice card past the limit (WU-38, WU-40)', () => {
     // The card answers again as before the tap.
     failing = false;
     await user.click(within(await card()).getByRole('button', { name: 'Keep going' }));
-    await waitFor(() => expect(document.querySelector('header')).toHaveTextContent(/^Week 6 · Base · Theme 6/));
+    await waitFor(() => expect(document.querySelector('header')).toHaveTextContent(/Week 6 · BaseRun a 10K/));
     expect(calls).toEqual(['close:check', 'fetch', 'close:keep_going', 'close:keep_going', 'reconcile', 'fetch']);
   });
 
@@ -290,24 +290,17 @@ describe('the choice card past the limit (WU-38, WU-40)', () => {
     failing = false;
     calls = [];
     await user.click(within(alert).getByRole('button', { name: 'Try again' }));
-    await waitFor(() => expect(document.querySelector('header')).toHaveTextContent(/^Week 6 · Base · Theme 6/));
+    await waitFor(() => expect(document.querySelector('header')).toHaveTextContent(/Week 6 · BaseRun a 10K/));
     expect(calls).toEqual(['close:keep_going', 'reconcile', 'fetch']);
   });
 });
 
-describe('no test card after a break (WU-39)', () => {
-  it('a break with no choice closes at once as unlogged, with no card', async () => {
+describe('a break with no choice (WU-39)', () => {
+  it('closes at once, with no card', async () => {
     check = checkWith(null);
     renderApp();
     expect(await screen.findByRole('heading', { level: 1, name: 'Run a 10K' })).toBeVisible();
-    expect(screen.queryByRole('dialog', { name: "Did you do last week's test?" })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(calls).toEqual(['close:check', 'close:none', 'reconcile', 'fetch']);
-  });
-
-  it('a gap under 7 days still shows the test card', async () => {
-    check = checkWith(null, false);
-    renderApp();
-    expect(await screen.findByRole('dialog', { name: "Did you do last week's test?" })).toBeVisible();
-    expect(closes()).toEqual([]);
   });
 });

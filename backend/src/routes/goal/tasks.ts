@@ -1,13 +1,12 @@
-// B-102: task completion and task updates, moved out of routes/goal.ts unchanged (a pure move).
+// B-102: task completion and task updates, moved out of routes/goal.ts.
 import { Router, Request, Response } from 'express';
-import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
 import { getAuthUser } from '../auth.js';
 import { getUserTodayDateString, normalizeTimezone } from '../../lib/timezone.js';
 import { presentGoal } from './present.js';
 import { refuse } from './actions.js';
-import { validateWeeklyTestResult } from './weeks.js';
 import { shapeOf } from '../../lib/planLength.js';
+import { readFeel } from '../../lib/planV2.js';
 
 export const taskRoutes = Router();
 
@@ -39,23 +38,8 @@ taskRoutes.post('/complete', async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const { finalReflection, finalTestResult } = req.body || {};
-
-    if (finalTestResult !== undefined && finalTestResult !== null && typeof finalTestResult === 'object') {
-      const validTest = validateWeeklyTestResult(finalTestResult);
-      if (validTest.valid && validTest.result) {
-        const targetWeek =
-          // B-109: the final test's week (12; a shorter plan's week before its ready week).
-          activeGoal.roadmapWeeks?.find((w) => w.weekNumber === shapeOf(activeGoal).finalWeek) ||
-          activeGoal.roadmapWeeks?.[activeGoal.roadmapWeeks.length - 1];
-        if (targetWeek) {
-          await prisma.roadmapWeek.update({
-            where: { id: targetWeek.id },
-            data: { testResult: validTest.result as unknown as Prisma.InputJsonValue }
-          });
-        }
-      }
-    }
+    // No weekly tests (2026-10-30): no final test; the closing reflection is all /complete saves.
+    const { finalReflection } = req.body || {};
 
     if (typeof finalReflection === 'string' && finalReflection.trim()) {
       const targetReview =
@@ -130,9 +114,13 @@ export const NOTES_ERROR = `notes must be text of at most ${TASK_NOTES_MAX_LENGT
 /** A 24-hour "HH:MM" time, 00:00 to 23:59 (B-29). */
 export const SLOT_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+export const FEEL_ERROR = 'feel must be "too_easy", "just_right" or "too_hard", or null, and only on a done task.';
+
 /**
  * PATCH /api/goal/tasks/:taskId
- * Updates task completion status, notes or slot time. `notes` and `slotTime` accept null to clear them (B-29).
+ * Updates task completion status, notes, slot time or feel. `notes`, `slotTime` and `feel` accept null to clear them
+ * (B-29). `feel` (no weekly tests, section 7) is how a done session felt, read when next week is written; it is only
+ * for a done task, and marking a task not done clears it.
  */
 taskRoutes.patch('/tasks/:taskId', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -143,7 +131,7 @@ taskRoutes.patch('/tasks/:taskId', async (req: Request, res: Response): Promise<
     }
 
     const { taskId } = req.params;
-    const { status, notes, slotTime, usedMinimumVersion } = req.body;
+    const { status, notes, slotTime, usedMinimumVersion, feel } = req.body;
 
     if (status !== undefined && !isTaskStatus(status)) {
       res.status(400).json({ error: 'status must be "pending" or "completed".' });
@@ -162,6 +150,11 @@ taskRoutes.patch('/tasks/:taskId', async (req: Request, res: Response): Promise<
 
     if (slotTime !== undefined && slotTime !== null && (typeof slotTime !== 'string' || !SLOT_TIME.test(slotTime))) {
       res.status(400).json({ error: 'slotTime must be a time as "HH:MM" (00:00 to 23:59), or null.' });
+      return;
+    }
+
+    if (feel !== undefined && feel !== null && readFeel(feel) === null) {
+      res.status(400).json({ error: FEEL_ERROR });
       return;
     }
 
@@ -185,6 +178,11 @@ taskRoutes.patch('/tasks/:taskId', async (req: Request, res: Response): Promise<
     // Sending `completed` again for a task already done keeps the first completion as it was (B-29).
     const statusChanges = status !== undefined && status !== task.status;
 
+    if (feel != null && (status ?? task.status) !== 'completed') {
+      res.status(400).json({ error: FEEL_ERROR });
+      return;
+    }
+
     // A day still ahead in the person's time zone cannot be completed; marking a day not done is always allowed.
     if (statusChanges && status === 'completed' && task.date > getUserTodayDateString(normalizeTimezone(user.timezone))) {
       return refuse(res, 'not_yet');
@@ -201,7 +199,9 @@ taskRoutes.patch('/tasks/:taskId', async (req: Request, res: Response): Promise<
           ? { usedMinimumVersion: status === 'completed' && usedMinimumVersion === true && task.minimumVersion != null }
           : {}),
         ...(notes !== undefined ? { notes } : {}),
-        ...(slotTime !== undefined ? { slotTime } : {})
+        ...(slotTime !== undefined ? { slotTime } : {}),
+        // Marking a task not done clears how it felt; otherwise a sent feel (or null) replaces it.
+        ...(statusChanges && status === 'pending' ? { feel: null } : feel !== undefined ? { feel } : {})
       }
     });
 

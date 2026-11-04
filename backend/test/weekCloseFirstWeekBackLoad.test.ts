@@ -149,22 +149,16 @@ function answerStep(title: string, priority: number, minutes: number, extra: Rec
   };
 }
 
-/** A model answer: runs (minutes) on practice days 1-3 and 5, the test (minutes) on day 6; 4 and 7 rest. */
-function answer(runs: Partial<Record<1 | 2 | 3 | 5, number>>, testMinutes: number) {
+/** A model answer: runs (minutes) on practice days 1-3 and 5, and `day6` minutes on day 6 (once the test day); 4 and 7 rest. */
+function answer(runs: Partial<Record<1 | 2 | 3 | 5, number>>, day6: number) {
   const load = (minutes: number) => ({ load: { runMinutes: minutes, hardRun: false } });
   return {
     days: Array.from({ length: 7 }, (_, index) => {
       const dayNumber = index + 1;
       if (dayNumber === 4 || dayNumber === 7) return { dayNumber, isKeySession: false, title: 'Rest and recover', whyToday: 'Recovery.', steps: [] };
-      const minutes = runs[dayNumber as 1 | 2 | 3 | 5];
+      const minutes = dayNumber === 6 ? day6 : runs[dayNumber as 1 | 2 | 3 | 5];
       const steps =
-        dayNumber === 6
-          ? [
-              answerStep('Jog gently before the test', 2, 5, { kind: 'weekly_test' }),
-              answerStep('Weekly test: long run at an easy pace', 1, testMinutes, { kind: 'weekly_test', highLoad: true, ...load(testMinutes) }),
-              answerStep('Note how the run felt', 3, 5, { kind: 'weekly_test' }),
-            ]
-          : minutes
+        minutes
             ? [answerStep(`Run ${dayNumber}`, 1, minutes, { kind: 'easy_session', highLoad: true, ...load(minutes) }), answerStep(`Calf and hip circuit ${dayNumber}`, 2, 40 - minutes, { kind: 'strength_and_mobility' })]
             : [answerStep(`Core circuit ${dayNumber}`, 1, 20, { kind: 'strength_and_mobility' }), answerStep(`Hip circuit ${dayNumber}`, 2, 20, { kind: 'strength_and_mobility' })];
       return { dayNumber, isKeySession: false, title: `Day ${dayNumber} session`, whyToday: 'Builds running.', steps, minimumVersion: { ...answerStep(`Short easy run ${dayNumber}`, 1, 10), load: { runMinutes: 10, hardRun: false } } };
@@ -202,7 +196,7 @@ beforeEach(() => {
   warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'info').mockImplementation(() => {});
-  for (const name of ['WEEKLY_UPDATE_ENABLED', 'MISSED_SESSIONS_CARRY_ENABLED', 'METHOD_RECOVERY_ENABLED']) vi.stubEnv(name, '');
+  for (const name of ['MISSED_SESSIONS_CARRY_ENABLED', 'METHOD_RECOVERY_ENABLED']) vi.stubEnv(name, '');
   vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
 });
 

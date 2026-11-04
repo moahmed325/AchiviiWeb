@@ -8,14 +8,14 @@ import { readSnapshot } from '../components/onboarding/snapshot';
 import { Button, Surface } from '../components/ui';
 import { LandingPage } from '../components/marketing/LandingPage';
 import { Today, TodaySkeleton } from '../components/today/Today';
-import { BreakChoice, GettingReady, WeekTestFirst } from '../components/today/WeekClose';
+import { BreakChoice, GettingReady } from '../components/today/WeekClose';
 
 const AchievementPage = React.lazy(() => import('./AchievementPage'));
 
 
 export const Home: React.FC = () => {
   const { user, token, loading: authLoading } = useAuth();
-  const { activeGoal, loadingGoal, goalLoadFailed, refreshGoal, apiStatus, closingWeek, heldClose, pendingChoice } = useGoal();
+  const { activeGoal, loadingGoal, goalLoadFailed, refreshGoal, apiStatus, closingWeek, pendingChoice } = useGoal();
   const { startTypedGoal } = usePathwayLaunch();
   const [retrying, setRetrying] = useState(false);
 
@@ -57,7 +57,7 @@ export const Home: React.FC = () => {
       );
     }
 
-    // No goal yet (ND-28): one question, the goal in their own words. Answers kept from before a sign-up resume.
+    // No goal yet (ND-36): one question, the goal in their own words. Answers kept from before a sign-up resume.
     if (!activeGoal) {
       // A visitor who tapped Start and then signed up goes straight back to have their plan built.
       if (readSnapshot()?.buildAfterSignUp) return <Navigate to="/onboarding" replace />;
@@ -84,11 +84,6 @@ export const Home: React.FC = () => {
     // M1.5b (WU-38): a break past the limit waits for the person's choice; Today shows only the card.
     if (pendingChoice && pendingChoice.goalId === activeGoal.id) {
       return <BreakChoice goal={activeGoal} choice={pendingChoice.choice} />;
-    }
-
-    // WU-14: a close waits for last week's test; Today shows only the card until it is answered.
-    if (heldClose) {
-      return <WeekTestFirst goal={activeGoal} weekNumber={heldClose.weekNumber} />;
     }
 
     return <Today goal={activeGoal} />;

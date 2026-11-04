@@ -3,6 +3,10 @@ export interface User {
   email: string;
   timezone?: string;
   created_at: string;
+  /** ND-28: the missed-day reminder email; on unless the person turned it off. */
+  remindersEnabled?: boolean;
+  /** ND-28: whether reminder emails are being sent at all (the server's switch and settings); the setting shows only then. */
+  remindersAvailable?: boolean;
 }
 
 export interface AuthResponse {
@@ -40,7 +44,7 @@ export interface GoalClarification {
   primaryDomain: string;
   followUpQuestions: FollowUpQuestion[];
   evidenceTriad?: EvidenceTriad;
-  /** ND-28: set only when the goal is too vague to measure in 90 days; 3 to 5 concrete goals to choose from. */
+  /** ND-36: set only when the goal is too vague to measure in 90 days; 3 to 5 concrete goals to choose from. */
   focusOptions?: string[];
 }
 
@@ -269,6 +273,9 @@ export type ReconcileResult =
 /** A plan v2 reconcile body (`applies: true`), as GoalContext keeps it. */
 export type Reconciliation = Extract<ReconcileResult, { applies: true }>;
 
+/** No weekly tests, section 7: the one-tap answer after a session. */
+export type Feel = 'too_easy' | 'just_right' | 'too_hard';
+
 export interface DailyTask {
   id: string;
   goalId: string;
@@ -291,7 +298,10 @@ export interface DailyTask {
   minimumVersion?: DetailedStep | null;
   /** ND-3: true when the completion was the 10-minute version only. */
   usedMinimumVersion?: boolean;
+  /** No weekly tests, section 7: how a done session felt, tapped after it; null or missing when not tapped. */
+  feel?: Feel | null;
   isKeySession?: boolean;
+  /** Only on days stored before the weekly tests went (2026-10-30); never shown. */
   isTestDay?: boolean;
   whyToday?: string | null;
   resourceTitle?: string;
@@ -330,9 +340,6 @@ export interface RoadmapWeek {
   status: 'active' | 'pending' | 'completed' | 'adapted';
   executionScore?: number;
   reviewNotes?: string;
-  target?: WeekTarget | null;
-  test?: WeekTest | null;
-  testResult?: import('./review').WeeklyTestResult | null;
   /** Weekly update (WU-21, M1.2a): who closed the week and when; null while it is open. */
   closedBy?: 'review' | 'auto' | 'jumped' | null;
   closedAt?: string | null;
@@ -352,7 +359,6 @@ export interface RoadmapPhase {
 
 export interface GoalRoadmap {
   finalGoal: string;
-  finalTest: string;
   startingPoint: { value: number | null; description: string };
   method: {
     name: string;
@@ -384,16 +390,6 @@ export interface WeeklyReview {
   reflection?: string;
   aiAdaptationInsight?: string;
   created_at: string;
-}
-
-/**
- * Plan safety limits M1.3 (PSL-12): sent by the server when week 12's target was lowered to a safe step. `safe` is week
- * 12's value and `goal` the number the person named that it no longer meets (null when they named none), each as
- * amount and unit.
- */
-export interface Week12Line {
-  safe: string;
-  goal: string | null;
 }
 
 export interface Goal {
@@ -433,17 +429,9 @@ export interface Goal {
   roadmapWeeks?: RoadmapWeek[];
   dailyTasks?: DailyTask[];
   weeklyReviews?: WeeklyReview[];
-  /** M1.3 (PSL-12): the honest week 12 line's numbers; null or missing when week 12 was not lowered. */
-  week12Line?: Week12Line | null;
-  /** Weekly update M3.3b (WU-58 (1)): the open week's re-test, worked out on the server; null or missing when none. */
-  retest?: Retest | null;
   /** Weekly update M3.3b (RULE-6, WU-58 (1)): the daily-time question after two hard weeks; null or missing when none. */
   dailyTimeCheck?: DailyTimeCheck | null;
-  /** Checkpoints (RULE-7, section 7): the open offer at week 4 or 8; null or missing when none. */
-  checkpoint?: Checkpoint | null;
-  /** Checkpoints (RULE-11): set while an accepted offer leaves week 12 below the goal; shown in place of `week12Line`. */
-  dayNinetyLine?: DayNinetyLine | null;
-  /** Next plan (NP-1, NP-2): what the plan reached, from the stored rows; null or missing for a goal with no v2 roadmap. */
+  /** Next plan (NP-1): what the plan did, from the stored rows; null or missing for a goal with no v2 roadmap. */
   journeyResult?: JourneyResult | null;
   /** Next plan (NP-8): the plan this one follows; null or missing for a first plan. */
   previousPlan?: PreviousPlan | null;
@@ -452,27 +440,22 @@ export interface Goal {
 /** Next plan: how a new plan continues an earlier one. */
 export type NextPlanMode = 'keep_going' | 'go_further' | 'fresh';
 
-/** Next plan (NP-1, NP-2, NP-5): amounts as shown ("3 km", "52 min or less"). */
+/**
+ * Next plan (NP-1): what a plan did, as the server works it out. No weekly tests (2026-10-30): no measured result;
+ * weeks and sessions done, and for a goal measured in a number, its start and unit (a next plan asks the level now).
+ */
 export interface JourneyResult {
-  kind: 'number' | 'deliverable';
+  kind: 'number' | 'other';
+  /** The starting point, as shown ("3 km"); null with none. */
   start: string | null;
   startValue: number | null;
-  /** The last measured result; null when none was logged. */
-  reached: string | null;
-  reachedValue: number | null;
-  reachedWeek: number | null;
-  /** The person's full goal, never a lowered target. */
+  /** The plan's final goal, as written. */
   goal: string | null;
-  goalValue: number | null;
   unit: string | null;
   direction: 'higher_is_better' | 'lower_is_better' | null;
-  /** Set when a checkpoint lowered week 12. */
-  dayNinetyTarget: string | null;
-  reachedDayNinety: boolean;
-  madeIt: boolean;
-  nearGoal: boolean;
   weeksFinished: number;
-  lastDone: string | null;
+  sessionsDone: number;
+  sessionsPlanned: number;
   /** B-109: the plan's weeks, sent only when not 12. */
   totalWeeks?: number;
 }
@@ -481,7 +464,7 @@ export interface PreviousPlan {
   goalId: string;
   number: number;
   mode: NextPlanMode;
-  /** "3 km → 8 km", or "11 of 12 weeks". */
+  /** "11 of 12 weeks, 52 of 60 sessions" ("3 km → 8 km" on plans made before the weekly tests went). */
   summary: string;
 }
 
@@ -491,44 +474,6 @@ export interface NextPlanRequest {
   mode: NextPlanMode;
   /** Only a level the person typed (NP-9, NP-10). */
   level?: number;
-}
-
-/** Checkpoints (section 7): the open offer, with every amount as the card shows it ("6 km", "52 min or less"). */
-export interface Checkpoint {
-  week: number;
-  kind: 'lower' | 'raise' | 'line_only';
-  /** The day-90 target. */
-  target: string;
-  /** Null for line only. */
-  offered: string | null;
-  /** The goal shown. */
-  goal: string;
-  /** Week 8: worded as the last check. */
-  last: boolean;
-  /** A raise all the way back to the full goal. */
-  toFullGoal: boolean;
-  /** B-109: a shorter plan's final-test week; the card says "by the end of week n", not "by day 90". */
-  finalWeek?: number;
-}
-
-/** Checkpoints (RULE-11): the day-90 target and the goal shown. */
-export interface DayNinetyLine {
-  target: string;
-  goal: string;
-  /** B-109: a shorter plan's final-test week; the line says "Final target", not "Day-90 target". */
-  finalWeek?: number;
-}
-
-export interface Retest {
-  /** The closed week whose test the open week re-tests; its result is stored on that week (WU-17). */
-  ofWeek: number;
-  /** Weekly update M3.4 (WU-59 (5)): `break` on a first week back; Today shows no line for it. */
-  reason: 'break' | 'not_logged' | 'two_hard_weeks';
-  /** The re-test's result was logged in the open week. */
-  logged: boolean;
-  /** The day holding the measured re-test step: its task and date ('YYYY-MM-DD'). */
-  taskId: string;
-  date: string;
 }
 
 export interface DailyTimeCheck {
@@ -571,8 +516,7 @@ export type CloseWeekAnswer =
   | {
       due: true;
       weekNumber: number;
-      testLogged: boolean;
-      /** M1.5b (WU-39): the close is a break (a gap of 7 days or more), so no test card is shown. */
+      /** M1.5b (WU-39): the close is a break (a gap of 7 days or more). */
       break?: boolean;
       /** M1.5b (WU-38): the choice the close waits for; null when none is needed. */
       choice?: PastLimitChoice | null;
@@ -595,7 +539,6 @@ export interface WeeklyReviewResponse {
   nextWeekTasks: DailyTask[];
   isMilestoneCheckpoint?: boolean;
   milestoneGateTransition?: MilestoneGateTransition | null;
-  testResult?: import('./review').WeeklyTestResult | null;
 }
 
 export * from './journey';

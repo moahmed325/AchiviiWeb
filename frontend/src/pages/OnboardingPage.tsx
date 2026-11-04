@@ -99,7 +99,7 @@ export const OnboardingPage: React.FC = () => {
       <OnboardingWizard
         token={token}
         onGoalCreated={handleGoalCreated}
-        // ND-28: a visitor answers everything first; their answers wait in this browser while they sign up.
+        // ND-36: a visitor answers everything first; their answers wait in this browser while they sign up.
         onSignUp={() => navigate(`/signup?next=${encodeURIComponent('/onboarding')}`)}
         initialGoal={initialGoal}
         currentGoalId={!token ? undefined : goalLoadFailed ? null : activeGoal?.id}

@@ -201,7 +201,7 @@ beforeEach(() => {
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'info').mockImplementation(() => {});
-  for (const name of ['WEEK_CLOSE_ENABLED', 'WEEKLY_UPDATE_ENABLED', 'MISSED_SESSIONS_CARRY_ENABLED', 'METHOD_RECOVERY_ENABLED']) vi.stubEnv(name, '');
+  for (const name of ['WEEK_CLOSE_ENABLED', 'MISSED_SESSIONS_CARRY_ENABLED', 'METHOD_RECOVERY_ENABLED']) vi.stubEnv(name, '');
 });
 
 afterEach(() => {
@@ -245,7 +245,7 @@ describe('a break (RULE-13, WU-33 (2)), WEEK_CLOSE_ENABLED on', () => {
     expect(db.goal()).toMatchObject({ currentWeek: 3, movedDays: gap, startDate: shifted(START, gap), targetDate: shifted(TARGET, gap) });
     const back = daysBetween(lastPractice, addDays('2026-10-05', gap));
     expect(db.week(3).breakDays).toBe(isBreak ? back : null);
-    expect(writerInput().firstWeekBack).toEqual(isBreak ? { awayDays: back, note: LANGUAGE.returnRule.firstWeekBack, length: 'any', highLoad: false, everyStep: false } : undefined);
+    expect(writerInput().firstWeekBack).toEqual(isBreak ? { awayDays: back, note: LANGUAGE.returnRule.firstWeekBack, length: 'any', restart: 'last level', highLoad: false, everyStep: false } : undefined);
     expect(db.state.reviews[0].aiAdaptationInsight).toBe(isBreak ? WELCOME_BACK_INSIGHT : MOVED_INSIGHT);
     expect(logged()).toHaveLength(isBreak ? 1 : 0);
   });
@@ -311,7 +311,7 @@ describe('a break (RULE-13, WU-33 (2)), WEEK_CLOSE_ENABLED on', () => {
     expect(db.week(3).breakDays).not.toBeNull();
   });
 
-  it('the stored targets do not change (RULE-18)', async () => {
+  it('the stored rows of an older goal (targets, tests) do not change (RULE-18)', async () => {
     seed({ goal: RUN_10K, recovery: ENDURANCE });
     vi.mocked(generateWeekPlan).mockImplementation(async (input) => runWeek(input.weekStart));
     const before = db.state.weeks.map((w) => [w.weekNumber, w.target, w.test]);
@@ -323,29 +323,36 @@ describe('a break (RULE-13, WU-33 (2)), WEEK_CLOSE_ENABLED on', () => {
 describe('the note to the week writer (WU-25 (3), WU-29 (1))', () => {
   beforeEach(closeOn);
 
-  it('the block: the days away and the note; the "at or below" and light-test lines only for a high-load goal; never a target or restart', () => {
-    expect(firstWeekBackBlock({ firstWeekBack: { awayDays: 12, note: 'Easy sessions only, no quality session.', highLoad: true } })).toBe(
+  it('the block: the days away, the restart level and the note; the "at or below" and load lines only for a high-load goal', () => {
+    expect(firstWeekBackBlock({ firstWeekBack: { awayDays: 12, note: 'Easy sessions only, no quality session.', restart: 'back 1 week', highLoad: true } })).toBe(
       [
         '',
         '',
-        'FIRST WEEK BACK (after a break; only the light test is checked)',
+        'FIRST WEEK BACK (after a break; the limits below are checked)',
         '- They have been away 12 days. This is their first week back.',
+        '- Restart level: go back one week: the level of the week before their last one.',
         '- For the first week back, the method says: Easy sessions only, no quality session.',
         '- Keep every session at or below what they last completed.',
-        // M1.5b (WU-41): the light test, for a high-load goal only.
-        "- This week's weekly test is a light version of the test above: no time trial or all-out effort, no max or 1RM test, nothing to failure, no lift above 80% of 1RM, at least 3 reps in reserve. A week that breaks this is not saved.",
+        '- No time trial or all-out effort, no max or 1RM test, nothing to failure, no lift above 80% of 1RM, at least 3 reps in reserve. A week that breaks this is not saved.',
       ].join('\n')
     );
-    expect(firstWeekBackBlock({ firstWeekBack: { awayDays: 9, note: 'Starts with fundamentals.', highLoad: false } })).toBe(
-      ['', '', 'FIRST WEEK BACK (after a break; nothing here is checked)', '- They have been away 9 days. This is their first week back.', '- For the first week back, the method says: Starts with fundamentals.'].join('\n')
+    expect(firstWeekBackBlock({ firstWeekBack: { awayDays: 9, note: 'Starts with fundamentals.', restart: 'last level', highLoad: false } })).toBe(
+      [
+        '',
+        '',
+        'FIRST WEEK BACK (after a break; nothing here is checked)',
+        '- They have been away 9 days. This is their first week back.',
+        '- Restart level: pick up at the level of the last week they trained.',
+        '- For the first week back, the method says: Starts with fundamentals.',
+      ].join('\n')
     );
     // No readable profile: only the days away.
-    expect(firstWeekBackBlock({ firstWeekBack: { awayDays: 9, note: null, highLoad: false } })).toBe(
+    expect(firstWeekBackBlock({ firstWeekBack: { awayDays: 9, note: null, restart: null, highLoad: false } })).toBe(
       ['', '', 'FIRST WEEK BACK (after a break; nothing here is checked)', '- They have been away 9 days. This is their first week back.'].join('\n')
     );
     expect(firstWeekBackBlock({})).toBe('');
-    const block = firstWeekBackBlock({ firstWeekBack: { awayDays: 30, note: ENDURANCE.returnRule.firstWeekBack, highLoad: true } });
-    expect(block).not.toMatch(/target|restart|back 1 week|back 2 weeks|last level/i);
+    const block = firstWeekBackBlock({ firstWeekBack: { awayDays: 30, note: ENDURANCE.returnRule.firstWeekBack, restart: 'back 2 weeks', highLoad: true } });
+    expect(block).not.toMatch(/target|weekly test/i);
   });
 
   it('the week call gets the block at the end, with and without a profile; without a break the prompt is unchanged', async () => {
@@ -353,17 +360,13 @@ describe('the note to the week writer (WU-25 (3), WU-29 (1))', () => {
     vi.mocked(generateWeekPlan).mockImplementation(async (input) => runWeek(input.weekStart));
     expect((await closeWeek(atGap(10))).status).toBe(200);
     const input = writerInput();
-    expect(input.firstWeekBack).toMatchObject({ note: 'Easy sessions only, no quality session.', highLoad: true, length: '1-2 weeks' });
+    expect(input.firstWeekBack).toMatchObject({ note: 'Easy sessions only, no quality session.', highLoad: true, length: '1-2 weeks', restart: 'back 1 week' });
     const prompt = promptOf(input);
     expect(prompt.endsWith(firstWeekBackBlock(input))).toBe(true);
     const { firstWeekBack: _ignored, ...withoutBreak } = input;
-    // M1.5b review fix 1 (WU-41): a high-load first week back also asks for a light version on the test day.
-    expect(prompt).toContain("The test day's main step is a light version of the weekly test above (see FIRST WEEK BACK)");
-    expect(promptOf(withoutBreak)).toBe(
-      prompt.slice(0, prompt.length - firstWeekBackBlock(input).length).replace('a light version of the weekly test above (see FIRST WEEK BACK)', 'the weekly test exactly as written above')
-    );
-    // A first week back of a goal that is not high-load keeps the test-day line as written.
-    expect(promptOf({ ...input, firstWeekBack: { ...input.firstWeekBack!, highLoad: false } })).toContain("The test day's main step is the weekly test exactly as written above");
+    expect(promptOf(withoutBreak)).toBe(prompt.slice(0, prompt.length - firstWeekBackBlock(input).length));
+    expect(prompt).not.toMatch(/test day|weekly test step/i);
+    expect(prompt).toContain('- No tests: no "weekly test", time trial or measuring session.');
     expect(promptOf({ ...withoutBreak, recovery: null })).not.toContain('FIRST WEEK BACK');
     expect(promptOf({ ...input, recovery: null }).endsWith(firstWeekBackBlock(input))).toBe(true);
   });
@@ -375,7 +378,7 @@ describe('the note to the week writer (WU-25 (3), WU-29 (1))', () => {
     expect(returnRuleEntry(ENDURANCE, 21)).toEqual({ length: '3+ weeks', restart: 'back 2 weeks' });
     expect(returnRuleEntry(null, 21)).toBeNull();
     const light = { highLoad: false, everyStep: false };
-    expect(firstWeekBackFor(null, 12, light)).toEqual({ awayDays: 12, note: null, length: null, highLoad: false, everyStep: false });
+    expect(firstWeekBackFor(null, 12, light)).toEqual({ awayDays: 12, note: null, length: null, restart: null, highLoad: false, everyStep: false });
     expect(firstWeekBackFor(ENDURANCE, 12, { highLoad: true, everyStep: true })).toMatchObject({ note: ENDURANCE.returnRule.firstWeekBack, highLoad: true, everyStep: true });
   });
 
@@ -405,14 +408,13 @@ describe('a high-load first week back (WU-29, WU-35)', () => {
     seed({ goal: RUN_10K, recovery: ENDURANCE });
     vi.mocked(generateWeekPlan).mockImplementation(async (input) => runWeek(input.weekStart));
     expect((await closeWeek(atGap(10))).status).toBe(200);
-    const practice = week3Steps().filter((d) => !d.rest && !d.steps[0].title.startsWith('Weekly test'));
+    const practice = week3Steps().filter((d) => !d.rest);
     expect(practice.length).toBeGreaterThan(0);
     for (const day of practice) {
       expect(day.steps.map((s) => s.instructions)).toEqual([`${FIRST_WEEK_BACK_LINE}\nDo Intervals.`, 'Do Easy run.', 'Do Mobility.']);
       expect(day.steps.map((s) => s.durationMinutes)).toEqual([20, 15, 5]);
       expect((day.min as DetailedStep).instructions).toBe('Do 10-minute jog.');
     }
-    expect(week3Steps().find((d) => d.steps[0]?.title.startsWith('Weekly test'))!.steps[0].instructions).toBe('Do Weekly test: long run.');
     expect(withLine().every((title) => title === 'Intervals')).toBe(true);
     expect(JSON.stringify(week3Steps())).not.toContain(EASY_START_LINE);
   });
@@ -522,13 +524,11 @@ describe('M1.5a review: the line belongs to the week, through the real close (ME
 });
 
 describe('WEEK_CLOSE_ENABLED off (RULE-18, R-7, AC-19)', () => {
-  // M4.1b (WU-62 (1)): state A (both unset) and state D (only WEEKLY_UPDATE_ENABLED) must agree.
+  // M4.1b (WU-62 (1)): state A (the switch unset).
   it.each([
-    ['both switches unset', ''],
-    ['only WEEKLY_UPDATE_ENABLED on', 'true'],
-  ])('%s: a late review after 10 days: no break, no breakDays, no block, no line, the review insight', async (_name, update) => {
+    ['the switch unset', ''],
+  ])('%s: a late review after 10 days: no break, no breakDays, no block, no line, the review insight', async (_name, _update) => {
     vi.stubEnv('WEEK_CLOSE_ENABLED', '');
-    vi.stubEnv('WEEKLY_UPDATE_ENABLED', update);
     seed({ goal: RUN_10K, recovery: ENDURANCE });
     vi.mocked(generateWeekPlan).mockImplementation(async (input) => runWeek(input.weekStart));
     const res = await reviewWeek2(atGap(10));

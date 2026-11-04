@@ -11,7 +11,6 @@ import { scheduleRoutes } from './goal/schedule.js';
 
 // Kept for the importers of routes/goal.js (tests, other modules).
 export { TASK_STATUSES, TASK_NOTES_MAX_LENGTH, TASK_NOTES_HARD_MAX, notesWithinLimit } from './goal/tasks.js';
-export { validateWeeklyTestResult, type WeeklyTestResultInput } from './goal/weeks.js';
 
 export const goalRouter = Router();
 // B-102: each area's routes live in routes/goal/; the order they were declared in is kept.

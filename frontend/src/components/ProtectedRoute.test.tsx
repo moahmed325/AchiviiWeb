@@ -198,7 +198,7 @@ describe('ProtectedRoute (R1 — OD-9 / ND-12 Route Protection)', () => {
     expect(screen.queryByText('Home Root Page')).not.toBeInTheDocument();
   });
 
-  it('lets a visitor into a route open to visitors, and still sends them to sign in elsewhere (ND-28)', async () => {
+  it('lets a visitor into a route open to visitors, and still sends them to sign in elsewhere (ND-36)', async () => {
     localStorage.removeItem('achivii_auth_token');
     const renderAt = (path: string) =>
       render(
