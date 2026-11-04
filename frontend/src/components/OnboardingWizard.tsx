@@ -149,7 +149,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             generationError={generationError}
             onReviewInputs={() => setScreen('summary')}
             onRetry={handleGeneratePlan}
-            onChooseGoal={() => setScreen('goal')}
+            // ND-37: past the trial any new plan needs Pro, so another goal is no way out.
+            onChooseGoal={generationError?.trialOver ? undefined : () => setScreen('goal')}
           />
         </main>
       </div>
@@ -166,6 +167,13 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       <MobileProgress pages={pages} page={page} />
 
       {offline && !errorOnPage && <ConnectionNotice className="mt-6 lg:mt-0 lg:mb-10" />}
+      {/* ND-37: said at the start, not after every question: past the trial a new plan needs Pro. */}
+      {access.state === 'locked' && (
+        <p role="status" className="mt-6 rounded-control border border-achievement/30 bg-surface p-4 text-small text-text-secondary lg:mt-0 lg:mb-10">
+          <span className="font-medium text-text">Your 30 free days are over.</span> You can shape a new plan here; building it
+          needs Achivii Pro.
+        </p>
+      )}
 
       <div key={page} className="mt-8 animate-rise-in motion-reduce:animate-none lg:mt-0">
         {page === 'goal' && <StepGoal rawGoal={typedGoal} onStartGoal={submitGoal} />}

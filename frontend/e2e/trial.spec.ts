@@ -56,3 +56,10 @@ test('after the trial without Pro, Today offers Pro instead of the step, and the
   await page.locator('#main').getByRole('link', { name: 'Roadmap' }).click();
   await expect(page).toHaveURL('/roadmap');
 });
+
+test('after the trial, onboarding says up front that building a new plan needs Pro', async ({ page }) => {
+  await mockApi(page, { goal: null, plan: 'free', access: 'locked', trialEndsAt: inDays(-2) });
+  await signIn(page);
+  await page.goto('/onboarding');
+  await expect(page.getByRole('status').filter({ hasText: 'Your 30 free days are over.' })).toContainText('building it needs Achivii Pro');
+});

@@ -10,6 +10,8 @@ export interface OnboardingError {
   kind: 'offline' | 'server' | 'pro';
   title: string;
   message: string;
+  /** ND-37: the 30-day trial is over, so any new plan needs Pro (another goal would be refused too). */
+  trialOver?: boolean;
 }
 
 const COPY: Record<OnboardingRequest, { offline: Omit<OnboardingError, 'kind'>; serverTitle: string; serverFallback: string }> = {
@@ -44,6 +46,7 @@ const PRO_REQUIRED: Omit<OnboardingError, 'kind'> = {
 export const TRIAL_ENDED = 'TRIAL_ENDED';
 
 const TRIAL_OVER: Omit<OnboardingError, 'kind'> = {
+  trialOver: true,
   title: 'Your 30 free days are over',
   message: 'Go Pro to build this plan. Everything you’ve done so far is kept.',
 };

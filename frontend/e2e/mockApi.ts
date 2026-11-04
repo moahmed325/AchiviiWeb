@@ -417,7 +417,7 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
       // As backend/src/routes/goal.ts answers before any plan work (authorizeNewCustomGoal).
       if (createProRequired) {
         // ND-37: the server's refusal once the 30-day trial is over without Pro.
-        return json(route, 403, { error: 'Your 30 free days are over. Go Pro to keep going; your plan and progress are kept.', code: 'TRIAL_ENDED' });
+        return json(route, 402, { error: 'Your 30 free days are over. Go Pro to keep going; your plan and progress are kept.', code: 'TRIAL_ENDED' });
       }
       if (failure === 'offline') return route.abort('connectionrefused');
       if (failure !== undefined) {

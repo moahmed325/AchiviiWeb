@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { API, mockApi, signIn } from './mockApi';
-import { CUSTOM_GOAL, answerCustomQuestions, answerEssentials, baseline, expectStep, generate, startGoal } from './onboardingFlow';
+import { CUSTOM_GOAL, answerCustomQuestions, answerEssentials, baseline, generate, startGoal } from './onboardingFlow';
 
 // ND-37: a new plan is allowed before the first plan and during the 30-day trial; after it, only with Pro. The server
 // refuses it with a 403, and onboarding explains the refusal honestly.
 
 test.describe('a new plan after the trial', () => {
-  test('a create refused for Pro says so, offers Pro, and leads back to the goal page', async ({ page }) => {
+  test('a create refused after the trial says so and offers Pro, not another goal', async ({ page }) => {
     const calls = await mockApi(page, { clarify: baseline.customClarify, createProRequired: true });
     await signIn(page);
     await page.goto('/onboarding');
@@ -23,9 +23,7 @@ test.describe('a new plan after the trial', () => {
     await expect(page.getByRole('alert')).toContainText('Everything you’ve done so far is kept.');
     await expect(page.getByRole('alert')).not.toContainText("We couldn't build your plan");
     await expect(page.getByRole('button', { name: 'Continue to Pro' })).toBeVisible();
-
-    await page.getByRole('button', { name: 'Choose a different goal' }).click();
-    await expectStep(page, 'goal');
-    await expect(page.getByRole('textbox', { name: 'What do you want to achieve?' })).toHaveValue(CUSTOM_GOAL);
+    // Any new plan needs Pro now, so another goal is no way out.
+    await expect(page.getByRole('button', { name: 'Choose a different goal' })).toHaveCount(0);
   });
 });

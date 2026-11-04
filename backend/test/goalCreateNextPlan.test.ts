@@ -142,7 +142,7 @@ beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.mocked(getAuthUser).mockResolvedValue({ id: 'u1', email: 'u@achivii.com', timezone: 'UTC' } as never);
   vi.mocked(generateWeekPlan).mockResolvedValue([DAY] as never);
-  auth.custom.mockResolvedValue({ allowed: false, code: 'CUSTOM_GOAL_REQUIRES_PRO', message: 'Custom Goals require Achivii Pro.' });
+  auth.custom.mockResolvedValue({ allowed: false, code: 'TRIAL_ENDED', message: 'Your 30 free days are over.' });
   auth.next.mockResolvedValue({ allowed: true });
   db.goalFindFirst.mockResolvedValue(oldGoal('completed'));
   db.goalCreate.mockImplementation(async () => ({ id: 'goal-new' }));
@@ -239,13 +239,13 @@ describe('goal create with nextPlan', () => {
     expect(db.goalCreate).not.toHaveBeenCalled();
   });
 
-  it('without nextPlan the custom-goal check runs as before', async () => {
+  it('without nextPlan the new-plan check runs, and refuses with 402 after the trial (ND-37)', async () => {
     const res = await fetch(`${baseUrl}/api/goal/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
       body: JSON.stringify({ rawGoal: 'Learn to juggle', clarifiedOutcome: 'Juggle 3 balls', answers: {}, routine: { dailyMinutes: 30, planVariant: 'steady' } }),
     });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(402);
     expect(auth.custom).toHaveBeenCalled();
     expect(auth.next).not.toHaveBeenCalled();
   });

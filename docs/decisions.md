@@ -2164,7 +2164,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 **Decision (stage 2).**
 * A person's first plan starts a 30-day trial (`users.trialStartedAt`, set once, inside the create transaction; a later plan never restarts it). No card is asked for.
 * During the trial everything works, for any goal. Today mentions the trial only in its last week ("N days left", with Pro one tap away); Account shows "Free trial, N days left".
-* After the 30 days, without Pro, the plan is paused: kept and readable (Roadmap, Dashboard), but nothing moves it on. The routes that complete, change or write the plan answer 402 `TRIAL_ENDED`; closing a week says nothing is due; reconcile marks nothing missed; no reminder email is sent; a new plan is refused with 403 `TRIAL_ENDED`. Today shows "Your 30 free days are done" with Pro instead of the step. Going Pro picks the plan up where it stopped.
+* After the 30 days, without Pro, the plan is paused: kept and readable (Roadmap, Dashboard), but nothing moves it on. The routes that complete, change or write the plan answer 402 `TRIAL_ENDED`; closing a week says nothing is due; reconcile marks nothing missed; no reminder email is sent; a new plan is refused with 402 `TRIAL_ENDED`. Today shows "Your 30 free days are done" with Pro instead of the step. Going Pro picks the plan up where it stopped.
 * Pro stays $9 a month or $72 a year (PAY-1). The same applies when a Pro subscription ends: the plan pauses (ND-23's "runs to day 90" no longer holds).
 * The landing page says it: 30 days free, then Pro; the pathways are "guided", no longer "free".
 

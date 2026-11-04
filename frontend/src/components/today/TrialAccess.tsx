@@ -57,7 +57,7 @@ export const TrialEnded: React.FC<{ goal: Goal }> = ({ goal }) => (
     <ProCheckout className="mt-10" />
     <p className="mt-8 text-small text-text-secondary">
       Not now? You can still look back over your plan on the{' '}
-      <Link to="/roadmap" className="focus-ring rounded-sm text-text underline underline-offset-4">
+      <Link to="/roadmap" className="focus-ring rounded-block text-text underline underline-offset-4">
         Roadmap
       </Link>
       .

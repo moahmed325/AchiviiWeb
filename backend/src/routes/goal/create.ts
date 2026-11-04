@@ -253,7 +253,8 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
     if (!nextPlan) {
       const authorization = await authorizeNewPlan(user);
       if (!authorization.allowed) {
-        res.status(403).json({ error: authorization.message, code: authorization.code });
+        // 402 like every other trial refusal: payment is what unlocks it.
+        res.status(402).json({ error: authorization.message, code: authorization.code });
         return;
       }
     }

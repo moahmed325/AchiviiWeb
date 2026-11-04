@@ -41,11 +41,6 @@ export async function accessFor(user: { id: string; trialStartedAt?: Date | null
   return accessFrom(pro, trialStartedAt, now);
 }
 
-/** Starts the trial with the first plan. Only the first call sets it, so a second plan never restarts the 30 days. */
-export async function startTrialIfNew(userId: string, now = new Date()): Promise<void> {
-  await prisma.user.updateMany({ where: { id: userId, trialStartedAt: null }, data: { trialStartedAt: now } });
-}
-
 /** The refusal for anything that moves a plan on once the trial is over (402: payment is what unlocks it). */
 export const TRIAL_ENDED = "TRIAL_ENDED" as const;
 export const TRIAL_ENDED_MESSAGE = "Your 30 free days are over. Go Pro to keep going; your plan and progress are kept.";

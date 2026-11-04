@@ -267,9 +267,9 @@ export async function reconcileGoal(token: string): Promise<import('../types').R
  * and a string `reason` as `code`; a success whose body is not JSON throws `ApiError` with `fallbackMessage` (B-34).
  */
 async function readJson<T>(response: Response, fallbackMessage: string): Promise<T> {
-  const data: { error?: string; reason?: unknown } | undefined = await response.json().catch(() => undefined);
+  const data: { error?: string; reason?: unknown; code?: unknown } | undefined = await response.json().catch(() => undefined);
   if (!response.ok) {
-    throw new ApiError(data?.error || fallbackMessage, response.status, typeof data?.reason === 'string' ? data.reason : undefined);
+    throw new ApiError(data?.error || fallbackMessage, response.status, typeof data?.reason === 'string' ? data.reason : typeof data?.code === 'string' ? data.code : undefined);
   }
   if (data === undefined) {
     throw new ApiError(fallbackMessage, response.status);
