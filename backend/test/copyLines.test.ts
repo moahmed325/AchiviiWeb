@@ -5,6 +5,7 @@ vi.mock('../src/lib/prisma.js', () => ({ prisma: {} }));
 import { AUTO_CLOSE_INSIGHT, MOVED_INSIGHT, PARTIAL_MOVE_INSIGHT } from '../src/lib/weekClose/close.js';
 import { FINAL_WEEK_INSIGHT, KEEP_GOING_INSIGHT, WELCOME_BACK_INSIGHT } from '../src/lib/weekClose/breaks.js';
 import { FIRST_WEEK_BACK_LINE } from '../src/lib/recovery/easyStart.js';
+import { SHORTER_CARRY_LINE } from '../src/lib/carryForward.js';
 
 // Weekly update section 6 (WU-62 (4)): every line code writes for the person, word for word. No weekly tests
 // (2026-10-30): the target lines and the test steps went with the weekly update.
@@ -21,5 +22,7 @@ describe("section 6's rows match the code word for word", () => {
 
   it('the step text code writes', () => {
     expect(FIRST_WEEK_BACK_LINE).toBe('First week back: keep the effort easy today.');
+    // The app reads it back by this exact wording (frontend `SHORTER_LINE` in lib/stepLines.ts).
+    expect(SHORTER_CARRY_LINE).toBe('Shorter today: do the most important part in {n} minutes.');
   });
 });

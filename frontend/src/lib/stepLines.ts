@@ -21,6 +21,12 @@ export const FIRST_WEEK_BACK_LINE = 'First week back: keep the effort easy today
 
 const STORED_LEADS = [EASY_START_LINE, FIRST_WEEK_BACK_LINE, MOVED_WARM_UP_LINE];
 
+/**
+ * 2026-11-04: a moved step too long for its new day comes as a shorter version, with this line at the end of its
+ * instructions (backend `SHORTER_CARRY_LINE` in `carryForward.ts`). Shown first, so the time is clear before the step.
+ */
+export const SHORTER_LINE = /\n?(Shorter today: do the most important part in \d+ minutes\.)$/;
+
 export interface StepLines {
   /** The lines shown first, each on its own line: the continue line, then the stored easy (or first-week-back) and warm-up lines. */
   lead: string[];
@@ -190,6 +196,11 @@ export function stepLines(step: StepText, done?: DoneDays): StepLines {
   const pickUp = continueLine(step, done);
   if (pickUp) lead.push(pickUp);
   let body = typeof step.instructions === 'string' ? step.instructions : '';
+  const shorter = SHORTER_LINE.exec(body);
+  if (shorter) {
+    lead.push(shorter[1]);
+    body = body.slice(0, shorter.index);
+  }
   for (const line of STORED_LEADS) {
     if (body === line || body.startsWith(`${line}\n`)) {
       lead.push(line);
