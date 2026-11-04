@@ -18,6 +18,7 @@
  * MR-17, MR-18, MR-26, MR-28 to MR-31.
  */
 import {
+  SHORTER_CARRY_MIN_MINUTES,
   byDate,
   fitCarriedStep,
   handledTaskIds,
@@ -46,6 +47,8 @@ import { holdRefusal } from './swap.js';
 
 /** MR-26, MR-31: put first in a moved step's instructions, once, when the step is physical. */
 export const MOVED_WARM_UP_LINE = 'Start with an easy 5-minute warm-up and end with 5 easy minutes.';
+/** A moved physical step shortened to fit (2026-11-04) keeps at least this long, so its warm-up leaves real work. */
+export const SHORTER_PHYSICAL_MIN_MINUTES = 20;
 
 /** MR-31 (2): a goal whose profile is one of these templates moves physical steps whatever their kind. */
 export const PHYSICAL_TEMPLATES: ReadonlySet<string> = new Set(['endurance', 'strength']);
@@ -670,17 +673,33 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     // RULE-9: the first later practice day that passes. Reaching the next session of an in-order kind ends the search
     // on that day: closed, done or taken is that reason, open is no room (nothing is ever placed after it).
     let found: { receiving: DayClassification; fit: NonNullable<ReturnType<typeof fitCarriedStep>> | null } | null = null;
+    const fitOn = (day: DayClassification, minShorter: number) => {
+      const fit = fitCarriedStep({ steps: rowOf(day.taskId), durationMinutes: minutesNow(day.taskId) }, carried, isProtected, minShorter);
+      if (!fit) return null;
+      const placed = fit.steps.find((step) => step.carriedFrom === marker)!;
+      return restGapHolds(new Map([[day.taskId, fit.steps]]), [{ taskId: day.taskId, step: placed }]) ? fit : null;
+    };
     for (const day of practiceLater) {
       if (day === nextOfKind) {
         found = { receiving: day, fit: null };
         break;
       }
-      const fit = fitCarriedStep({ steps: rowOf(day.taskId), durationMinutes: minutesNow(day.taskId) }, carried, isProtected);
+      const fit = fitOn(day, Infinity);
       if (!fit) continue;
-      const placed = fit.steps.find((step) => step.carriedFrom === marker)!;
-      if (!restGapHolds(new Map([[day.taskId, fit.steps]]), [{ taskId: day.taskId, step: placed }])) continue;
       found = { receiving: day, fit };
       break;
+    }
+    // 2026-11-04: no day takes the whole step, so the first open day (never one closed, done or taken) that takes a
+    // shorter version of it, before the next session of its kind. A whole fit always wins, as before.
+    if (!found) {
+      for (const day of practiceLater) {
+        if (day === nextOfKind) break;
+        if (closedReason(day) || reachedBy.has(day.taskId)) continue;
+        const fit = fitOn(day, isPhysical(content) ? SHORTER_PHYSICAL_MIN_MINUTES : SHORTER_CARRY_MIN_MINUTES);
+        if (!fit) continue;
+        found = { receiving: day, fit };
+        break;
+      }
     }
     if (!found) {
       drop(missed, due && due < input.today ? 'due_date_passed' : 'no_receiving_day');

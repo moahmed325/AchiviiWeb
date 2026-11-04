@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  SHORTER_CARRY_LINE,
   fitCarriedStep,
   parseStoredSteps,
   planCarries,
@@ -7,6 +8,7 @@ import {
   type CarryInput,
   type CarryPlan,
   type CarryTask,
+  withShorterLine,
 } from '../src/lib/carryForward.js';
 import { findOpenGap, type DayClassification, type DayKind } from '../src/lib/missedSessions.js';
 import { codeMadeRetestStep } from '../src/lib/ai/retestStep.js';
@@ -286,6 +288,46 @@ describe('fitCarriedStep (ND-10, RULE-1)', () => {
     const fit = fitCarriedStep({ steps: practiceSteps('r'), durationMinutes: 25 }, carried(5))!;
     expect(fit.durationMinutes).toBeLessThanOrEqual(25);
   });
+  describe('a shorter version when the whole step cannot fit (2026-11-04)', () => {
+    const day = () => [step('lead', 1, 18, { instructions: 'Ride steady.' }), step('extra', 2, 12)];
+
+    it('takes the room the lower steps leave, keeps its marker and says it is shorter; the day stays as long', () => {
+      const moved = carried(18);
+      const fit = fitCarriedStep({ steps: day(), durationMinutes: 30 }, { ...moved, instructions: 'Do the long ride.' })!;
+      expect(fit.shortened).toBe(12);
+      expect(fit.replaced.map((s) => s.title)).toEqual(['extra']);
+      expect(fit.durationMinutes).toBe(30);
+      const placed = fit.steps.find((s) => s.title === 'carried')!;
+      expect(placed).toMatchObject({ durationMinutes: 12, priority: 2, carriedFrom: moved.carriedFrom });
+      expect(placed.instructions).toBe(`Do the long ride.\n${SHORTER_CARRY_LINE.replace('{n}', '12')}`);
+      expect(fit.steps.find((s) => s.title === 'lead')).toMatchObject({ durationMinutes: 18, priority: 1 });
+    });
+
+    it('not when less than half the step, or less than 10 minutes (or the minimum asked for), would fit', () => {
+      expect(fitCarriedStep({ steps: day(), durationMinutes: 30 }, carried(25))).toBeNull(); // 12 of 25
+      expect(fitCarriedStep({ steps: [step('lead', 1, 22), step('extra', 2, 8)], durationMinutes: 30 }, carried(18))).toBeNull(); // 8 minutes
+      expect(fitCarriedStep({ steps: day(), durationMinutes: 30 }, carried(24))!.shortened).toBe(12); // exactly half
+      expect(fitCarriedStep({ steps: day(), durationMinutes: 30 }, carried(18), undefined, 20)).toBeNull(); // a physical step's 20
+    });
+
+    it('a whole step that fits is never shortened', () => {
+      const fit = fitCarriedStep({ steps: day(), durationMinutes: 30 }, carried(12))!;
+      expect(fit.shortened).toBeUndefined();
+      expect(fit.steps.find((s) => s.title === 'carried')!.instructions).not.toContain('Shorter today');
+    });
+
+    it('the shorter line goes on once, with the new minutes', () => {
+      expect(withShorterLine(withShorterLine('Go.', 20), 12)).toBe(`Go.\n${SHORTER_CARRY_LINE.replace('{n}', '12')}`);
+      expect(withShorterLine(undefined, 15)).toBe(SHORTER_CARRY_LINE.replace('{n}', '15'));
+    });
+
+    it('a missed day whose main step is the day\'s biggest part now moves, shorter, instead of being dropped', () => {
+      const plan = planCarries(week({ mon: { kind: 'missed', steps: day() }, tue: { steps: day() } }));
+      expect(plan.drops).toEqual([]);
+      expect(plan.carries).toHaveLength(1);
+      expect(plan.carries[0]).toMatchObject({ toTaskId: 'w1-tue', durationMinutes: 30, step: { title: 'lead', durationMinutes: 12 } });
+    });
+  });
 });
 
 describe('parseStoredSteps', () => {
@@ -399,13 +441,17 @@ describe('a stored re-test step in carry-forward (METHOD_RECOVERY_ENABLED off)',
     expect(plan.carries[0].step.title).toBe('mon lead');
   });
 
-  it('a carry onto a re-test day never removes the re-test: it fits around it, or not at all', () => {
+  it('a carry onto a re-test day never removes the re-test: it fits around it, shorter, or not at all', () => {
     const fits = fitCarriedStep({ steps: retestDay('tue'), durationMinutes: 30 }, step('mon lead', 1, 10));
     expect(fits?.steps.some((s) => codeMadeRetestStep(s) === 'measured')).toBe(true);
     expect(fits?.replaced.map((s) => s.title)).toEqual(['tue second', 'tue third']);
-    // 15 minutes would need the re-test's 10 as well: it does not fit.
-    expect(fitCarriedStep({ steps: retestDay('tue'), durationMinutes: 30 }, step('mon lead', 1, 15))).toBeNull();
-    const plan = planCarries(week({ mon: { kind: 'missed', steps: practiceSteps('mon') }, tue: { steps: retestDay('tue') } }));
+    // 15 minutes would need the re-test's 10 as well: it goes on shorter (10 minutes), around the re-test.
+    const shorter = fitCarriedStep({ steps: retestDay('tue'), durationMinutes: 30 }, step('mon lead', 1, 15))!;
+    expect(shorter.shortened).toBe(10);
+    expect(shorter.steps.some((s) => codeMadeRetestStep(s) === 'measured')).toBe(true);
+    // 25 minutes would leave less than half: it does not fit.
+    expect(fitCarriedStep({ steps: retestDay('tue'), durationMinutes: 30 }, step('mon lead', 1, 25))).toBeNull();
+    const plan = planCarries(week({ mon: { kind: 'missed', steps: [step('mon lead', 1, 25), step('mon second', 2, 5)] }, tue: { steps: retestDay('tue') } }));
     expect(plan.carries).toEqual([]);
     expect(dropOf(plan, 'mon')).toBe('does_not_fit');
   });

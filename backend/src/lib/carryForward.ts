@@ -215,17 +215,40 @@ export function byDate(a: DayClassification, b: DayClassification): number {
 }
 
 /**
+ * Missed-session work saved (2026-11-04): when a moved step can't fit whole, a shorter version of it takes the room the
+ * day's lower-priority steps leave, if at least this many minutes and this share of the step fit. The day never gets
+ * longer than planned (ND-10). The sweep showed most moves failing with "no room" because a day's main step is
+ * usually its biggest part, so a missed main step never fitted anywhere.
+ */
+export const SHORTER_CARRY_MIN_MINUTES = 10;
+export const SHORTER_CARRY_MIN_SHARE = 0.5;
+/** Added at the end of a shortened moved step's instructions (the first lines stay for the recovery lines). */
+export const SHORTER_CARRY_LINE = 'Shorter today: do the most important part in {n} minutes.';
+
+/** The step's instructions with the shorter line for `minutes`, once. */
+export function withShorterLine(instructions: unknown, minutes: number): string {
+  const text = (typeof instructions === 'string' ? instructions : '').replace(/\nShorter today: do the most important part in \d+ minutes\.$/, '');
+  const line = SHORTER_CARRY_LINE.replace('{n}', String(minutes));
+  return text.trim() ? `${text}\n${line}` : line;
+}
+
+/**
  * ND-10: the receiving day's new steps, or null when the carried step cannot fit.
  * Removes the lowest-priority steps, lowest first, until the day is no longer than before. Its own priority-1
  * step, test step (priority 0) and re-test step (weekly update M3.3a) are never removed. The carried step comes directly after the day's own
  * priority-1 step, in both order and priority; everything else keeps its relative order and is renumbered.
+ * When it can't fit whole even with every removable step gone, a shorter version fits the room left (at least
+ * `minShorterMinutes` and `SHORTER_CARRY_MIN_SHARE` of it), with the shorter line; the result's `shortened`
+ * then holds its new minutes. Its marker object is kept, so callers still find it by marker.
  */
 export function fitCarriedStep(
   receiving: { steps: readonly CarriedStep[]; durationMinutes: number },
   carried: CarriedStep,
   /** Method-aware recovery (RULE-10, RULE-12): steps that must never be replaced. Missed sessions passes none. */
-  isProtected?: (step: CarriedStep) => boolean
-): { steps: CarriedStep[]; replaced: DetailedStep[]; durationMinutes: number } | null {
+  isProtected?: (step: CarriedStep) => boolean,
+  /** The shortest a shorter version may be (a physical step's warm-up needs more than the default). */
+  minShorterMinutes = SHORTER_CARRY_MIN_MINUTES
+): { steps: CarriedStep[]; replaced: DetailedStep[]; durationMinutes: number; shortened?: number } | null {
   const steps = receiving.steps;
   if (steps.length === 0 || !steps.every(hasPriority)) return null;
   const ownLead = steps.find((step) => step.priority === 1);
@@ -247,15 +270,23 @@ export function fitCarriedStep(
     removed.add(step);
     total -= Math.max(0, step.durationMinutes || 0);
   }
-  if (total > limit) return null;
+  let placed = carried;
+  let shortened: number | undefined;
+  if (total > limit) {
+    const room = Math.floor(carriedMinutes - (total - limit));
+    if (room < minShorterMinutes || room < carriedMinutes * SHORTER_CARRY_MIN_SHARE) return null;
+    shortened = room;
+    placed = { ...carried, durationMinutes: room, instructions: withShorterLine(carried.instructions, room) };
+    total = limit;
+  }
 
   const kept = steps.filter((step) => !removed.has(step));
   const ordered: CarriedStep[] = [];
   for (const step of kept) {
     ordered.push(step);
-    if (step === ownLead) ordered.push(carried);
+    if (step === ownLead) ordered.push(placed);
   }
-  const ranked = [ownLead, carried, ...kept.filter((step) => step !== ownLead && step.priority !== 0).sort((a, b) => (a.priority as number) - (b.priority as number))];
+  const ranked = [ownLead, placed, ...kept.filter((step) => step !== ownLead && step.priority !== 0).sort((a, b) => (a.priority as number) - (b.priority as number))];
   const priorityOf = new Map(ranked.map((step, index) => [step, index + 1]));
 
   const next = ordered.map((step, index) => ({
@@ -263,7 +294,7 @@ export function fitCarriedStep(
     stepNumber: index + 1,
     priority: priorityOf.get(step) ?? 0,
   }));
-  return { steps: next, replaced: steps.filter((step) => removed.has(step)), durationMinutes: total };
+  return { steps: next, replaced: steps.filter((step) => removed.has(step)), durationMinutes: total, ...(shortened !== undefined ? { shortened } : {}) };
 }
 
 /**
