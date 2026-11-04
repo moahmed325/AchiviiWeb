@@ -2017,6 +2017,8 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Consequences.** `WeeklyReviewModal` and the parts only it used (`ReviewSummaryCard`, `ReviewReflectionStep`, `PhaseGateOutcomeCard`, `AdaptationMomentStep`, `lib/reviewDraft.ts`, `submitWeeklyReview`, `isWeekReviewDue`), `Staircase` and its styles are removed. The test entry (`ReviewTestResultStep`, `LightTestEntry`) stays, used by Today's week-close card and the late-test card. The backend review route stays (B-110). With `WEEK_CLOSE_ENABLED` off, weeks would no longer close at all; it must stay on.
 
+**Amended by ND-35 (2026-10-31).** No weekly tests: the test entry this decision kept was removed with them.
+
 **Related.** ND-24, ND-29, ND-31.
 
 ### ND-33 — A Dashboard worth opening, the Roadmap with progress and every week, no late-test card
@@ -2037,6 +2039,8 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 * **No late-test card on Today:** the week's test is asked for once, when the week closes (`WeekTestFirst`). The re-test entry stays.
 
 **Consequences.** New: `ProgressRing` (ui), `practiceStreak` (`lib/dashboard.ts`), `comingUp` (`lib/plan.ts`). Removed: `LateTestCard`, `lib/lateTest.ts`, the old roadmap styles.
+
+**Amended by ND-35 (2026-10-31).** No weekly tests: the goal rings count the plan's days and weeks, the results line, checks and test entries are gone, and Coming up has no weekly check.
 
 **Related.** ND-29, ND-31, ND-32.
 
