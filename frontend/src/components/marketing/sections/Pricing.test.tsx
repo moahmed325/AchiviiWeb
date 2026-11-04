@@ -4,17 +4,17 @@ import { MemoryRouter } from 'react-router-dom';
 import { Pricing } from './Pricing';
 
 describe('landing Pricing', () => {
-  it('shows Free and Pro with their prices, each linking to signup, with no checkout on the page', () => {
+  it('shows the 30 free days and Pro with their prices, with no checkout on the page (ND-37)', () => {
     render(
       <MemoryRouter>
         <Pricing />
       </MemoryRouter>,
     );
-    const section = screen.getByRole('region', { name: 'Free to start. Pro if you want your own goal.' });
+    const section = screen.getByRole('region', { name: 'Thirty days free. Then Pro keeps it going.' });
 
-    const free = within(section).getByRole('heading', { level: 3, name: 'Achivii Free' }).closest('li') as HTMLElement;
-    expect(free).toHaveTextContent('$0');
-    expect(within(free).getByRole('link', { name: 'Start free' })).toHaveAttribute('href', '/signup');
+    const free = within(section).getByRole('heading', { level: 3, name: 'Your first 30 days' }).closest('li') as HTMLElement;
+    expect(free).toHaveTextContent('$0no card needed');
+    expect(within(free).getByRole('link', { name: 'Start my 30 days' })).toHaveAttribute('href', '#top');
 
     const pro = within(section).getByRole('heading', { level: 3, name: 'Achivii Pro' }).closest('li') as HTMLElement;
     expect(pro).toHaveTextContent('$9a month, or $72 a year');

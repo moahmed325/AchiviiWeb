@@ -26,7 +26,7 @@ export const Hero: React.FC = () => {
               step a day, sized to the time you have.
             </p>
             <GoalStartForm className="mt-10 max-w-[36rem]" onStart={startTypedGoal} />
-            <p className="mt-6 text-small text-text-secondary">No account needed to start · About two minutes</p>
+            <p className="mt-6 text-small text-text-secondary">No account needed to start · 30 days free</p>
           </div>
 
           <GoalPreview className="mx-auto w-full max-w-[440px] lg:col-span-5" />

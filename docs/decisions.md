@@ -135,7 +135,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-7 | Application shell and navigation | Design | Decided (A narrowed) | 5 |
 | ND-8 | Progress: separate page or Journey layer | Design | Decided (A) | 8 |
 | ND-9 | Payments in scope or not | Product | Decided (A) | 10 |
-| ND-10 | Custom-goal gating | Product | Decided (A) | 10 |
+| ND-10 | Custom-goal gating | Product | Superseded by ND-37 | 10 |
 | ND-11 | Coach scope | Product | Decided (A) | 10 |
 | ND-12 | Phase 2 frontend scope additions (`api.ts` status, `GoalContext` failure flag) | Architecture | Decided (A) | 2 |
 | ND-13 | Onboarding step order around the clarify wait | Design | Superseded by ND-36 | 3 |
@@ -151,6 +151,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-26 | The landing page is built around picking a goal | Product | Decided | — |
 | ND-27 | Visitors see their plan before signing up | Product | Decided | — |
 | ND-36 | Achivii starts from the goal the person types | Product | Decided | — |
+| ND-37 | Thirty days free, then Pro | Product | Decided | — |
 
 **What blocks the next phase:** Phases 0–9 are complete. Phase 10 (Premium Architecture) is unblocked and **IN PROGRESS** (M10.1 complete: ND-9 Decided A, ND-10 Decided A, ND-11 Decided A, OD-1c Decided B). M10.2 (Coach placement and honest state) is active.
 
@@ -1406,7 +1407,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Decided (A) |
+| Status | Superseded by ND-37 |
 | Category | Product |
 | Needed by | 10 |
 | Raised | 2026-09-23 — `docs/features/billing/04-phases.md` Phase 10 |
@@ -1998,6 +1999,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-10-30 | ND-33 Decided by Mo: the Dashboard with a goal ring, streak and number tiles, the map with a key and Coming up; the Roadmap with a progress card and the whole plan by phase, week details folded; no late-test card on Today. |
 | 2026-10-31 | ND-35 Decided by Mo: no weekly tests, targets, checkpoints or final test; next week follows sessions done, the feel taps and the notes. The ND-33 goal ring and Roadmap progress count the plan's weeks and days instead of a measured number, and Coming up has no weekly check. |
 | 2026-11-04 | ND-36 Decided by Mo (stage 1 of 4): the landing page and Home ask for the goal first; onboarding asks one thing per page, routine first, turns a vague goal into a measurable one, and is open to visitors, who sign up from the summary. ND-13 and ND-14 marked Superseded. |
+| 2026-11-04 | ND-37 Decided by Mo (stage 2 of 4): every plan starts with 30 days free, no card; after them, without Pro, the plan is paused (kept and readable, not moved on). ND-10 and ND-23 marked Superseded. |
 
 ### ND-32 — The Roadmap at a glance, a name in the greeting, no weekly review by hand
 
@@ -2059,7 +2061,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Decided |
+| Status | Superseded by ND-37 |
 | Category | Product |
 | Needed by | — |
 | Raised | 2026-10-25 — B-46 part 2 (Upgrade Ana: free, then Pro, cancels in week 8) |
@@ -2144,4 +2146,29 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 **Consequences.** Supersedes ND-13 and ND-14. The create request body is unchanged (the R-4 baseline still holds). The pathway library leaves Home and onboarding; the landing page's pathway rail and pricing stay until stages 2 and 3.
 
 **Related.** ND-10, ND-26, ND-27, `frontend/src/components/onboarding/`, `backend/src/lib/ai/clarify.ts`, `backend/src/lib/billing/goalAuthorization.ts`.
+
+---
+
+### ND-37 — Thirty days free, then Pro
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-29 — Mo: the roadmap comes with a 30-day trial; after that it needs Pro |
+| Decided | 2026-10-29 — Mo (the agent's suggestions accepted: no card, the plan locks read-only, nothing deleted, prices unchanged) |
+
+**Context.** Until now the 10 pathways were free and Pro was for a goal of your own (ND-10). With ND-36 everyone starts from the goal they type, so the free/Pro line moved from the kind of goal to time.
+
+**Decision (stage 2).**
+* A person's first plan starts a 30-day trial (`users.trialStartedAt`, set once, inside the create transaction; a later plan never restarts it). No card is asked for.
+* During the trial everything works, for any goal. Today mentions the trial only in its last week ("N days left", with Pro one tap away); Account shows "Free trial, N days left".
+* After the 30 days, without Pro, the plan is paused: kept and readable (Roadmap, Dashboard), but nothing moves it on. The routes that complete, change or write the plan answer 402 `TRIAL_ENDED`; closing a week says nothing is due; reconcile marks nothing missed; no reminder email is sent; a new plan is refused with 403 `TRIAL_ENDED`. Today shows "Your 30 free days are done" with Pro instead of the step. Going Pro picks the plan up where it stopped.
+* Pro stays $9 a month or $72 a year (PAY-1). The same applies when a Pro subscription ends: the plan pauses (ND-23's "runs to day 90" no longer holds).
+* The landing page says it: 30 days free, then Pro; the pathways are "guided", no longer "free".
+
+**Consequences.** Supersedes ND-10 and ND-23. Access is decided in one place (`backend/src/lib/billing/access.ts`); `GET /api/billing/entitlement` adds `access` (`pro`, `new`, `trial`, `locked`) and `trialEndsAt`. A billing read that fails never locks anyone out. Accounts that already had a plan start their 30 days when this ships (migration `20261104120000_user_trial_started`), so nobody is paused at once.
+
+**Related.** PAY-1, ND-9, ND-36, `backend/src/lib/billing/`, `frontend/src/components/today/TrialAccess.tsx`, `frontend/src/components/marketing/sections/Pricing.tsx`.
 

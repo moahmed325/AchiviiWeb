@@ -5,6 +5,8 @@ import { Navigate } from 'react-router-dom';
 import { usePathwayLaunch } from '../components/pathways';
 import { GoalStartForm } from '../components/onboarding/GoalStartForm';
 import { readSnapshot } from '../components/onboarding/snapshot';
+import { TrialEnded } from '../components/today/TrialAccess';
+import { useAccess } from '../hooks/useAccess';
 import { Button, Surface } from '../components/ui';
 import { LandingPage } from '../components/marketing/LandingPage';
 import { Today, TodaySkeleton } from '../components/today/Today';
@@ -16,6 +18,7 @@ const AchievementPage = React.lazy(() => import('./AchievementPage'));
 export const Home: React.FC = () => {
   const { user, token, loading: authLoading } = useAuth();
   const { activeGoal, loadingGoal, goalLoadFailed, refreshGoal, apiStatus, closingWeek, pendingChoice } = useGoal();
+  const access = useAccess();
   const { startTypedGoal } = usePathwayLaunch();
   const [retrying, setRetrying] = useState(false);
 
@@ -85,6 +88,9 @@ export const Home: React.FC = () => {
     if (pendingChoice && pendingChoice.goalId === activeGoal.id) {
       return <BreakChoice goal={activeGoal} choice={pendingChoice.choice} />;
     }
+
+    // ND-37: past the 30-day trial without Pro, the plan is paused; Today offers Pro instead of the step.
+    if (access.state === 'locked') return <TrialEnded goal={activeGoal} />;
 
     return <Today goal={activeGoal} />;
   }

@@ -40,10 +40,19 @@ const PRO_REQUIRED: Omit<OnboardingError, 'kind'> = {
   message: 'Your first plan is included. After that, Pro builds a plan around any goal of your own, and the guided plans stay free.',
 };
 
+/** ND-37: create refuses a new plan once the 30-day trial is over without Pro. */
+export const TRIAL_ENDED = 'TRIAL_ENDED';
+
+const TRIAL_OVER: Omit<OnboardingError, 'kind'> = {
+  title: 'Your 30 free days are over',
+  message: 'Go Pro to build this plan. Everything you’ve done so far is kept.',
+};
+
 /** Read by shape, not `instanceof`, so a test that mocks `lib/api` still gets the same answer. */
-const isProRequired = (error: unknown) => {
+const proCode = (error: unknown) => {
   const { status, code } = (error ?? {}) as Partial<ApiError>;
-  return error instanceof Error && status === 403 && code === CUSTOM_GOAL_REQUIRES_PRO;
+  if (!(error instanceof Error) || (status !== 403 && status !== 402)) return null;
+  return code === CUSTOM_GOAL_REQUIRES_PRO || code === TRIAL_ENDED ? code : null;
 };
 
 /** fetch rejects with a TypeError when the request never reaches the server or the connection drops mid-stream. */
@@ -57,7 +66,7 @@ const isNetworkFailure = (error: unknown) =>
 export function describeOnboardingError(error: unknown, request: OnboardingRequest): OnboardingError {
   const copy = COPY[request];
   if (isNetworkFailure(error)) return { kind: 'offline', ...copy.offline };
-  if (request === 'create' && isProRequired(error)) return { kind: 'pro', ...PRO_REQUIRED };
+  if (request === 'create' && proCode(error)) return { kind: 'pro', ...(proCode(error) === TRIAL_ENDED ? TRIAL_OVER : PRO_REQUIRED) };
   const fromServer =
     error instanceof Error && !(error instanceof TypeError) && !(error instanceof SyntaxError) ? error.message.trim() : '';
   return { kind: 'server', title: copy.serverTitle, message: fromServer || copy.serverFallback };

@@ -38,6 +38,7 @@ import { planDays } from '../../lib/planLength';
 import { markCloseLineSeen } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTaskActions } from './useTaskActions';
+import { TrialNotice } from './TrialAccess';
 import { SwapOfferAnswers, TodayPlanActions } from './PlanActions';
 import { useAutoSwap } from './useAutoSwap';
 import { StepInstructions } from './StepInstructions';
@@ -467,6 +468,8 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   return (
     <main id="main" className="ui-root relative mx-auto w-full max-w-3xl flex-1 px-gutter py-10 text-left sm:py-14">
       <PathwayNotice />
+      {/* ND-37: the trial's last week only. */}
+      <TrialNotice />
 
       {apiStatus === 'offline' && (
         <div

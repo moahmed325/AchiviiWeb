@@ -13,8 +13,8 @@ const QUESTIONS = [
     a: 'No. Type what’s on your mind, even something loose like “get fit”. If it’s hard to measure, we suggest goals you could reach in 90 days and you pick the one that fits.',
   },
   {
-    q: 'Is Achivii free?',
-    a: 'Yes. Every guided goal is free. Achivii Pro is $9 a month or $72 a year and builds a plan around a goal of your own.',
+    q: 'What does it cost?',
+    a: 'Your first 30 days are free, no card needed. After that Achivii Pro is $9 a month or $72 a year. If you stop, your plan and progress are kept, and Pro picks them up where you left off.',
   },
   {
     q: 'How much time does it take each day?',

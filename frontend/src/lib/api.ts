@@ -24,9 +24,16 @@ export function resolveApiBaseUrl(): string {
 
 const API_BASE_URL = resolveApiBaseUrl();
 
+/** ND-37: `new` before the first plan, `trial` for its first 30 days, `locked` after them without Pro. */
+export type AccessState = 'pro' | 'new' | 'trial' | 'locked';
+
 export interface BillingEntitlementResponse {
   plan: 'free' | 'pro';
   entitled: boolean;
+  /** Missing from an older server: read as `new`. */
+  access?: AccessState;
+  /** When the 30-day trial ends (ISO), or null before the first plan. */
+  trialEndsAt?: string | null;
 }
 
 export async function fetchBillingEntitlement(token: string): Promise<BillingEntitlementResponse> {

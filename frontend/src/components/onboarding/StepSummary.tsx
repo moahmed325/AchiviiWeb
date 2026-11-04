@@ -24,12 +24,14 @@ interface StepSummaryProps {
   fixedDate: string;
   /** A visitor signs up next; the plan is built straight after. */
   signedIn: boolean;
+  /** ND-37: this plan starts the 30-day trial (a visitor, or a person's first plan). */
+  startsTrial?: boolean;
   onBack: () => void;
   onStart: () => void;
 }
 
 /** ND-36: the last page. Short on purpose: where they're going, what it asks of them, and the button to begin. */
-export const StepSummary: React.FC<StepSummaryProps> = ({ outcome, defaultOutcome, onOutcomeChange, routine, weeks, fixedDate, signedIn, onBack, onStart }) => {
+export const StepSummary: React.FC<StepSummaryProps> = ({ outcome, defaultOutcome, onOutcomeChange, routine, weeks, fixedDate, signedIn, startsTrial = false, onBack, onStart }) => {
   const [editing, setEditing] = useState(false);
   const toggleEditing = () => {
     if (editing && !outcome.trim()) onOutcomeChange(defaultOutcome);
@@ -91,6 +93,7 @@ export const StepSummary: React.FC<StepSummaryProps> = ({ outcome, defaultOutcom
       <p className="tabular mt-10 max-w-xl text-body-lg text-text">
         {sessions} sessions, each one small and planned for you. Miss a day and your plan adjusts. You never start over.
       </p>
+      {startsTrial && <p className="mt-3 text-small text-text-secondary">Your first 30 days are free. No card needed.</p>}
 
       <StepFooter onBack={onBack} status={signedIn ? undefined : 'Next, create your account so your plan is saved. It takes a minute.'}>
         <Button size="lg" variant="gold" onClick={onStart} trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-5" />}>

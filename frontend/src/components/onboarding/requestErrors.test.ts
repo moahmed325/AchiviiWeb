@@ -43,6 +43,15 @@ describe('describeOnboardingError', () => {
     });
   });
 
+  it('says the 30 free days are over when create is refused with TRIAL_ENDED (ND-37)', () => {
+    const refusal = new ApiError('Your 30 free days are over.', 403, 'TRIAL_ENDED');
+    expect(describeOnboardingError(refusal, 'create')).toEqual({
+      kind: 'pro',
+      title: 'Your 30 free days are over',
+      message: 'Go Pro to build this plan. Everything you’ve done so far is kept.',
+    });
+  });
+
   it('treats any other 403 as an ordinary server failure', () => {
     expect(describeOnboardingError(new ApiError('Forbidden', 403), 'create')).toMatchObject({ kind: 'server', message: 'Forbidden' });
     expect(

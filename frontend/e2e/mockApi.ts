@@ -107,7 +107,11 @@ export interface MockOptions {
    * (ND-10) still reach the custom goal field; `free` shows the Pro gate instead.
    */
   plan?: 'free' | 'pro';
-  /** With `clarify`: `/api/goal/create` refuses with the server's 403 for a custom goal without Pro. */
+  /** ND-37: the trial as entitlement reports it: `new`, `trial` or `locked` (for a free plan; Pro is always `pro`). */
+  access?: 'new' | 'trial' | 'locked';
+  /** With `access`: when the trial ends (ISO). */
+  trialEndsAt?: string | null;
+  /** With `clarify`: `/api/goal/create` refuses with the server's 403 for a new plan after the trial without Pro. */
   createProRequired?: boolean;
   /**
    * How the three plan actions answer (missed sessions M3.3): `POST /api/goal/tasks/:id/mark-missed`, `/swap` and
@@ -219,6 +223,8 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     taskUpdateStatus,
     reconcile = { applies: false, reason: 'not_plan_v2' },
     plan = 'pro',
+    access = 'trial',
+    trialEndsAt = null,
     createProRequired = false,
     markMissed = CARRY_DISABLED,
     swap = CARRY_DISABLED,
@@ -298,7 +304,9 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     }
 
     if (path === '/api/auth/me') return json(route, 200, { user: USER });
-    if (path === '/api/billing/entitlement') return json(route, 200, { plan, entitled: plan === 'pro' });
+    if (path === '/api/billing/entitlement') {
+      return json(route, 200, { plan, entitled: plan === 'pro', access: plan === 'pro' ? 'pro' : access, trialEndsAt });
+    }
     if (path === '/api/goal/active' && route.request().method() === 'DELETE') {
       calls.resets += 1;
       if (resetStatus >= 400) return json(route, resetStatus, { error: 'Failed to reset goal' });
@@ -408,7 +416,8 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
       });
       // As backend/src/routes/goal.ts answers before any plan work (authorizeNewCustomGoal).
       if (createProRequired) {
-        return json(route, 403, { error: 'Custom Goals require Achivii Pro.', code: 'CUSTOM_GOAL_REQUIRES_PRO' });
+        // ND-37: the server's refusal once the 30-day trial is over without Pro.
+        return json(route, 403, { error: 'Your 30 free days are over. Go Pro to keep going; your plan and progress are kept.', code: 'TRIAL_ENDED' });
       }
       if (failure === 'offline') return route.abort('connectionrefused');
       if (failure !== undefined) {

@@ -4,6 +4,7 @@ import type { NextPlanLaunch } from '../lib/nextPlan';
 import { findPathwayByTitle } from '../lib/certifiedPresets';
 import { suggestedMinutes } from '../lib/planPreview';
 import { weeksBefore } from '../lib/planLength';
+import { useAccess } from '../hooks/useAccess';
 import { useOnboardingState } from './onboarding/useOnboardingState';
 import { isEssentialPage, isQuestionPage } from './onboarding/pages';
 import {
@@ -97,6 +98,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     startClarification,
     handleGeneratePlan,
   } = onboarding;
+
+  // ND-37: whether this plan starts the 30-day trial, for the summary's line.
+  const access = useAccess();
 
   // Held here rather than in the page, so it survives leaving and returning to the page.
   const [editingCommitment, setEditingCommitment] = useState<EditingCommitmentSession | null>(null);
@@ -250,6 +254,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             weeks={fixedDateCheck === 'short' ? weeksBefore(today, fixedDate) : 12}
             fixedDate={fixedDate}
             signedIn={Boolean(token)}
+            startsTrial={!token || access.state === 'new'}
             onBack={() => goBack('summary')}
             onStart={handleGeneratePlan}
           />
