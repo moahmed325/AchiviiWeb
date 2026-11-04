@@ -2,6 +2,8 @@ import { prisma } from '../prisma.js';
 import { addDays } from '../missedSessions.js';
 import { reminderFor, type ReminderCandidate } from './plan.js';
 import { buildReminderEmail, sendEmail } from './email.js';
+import { trialEndsAt } from '../billing/access.js';
+import { hasProEntitlement } from '../billing/entitlement.js';
 
 export interface ReminderRun {
   checked: number;
@@ -31,6 +33,7 @@ export async function runReminders(now: Date = new Date(), spacingMs = SEND_SPAC
       timezone: true,
       remindersEnabled: true,
       lastReminderAt: true,
+      trialStartedAt: true,
       goals: {
         where: { status: 'active' },
         select: {
@@ -57,6 +60,8 @@ export async function runReminders(now: Date = new Date(), spacingMs = SEND_SPAC
       tasks: user.goals.flatMap((goal) => goal.dailyTasks),
     };
     if (!reminderFor(candidate, now, true)) continue;
+    // ND-37: a plan paused after the 30-day trial gets no reminders; nothing can be done on it until Pro.
+    if (user.trialStartedAt && trialEndsAt(user.trialStartedAt) <= now && !(await hasProEntitlement(user.id, now))) continue;
     if (user.lastReminderAt) {
       const latest = await prisma.dailyTask.findFirst({
         where: { goalId: { in: user.goals.map((goal) => goal.id) }, status: 'completed', completedAt: { not: null } },

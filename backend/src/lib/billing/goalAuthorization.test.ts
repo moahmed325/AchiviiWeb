@@ -1,25 +1,32 @@
-﻿import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const hasProEntitlement = vi.fn();
 vi.mock("./entitlement.js", () => ({ hasProEntitlement }));
+vi.mock("../prisma.js", () => ({ prisma: {} }));
 
-describe("new custom-goal authorization", () => {
-  beforeEach(() => hasProEntitlement.mockReset());
+const DAY = 24 * 60 * 60 * 1000;
 
-  it("allows an entitled user", async () => {
+describe("new plan authorization (ND-37)", () => {
+  beforeEach(() => hasProEntitlement.mockReset().mockResolvedValue(false));
+
+  it("allows Pro whatever the trial", async () => {
     hasProEntitlement.mockResolvedValue(true);
-    const { authorizeNewCustomGoal } = await import("./goalAuthorization.js");
-    await expect(authorizeNewCustomGoal("user-a")).resolves.toEqual({ allowed: true });
-    expect(hasProEntitlement).toHaveBeenCalledWith("user-a");
+    const { authorizeNewPlan } = await import("./goalAuthorization.js");
+    await expect(authorizeNewPlan({ id: "user-a", trialStartedAt: new Date(Date.now() - 90 * DAY) })).resolves.toEqual({ allowed: true });
   });
 
-  it("denies a user without Pro with a stable error code", async () => {
-    hasProEntitlement.mockResolvedValue(false);
-    const { authorizeNewCustomGoal, CUSTOM_GOAL_REQUIRES_PRO } = await import("./goalAuthorization.js");
-    await expect(authorizeNewCustomGoal("user-a")).resolves.toEqual({
+  it("allows a first plan, and any plan during the 30 days", async () => {
+    const { authorizeNewPlan } = await import("./goalAuthorization.js");
+    await expect(authorizeNewPlan({ id: "user-a", trialStartedAt: null })).resolves.toEqual({ allowed: true });
+    await expect(authorizeNewPlan({ id: "user-a", trialStartedAt: new Date(Date.now() - 29 * DAY) })).resolves.toEqual({ allowed: true });
+  });
+
+  it("refuses once the trial is over, with a stable code", async () => {
+    const { authorizeNewPlan } = await import("./goalAuthorization.js");
+    await expect(authorizeNewPlan({ id: "user-a", trialStartedAt: new Date(Date.now() - 31 * DAY) })).resolves.toEqual({
       allowed: false,
-      code: CUSTOM_GOAL_REQUIRES_PRO,
-      message: "Custom Goals require Achivii Pro.",
+      code: "TRIAL_ENDED",
+      message: "Your 30 free days are over. Go Pro to keep going; your plan and progress are kept.",
     });
   });
 });

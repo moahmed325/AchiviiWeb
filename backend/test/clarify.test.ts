@@ -137,3 +137,23 @@ describe('clarifyGoalWithAI', () => {
     expect(result.followUpQuestions.every((q) => q.retry.subtitle === RETRY_FALLBACK_SUBTITLE)).toBe(true);
   });
 });
+
+describe('vague goals', () => {
+  it('passes on goal options when the model says the goal is not measurable', () => {
+    const result = checkClarifyAnswer(answer({ measurable: false, goalOptions: ['Run 5K without stopping', 'Do 20 push-ups in a row', 'Walk 10,000 steps a day', 'Run 5K without stopping'] }));
+    expect(result).toEqual({ value: expect.objectContaining({ focusOptions: ['Run 5K without stopping', 'Do 20 push-ups in a row', 'Walk 10,000 steps a day'] }) });
+  });
+
+  it('leaves the options out for a measurable goal, or when fewer than three are usable', () => {
+    const measurable = checkClarifyAnswer(answer({ measurable: true, goalOptions: ['A goal', 'B goal', 'C goal'] }));
+    expect(measurable).toEqual({ value: expect.not.objectContaining({ focusOptions: expect.anything() }) });
+    const thin = checkClarifyAnswer(answer({ measurable: false, goalOptions: ['Only one'] }));
+    expect(thin).toEqual({ value: expect.not.objectContaining({ focusOptions: expect.anything() }) });
+  });
+
+  it('asks the model to judge the goal and to offer the pathway titles word for word', () => {
+    const prompt = buildClarifyPrompt('get fit');
+    expect(prompt).toContain('"measurable"');
+    expect(prompt).toContain('"Run a 10K Under 50 Minutes"');
+  });
+});

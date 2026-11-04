@@ -5,6 +5,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../../lib/prisma.js';
 import { getAuthUser } from '../auth.js';
+import { isLocked } from '../../lib/billing/accessGuard.js';
 import { TOTAL_WEEKS } from '../../lib/ai/roadmap.js';
 import { readRoutine, routineRecord } from '../../lib/planV2.js';
 import {
@@ -49,6 +50,11 @@ weekRoutes.post('/close-week', async (req: Request, res: Response): Promise<void
     const user = await getAuthUser(req);
     if (!user) {
       res.status(401).json({ error: 'Unauthorized.' });
+      return;
+    }
+    // ND-37: a plan paused after the 30-day trial has no week to close; the app asks on every load.
+    if (await isLocked(user)) {
+      res.json({ due: false });
       return;
     }
     // RULE-18: off means nothing closes a week automatically; nothing is read or written.

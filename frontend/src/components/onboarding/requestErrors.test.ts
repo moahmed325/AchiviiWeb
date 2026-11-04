@@ -39,7 +39,17 @@ describe('describeOnboardingError', () => {
     expect(describeOnboardingError(refusal, 'create')).toEqual({
       kind: 'pro',
       title: 'Custom Goals require Achivii Pro',
-      message: 'Certified pathways stay free. Pro unlocks creating your own custom 90-day journeys.',
+      message: 'Your first plan is included. After that, Pro builds a plan around any goal of your own, and the guided plans stay free.',
+    });
+  });
+
+  it('says the 30 free days are over when create is refused with TRIAL_ENDED (ND-37)', () => {
+    const refusal = new ApiError('Your 30 free days are over.', 402, 'TRIAL_ENDED');
+    expect(describeOnboardingError(refusal, 'create')).toEqual({
+      kind: 'pro',
+      trialOver: true,
+      title: 'Your 30 free days are over',
+      message: 'Go Pro to build this plan. Everything you’ve done so far is kept.',
     });
   });
 

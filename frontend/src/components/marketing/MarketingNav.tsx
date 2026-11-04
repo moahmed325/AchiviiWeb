@@ -83,8 +83,8 @@ export const MarketingNav: React.FC<{ apiOffline: boolean }> = ({ apiOffline }) 
           <Button variant="quiet" to="/login" className="px-3 sm:px-4">
             Sign in
           </Button>
-          <Button variant="gold" to="/signup" className="px-4 sm:px-5">
-            Start free
+          <Button variant="gold" href="#top" className="px-4 sm:px-5">
+            Start
           </Button>
         </div>
       </nav>

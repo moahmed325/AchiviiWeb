@@ -65,7 +65,7 @@ const GoalCard: React.FC<{ pathway: CertifiedPathway; onOpen: (pathway: Certifie
 };
 
 /**
- * Every free pathway as one swipeable row of photo cards, each showing where the plan starts and what it aims for,
+ * Every guided pathway as one swipeable row of photo cards, each showing where the plan starts and what it aims for,
  * with a daily-time filter for the visitor who thinks they are too busy. Arrows scroll the row on wider screens.
  * A card opens the plan preview: two questions, then the shape of that visitor's 90 days, then sign-up.
  */
@@ -155,7 +155,7 @@ export const GoalRail: React.FC = () => {
         id={railId}
         ref={scroller}
         onScroll={readEdges}
-        aria-label="Free goals"
+        aria-label="Guided goals"
         className={`-mx-1 mt-6 flex snap-x snap-mandatory scroll-px-1 gap-4 overflow-x-auto overscroll-x-contain px-1 pb-2 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
           edges.atEnd ? '' : '[mask-image:linear-gradient(to_right,black_88%,transparent)]'
         }`}

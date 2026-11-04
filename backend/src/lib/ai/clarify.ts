@@ -1,4 +1,4 @@
-import { findPresetForGoal, type EvidenceTriad } from './presets/index.js';
+import { CERTIFIED_PRESETS, findPresetForGoal, type EvidenceTriad } from './presets/index.js';
 import { generateWithOneRetry } from './retry.js';
 
 export const QUESTION_IDS = ['current_level', 'success', 'equipment', 'obstacle'] as const;
@@ -22,6 +22,11 @@ export interface GoalClarification {
   primaryDomain: string;
   followUpQuestions: ClarifyQuestion[];
   evidenceTriad?: EvidenceTriad;
+  /**
+   * Set only when the goal is too vague to measure in 90 days ("get fit"): 3 to 5 concrete goals to choose from.
+   * Onboarding asks the person to pick one (or write their own), then clarifies the chosen goal.
+   */
+  focusOptions?: string[];
 }
 
 const CLARIFY_SYSTEM = `You help a person start a 90-day goal. You do not write the plan. Your only job is to understand the goal
@@ -54,13 +59,28 @@ export const CLARIFY_RESPONSE_SCHEMA = {
   properties: {
     workingTitle: { type: 'string' },
     domain: { type: 'string' },
+    measurable: { type: 'boolean' },
+    goalOptions: { type: 'array', items: { type: 'string' } },
     questions: { type: 'array', items: questionSchema },
   },
-  required: ['workingTitle', 'domain', 'questions'],
+  required: ['workingTitle', 'domain', 'measurable', 'goalOptions', 'questions'],
 };
+
+/** Pathway titles the model may offer word for word, so a vague goal can lead into a certified plan. */
+const PATHWAY_TITLES = CERTIFIED_PRESETS.map((preset) => preset.title);
 
 export function buildClarifyPrompt(rawGoal: string): string {
   return `The goal as the user typed it: "${rawGoal}"
+
+0. "measurable": true if someone could clearly tell, on day 90, whether this goal was reached or how far they got
+   ("Run a 10K", "Hold a 10-minute conversation in Spanish", "Launch my Etsy shop", "Bake sourdough bread at home").
+   false if it is a wish or a theme with no clear finish line ("get fit", "be healthier", "be better with money",
+   "be more productive", "learn stuff", "improve myself").
+   "goalOptions": when "measurable" is false, 4 concrete goals this person could reach or clearly measure in 90 days,
+   each 3 to 9 words, written in the first person without "I will" ("Run 5K without stopping", "Save $1,000 in a
+   buffer fund"), from easier to more ambitious, all close to what they typed. If one of these existing plans fits
+   what they typed, include its title exactly as written: ${PATHWAY_TITLES.map((t) => `"${t}"`).join(', ')}.
+   When "measurable" is true, return an empty list.
 
 1. "workingTitle": restate the goal as a short, plain action title (4 to 10 words), keeping the user's meaning.
    Do not add targets or numbers the user did not give; the user defines success in question 2.
@@ -110,6 +130,8 @@ export interface RawClarifyAnswer {
   workingTitle?: unknown;
   domain?: unknown;
   questions?: unknown;
+  measurable?: unknown;
+  goalOptions?: unknown;
 }
 
 function text(value: unknown): string {
@@ -166,7 +188,16 @@ export function checkClarifyAnswer(
     });
   }
 
-  return { value: { clarifiedOutcome: title, primaryDomain: domain, followUpQuestions: questions } };
+  // A vague goal with too few usable options is treated as measurable: the person still gets their questions.
+  const focusOptions = data.measurable === false ? cleanOptions(data.goalOptions) : [];
+  return {
+    value: {
+      clarifiedOutcome: title,
+      primaryDomain: domain,
+      followUpQuestions: questions,
+      ...(focusOptions.length >= 3 ? { focusOptions } : {}),
+    },
+  };
 }
 
 /** Prompt 1: turns the typed goal into a working title and the 4 questions that shape the plan. */

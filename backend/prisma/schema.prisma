@@ -18,6 +18,8 @@ model User {
   remindersEnabled Boolean   @default(true)
   // When the last reminder was sent; one per gap (no new one until a practice day is completed after it).
   lastReminderAt   DateTime?
+  // ND-37: the 30-day trial starts when the person's first plan is made; null until then.
+  trialStartedAt   DateTime?
 
   goals         Goal[]
   subscriptions Subscription[]

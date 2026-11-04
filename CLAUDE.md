@@ -75,13 +75,13 @@ Auth: the frontend signs in with Supabase and sends the access token as `Authori
 Main areas (details in `docs/architecture/backend-details.md`; read the part you need before changing that area):
 
 - Routes: `routes/goal.ts` holds the router, the active-goal routes and reconcile; each area's routes live in `routes/goal/` (`present.ts` presentGoal, `create.ts` clarify and create, `actions.ts` mark missed, carry now and swap, `tasks.ts` task updates, `weeks.ts` the week close and the week routes, `schedule.ts` editing the schedule, B-108) (B-102).
-- Goal creation: `routes/goal/create.ts` (`POST /api/goal/create`): clarify (`lib/ai/clarify.ts`), preset match (10 pathways in `lib/ai/presets/`; other goals are custom and need Pro), roadmap (`lib/ai/roadmap.ts`: phases, each week's focus, and a `measure` for a goal counted in a number), recovery profile (`lib/recovery/`), week 1 (`lib/ai/weekPlan.ts`). If the roadmap or week 1 can't be written, answer 503 and save nothing; an unsafe goal answers 422. No fallback plan.
+- Goal creation: `routes/goal/create.ts` (`POST /api/goal/create`): clarify (`lib/ai/clarify.ts`), preset match (10 pathways in `lib/ai/presets/`; other goals are custom), then the access check: a new plan needs Pro once the 30-day trial is over (ND-37), roadmap (`lib/ai/roadmap.ts`: phases, each week's focus, and a `measure` for a goal counted in a number), recovery profile (`lib/recovery/`), week 1 (`lib/ai/weekPlan.ts`). If the roadmap or week 1 can't be written, answer 503 and save nothing; an unsafe goal answers 422. No fallback plan.
 - Plan v2 is the only plan model (`lib/planV2.ts`, spec in `docs/architecture/plan-v2.md`). Don't add plan v1 code back.
 - Plan length: `Goal.totalWeeks` (default 12) through `shapeOf(goal)` in `lib/planLength.ts`; never assume 12 weeks or day 90 in new code (B-109).
 - Safety limits: every number lives in `lib/safety/limits.ts`. Code, not the model, decides how fast targets climb and holds weekly load.
 - Missed sessions and recovery: `lib/missedSessions.ts`, `lib/carryForward.ts`, `lib/recovery/`, `POST /api/goal/reconcile`.
 - Week close: `lib/weekClose/`. No weekly tests, targets, checkpoints or weekly update call (ND-35): the next week is written from last week's sessions done, the feel taps (`DailyTask.feel`) and the notes, with code's pace line (`lastWeekOf` in `lib/planV2.ts`, `paceOf` in `lib/ai/weekPlan.ts`).
-- Billing: `lib/billing/`, `config/billing.ts` (Lemon Squeezy, test mode by default).
+- Billing: `lib/billing/`, `config/billing.ts` (Lemon Squeezy, test mode by default). Access (ND-37): the first plan starts a 30-day trial; after it without Pro the plan is paused, read-only (`lib/billing/access.ts`, `accessGuard.ts`).
 - Missed-day reminder email: `lib/reminders/`, `routes/reminders.ts` (`/api/reminders`), run hourly by `.github/workflows/reminders.yml` (`docs/architecture/reminders.md`).
 - LLM: `lib/ai/gemini.ts` (Gemini only, no fallback provider).
 

@@ -19,7 +19,7 @@ interface StepGenerationProps {
   generationError: OnboardingError | null;
   onReviewInputs: () => void;
   onRetry: () => void;
-  /** Back to the goal step, where the certified pathways stay free. Offered when create needs Pro. */
+  /** Back to the goal page, to type a different goal (the guided plans stay free). Offered when create needs Pro. */
   onChooseGoal?: () => void;
 }
 
@@ -205,7 +205,7 @@ export const StepGeneration: React.FC<StepGenerationProps> = ({
           </CustomGoalGate>
           {onChooseGoal && (
             <Button variant="secondary" fullWidth className="sm:w-auto sm:self-start" onClick={onChooseGoal}>
-              Choose a certified pathway
+              Choose a different goal
             </Button>
           )}
         </div>

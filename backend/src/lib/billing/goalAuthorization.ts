@@ -1,20 +1,18 @@
 ﻿import { hasProEntitlement } from "../billing/entitlement.js";
+import { accessFor, TRIAL_ENDED, TRIAL_ENDED_MESSAGE } from "./access.js";
 
-export const CUSTOM_GOAL_REQUIRES_PRO = "CUSTOM_GOAL_REQUIRES_PRO" as const;
-
-export type CustomGoalAuthorization =
+export type NewPlanAuthorization =
   | { allowed: true }
-  | { allowed: false; code: typeof CUSTOM_GOAL_REQUIRES_PRO; message: string };
+  | { allowed: false; code: typeof TRIAL_ENDED; message: string };
 
-export const authorizeNewCustomGoal = async (userId: string): Promise<CustomGoalAuthorization> => {
-  const entitled = await hasProEntitlement(userId);
-  if (entitled) return { allowed: true };
-
-  return {
-    allowed: false,
-    code: CUSTOM_GOAL_REQUIRES_PRO,
-    message: "Custom Goals require Achivii Pro.",
-  };
+/**
+ * ND-37: a new plan, pathway or custom, is allowed with Pro, before the first plan (which starts the 30-day trial) and
+ * during the trial. Once the trial is over it needs Pro.
+ */
+export const authorizeNewPlan = async (user: { id: string; trialStartedAt?: Date | null }): Promise<NewPlanAuthorization> => {
+  const access = await accessFor(user);
+  if (access.state !== "locked") return { allowed: true };
+  return { allowed: false, code: TRIAL_ENDED, message: TRIAL_ENDED_MESSAGE };
 };
 
 export const NEXT_PLAN_REQUIRES_PRO = "NEXT_PLAN_REQUIRES_PRO" as const;

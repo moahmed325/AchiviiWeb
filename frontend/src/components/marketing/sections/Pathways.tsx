@@ -12,22 +12,22 @@ const OWN_GOAL_EXAMPLES = [
   'Sketch a portrait from life',
 ];
 
-/** The case for a goal of your own (Pro): a still picture of the goal box with examples, so a visitor imagines theirs. */
+/** The case for a goal of your own (ND-36: everyone starts by typing it): a still picture of the goal box with examples, so a visitor imagines theirs. */
 const OwnGoal: React.FC = () => (
   <div className="relative isolate mt-16 grid items-center overflow-hidden gap-10 rounded-panel border border-border-strong bg-surface p-7 sm:p-10 sm:pl-24 lg:grid-cols-12 lg:pl-32 lg:gap-12">
     <div aria-hidden="true" className="landing-art landing-art-vine" />
     <div className="lg:col-span-6">
-      <p className="text-small text-achievement-hover">Achivii Pro</p>
+      <p className="text-small text-achievement-hover">Your own goal</p>
       <h3 className="mt-3 text-balance text-h2 text-text">Or bring your own goal.</h3>
       <p className="mt-4 max-w-[30rem] text-body-lg text-text-secondary">
         Describe anything you want to get good at. Achivii asks a few questions, then builds a 90-day plan around it,
         with one step a day sized to your time and a weekly review that keeps it on track.
       </p>
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
-        <Button size="lg" variant="gold" withArrow to="/signup?premium=1" className="self-start">
-          Build my own plan
+        <Button size="lg" variant="gold" withArrow href="#top" className="self-start">
+          Type my goal
         </Button>
-        <p className="text-small text-text-secondary">$9 a month or $72 a year</p>
+        <p className="text-small text-text-secondary">30 days free, then $9 a month</p>
       </div>
     </div>
 
@@ -60,7 +60,7 @@ export const Pathways: React.FC = () => (
       What do you want to get good at?
     </h2>
     <p className="mt-4 max-w-[36rem] text-body-lg text-text-secondary">
-      {CERTIFIED_PATHWAYS.length} free 90-day plans. See where each one starts, and where it takes you.
+      {CERTIFIED_PATHWAYS.length} guided 90-day plans. See where each one starts, and where it takes you.
     </p>
 
     <GoalRail />

@@ -13,6 +13,8 @@ type AuthenticatedUser = {
   timezone: string;
   created_at: Date;
   remindersEnabled: boolean;
+  /** ND-37: when the 30-day trial started; read with the person so access checks need no second query. */
+  trialStartedAt: Date | null;
 };
 
 const authUserSelect = {
@@ -21,6 +23,7 @@ const authUserSelect = {
   timezone: true,
   created_at: true,
   remindersEnabled: true,
+  trialStartedAt: true,
 } as const;
 
 /** The user as the app gets it: ND-28 adds whether reminder emails are being sent at all, so Account shows the
