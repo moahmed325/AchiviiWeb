@@ -431,16 +431,3 @@ export async function updateSchedule(change: ScheduleChange, token: string): Pro
   return readJson(response, "Couldn't save your schedule. Please try again.");
 }
 
-/**
- * Weekly update M1.2b (WU-31): a review that lost to an automatic close saves its typed reflection onto that week.
- * Refused (`ApiError`, `code` `not_auto_closed` or `reflection_saved`) unless the week closed on its own with none yet.
- */
-export async function saveClosedWeekReflection(weekNumber: number, reflection: string, token: string): Promise<{ reflection: string }> {
-  const response = await fetch(`${API_BASE_URL}/api/goal/weeks/${weekNumber}/reflection`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
-    body: JSON.stringify({ reflection }),
-  });
-
-  return readJson(response, 'Failed to save the reflection');
-}

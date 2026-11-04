@@ -50,9 +50,6 @@ export const MOVED_INSIGHT = 'Your next week starts today. Your plan now ends on
  */
 export const PARTIAL_MOVE_INSIGHT = 'Your plan now ends on {date}.';
 
-/** M1.4 review fix 2: a review of a week whose every practice day was not offered (no score). */
-export const NOT_OFFERED_WEEK_INSIGHT = 'No practice days were offered this week.';
-
 /**
  * The automatic close's line (section 6): welcome back after a break (M1.5a, past the limit too), else the neutral
  * line, or the moved-plan line when the plan moved.
@@ -64,12 +61,6 @@ export function autoCloseInsight(move: WeekMove | null): string {
   if (move && move.breakDays !== null) return WELCOME_BACK_INSIGHT;
   if (!move || move.days <= 0) return AUTO_CLOSE_INSIGHT;
   return move.days < move.gap ? PARTIAL_MOVE_INSIGHT : MOVED_INSIGHT;
-}
-
-/** The review's own line: "N of M sessions done.", or the not-offered line for a week with no score. */
-export function reviewInsight(tasks: readonly DailyTask[]): string {
-  const { sessions, completed, score } = weekScore(tasks);
-  return score === null ? NOT_OFFERED_WEEK_INSIGHT : `${completed} of ${sessions} sessions done.`;
 }
 
 /** RULE-15 (WU-5): moved days never go above this for a plan. */
@@ -195,8 +186,7 @@ function shiftDays(date: Date, days: number): Date {
 export async function writeWeekAfter(
   goal: ClosingGoal,
   weekNumber: number,
-  /** `reflection`: the review's note, which the week writer reads (no weekly tests, 2026-10-30). */
-  context: { now?: Date; timezone?: string | null; choice?: PastLimitChoice | null; reflection?: string; weekBefore?: DailyTask[] } = {}
+  context: { now?: Date; timezone?: string | null; choice?: PastLimitChoice | null; weekBefore?: DailyTask[] } = {}
 ): Promise<{ written: WeekDayPlan[] | null; move: WeekMove | null; choiceNeeded?: PastLimitChoice } | null> {
   if (weekNumber + 1 > shapeOf(goal).weeks) return { written: null, move: null };
   const move = planWeekMove(goal, weekNumber, context.now ?? new Date(), context.timezone, goal.dailyTasks, context.choice);
@@ -239,7 +229,6 @@ export async function writeWeekAfter(
       ...(back ? { firstWeekBack: back } : {}),
       ...(move && move.weekBack !== weekNumber + 1 ? { weekNumber: move.weekBack } : {}),
       ...(olderWeeks ? { olderWeeks } : {}),
-      ...(context.reflection?.trim() ? { reflection: context.reflection } : {}),
     }
   );
   return written ? { written, move } : null;
@@ -251,7 +240,6 @@ export interface WeekCloseInput {
   by: ClosedBy;
   /** From `writeWeekAfter`; null for week 12. */
   written: WeekDayPlan[] | null;
-  reflection?: string;
   /** The review row's insight; the review row is not written when this is undefined (RULE-11: week 12 closed automatically). */
   insight?: string;
   /** From `writeWeekAfter`: the move and the days not offered, saved only by the request that wins. */
@@ -274,7 +262,6 @@ export interface SavedClose {
 export async function saveWeekClose(input: WeekCloseInput): Promise<SavedClose | null> {
   const { goal, weekNumber, by, written, move } = input;
   const { planned, completed, score } = weekScore(goal.dailyTasks);
-  const reflection = input.reflection || '';
   const nextWeek = move?.weekBack ?? weekNumber + 1;
   const jumped = jumpedWeeks(weekNumber, move);
   const closedAt = input.now ?? new Date();
@@ -286,7 +273,7 @@ export async function saveWeekClose(input: WeekCloseInput): Promise<SavedClose |
       data: {
         status: 'completed',
         executionScore: score,
-        reviewNotes: reflection,
+        reviewNotes: '',
         closedBy: by,
         closedAt,
       },
@@ -294,7 +281,7 @@ export async function saveWeekClose(input: WeekCloseInput): Promise<SavedClose |
     if (won.count === 0) return null;
 
     // WU-33 (3): a week with no score stores 0 of 0 here, because these columns can't be empty.
-    const reviewFields = { tasksPlanned: planned, tasksCompleted: completed, scorePercentage: score ?? 0, reflection, aiAdaptationInsight: input.insight ?? '' };
+    const reviewFields = { tasksPlanned: planned, tasksCompleted: completed, scorePercentage: score ?? 0, reflection: '', aiAdaptationInsight: input.insight ?? '' };
     const review =
       input.insight === undefined
         ? null

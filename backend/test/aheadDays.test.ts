@@ -39,7 +39,7 @@ const NOW = new Date('2026-10-25T23:30:00Z');
 const utcUser = { id: 'usr-ahead', email: 'ahead@achivii.com', timezone: 'UTC' };
 const tokyoUser = { ...utcUser, timezone: 'Asia/Tokyo' };
 
-describe('ahead days: no completing or reviewing before the day comes', () => {
+describe('ahead days: no completing a day before it comes', () => {
   let server: Server;
   let baseUrl: string;
 
@@ -141,52 +141,4 @@ describe('ahead days: no completing or reviewing before the day comes', () => {
     });
   });
 
-  describe('POST /api/goal/weeks/:weekNumber/review', () => {
-    const goal = {
-      id: 'goal-ahead',
-      userId: utcUser.id,
-      planVersion: 2,
-      status: 'active',
-      currentWeek: 1,
-      roadmapWeeks: [
-        { id: 'rw-1', goalId: 'goal-ahead', weekNumber: 1, status: 'active', testResult: null },
-        { id: 'rw-2', goalId: 'goal-ahead', weekNumber: 2, status: 'pending', testResult: null },
-      ],
-      dailyTasks: [
-        { id: 't-1', weekNumber: 1, dayNumber: 6, date: '2026-10-24', isRestDay: false, status: 'completed' },
-        { id: 't-2', weekNumber: 1, dayNumber: 7, date: '2026-10-26', isRestDay: false, status: 'completed' },
-      ],
-    };
-
-    const review = () =>
-      fetch(`${baseUrl}/api/goal/weeks/1/review`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer valid-jwt-token' },
-        body: JSON.stringify({ reflection: 'Did it all early.' }),
-      });
-
-    it('refuses a review before the week\'s last day, before any model call, even with every day done', async () => {
-      (getAuthUser as any).mockResolvedValueOnce(utcUser);
-      (prisma.goal.findFirst as any).mockResolvedValueOnce(goal);
-
-      const res = await review();
-
-      expect(res.status).toBe(409);
-      expect(await res.json()).toEqual({ error: 'This week can be reviewed from its last day.', reason: 'week_not_over' });
-      expect(writeNextWeek).not.toHaveBeenCalled();
-      expect(prisma.roadmapWeek.updateMany).not.toHaveBeenCalled();
-    });
-
-    it('allows the review on the last day in the person\'s time zone', async () => {
-      (getAuthUser as any).mockResolvedValueOnce(tokyoUser);
-      (prisma.goal.findFirst as any).mockResolvedValueOnce(goal);
-      (prisma.weeklyReview.upsert as any).mockResolvedValueOnce({ id: 'rev-1', scorePercentage: 100, reflection: 'Did it all early.' });
-      (prisma.goal.update as any).mockResolvedValueOnce(goal);
-
-      const res = await review();
-
-      expect(res.status).toBe(200);
-      expect(writeNextWeek).toHaveBeenCalledTimes(1);
-    });
-  });
 });

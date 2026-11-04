@@ -6,12 +6,6 @@ import { currentWeekTasks, todayKey } from './today';
 /** M1.4 (WU-33 (4)): the stored line "Your plan now ends on {date}." keeps this as written; the app fills it in. */
 export const PLAN_END_TOKEN = '{date}';
 
-/** B-59, WU-31 (section 6): what a review sent after the week closed shows. */
-export const WEEK_CLOSED_LINES = {
-  reflectionSaved: 'This week had already closed. Your reflection is saved.',
-  alreadySaved: "This week's review is already saved.",
-} as const;
-
 /** M4.1b (section 6): what a test result or the daily-time answer that didn't save shows. */
 export const NOT_SAVED = "That didn't save. Please try again.";
 

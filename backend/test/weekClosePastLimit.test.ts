@@ -5,7 +5,7 @@ import type { Server } from 'node:http';
 // Weekly update M1.5b (RULE-15, WU-37 to WU-40): a break past the limit waits for the person's choice. "Keep going" moves
 // the plan by the most days within the room that make a week start on the first try's date, jumps the weeks in between
 // and writes that week; past week 12, "Do my final week" starts week 12 on that date. Nothing is written while the choice
-// waits, and the review is refused. The real review, close and writeNextWeek run on the in-memory store; only the model
+// waits. The real close and writeNextWeek run on the in-memory store; only the model
 // call is replaced.
 
 vi.mock('../src/lib/prisma.js', async () => ({ prisma: (await import('./weekCloseStore.js')).db.prisma }));
@@ -56,7 +56,7 @@ function modelWeek(weekStart: Date): WeekDayPlan[] {
 }
 
 /**
- * Week `open` open (every earlier week closed by review), `movedDays` already moved; its practice days all done.
+ * Week `open` open (every earlier week closed), `movedDays` already moved; its practice days all done.
  * `fixedDate` (B-106): the goal's fixed date, null for none.
  */
 function seed(open: number, movedDays = 0, fixedDate: Date | null = null) {
@@ -339,15 +339,6 @@ describe('the choice past the limit, WEEK_CLOSE_ENABLED on', () => {
     expect(logLines('past the limit')).toEqual(['[WeekClose] goal g1 week 10 past the limit movedDays 42']);
   });
 
-  it('the review is refused with 409 choice_needed before any model call and saves nothing (WU-38 (1))', async () => {
-    seed(2);
-    const before = structuredClone(db.state);
-    const res = await post('/weeks/2/review', atGap(2, 45), { reflection: 'Back now' });
-    expect(res).toEqual({ status: 409, body: { error: 'Choose how to continue on Today first.', reason: 'choice_needed', choice: 'keep_going' } });
-    expect(db.state).toEqual(before);
-    expect(generateWeekPlan).not.toHaveBeenCalled();
-  });
-
   it('a losing request saves nothing: no jumped week, no move (WU-27)', async () => {
     seed(2);
     const goal = { ...db.goal(), roadmapWeeks: db.state.weeks, dailyTasks: db.tasksOf(2) };
@@ -395,17 +386,14 @@ describe('switch off (R-7, AC-19)', () => {
   // M4.1b (WU-62 (1)): state A (the switch unset).
   it.each([
     ['the switch unset', ''],
-  ])('%s: no choice in any answer, no jumps, the review works as before', async (_name, _update) => {
+  ])('%s: no choice in any answer, no jumps, nothing changes', async (_name, _update) => {
     vi.stubEnv('WEEK_CLOSE_ENABLED', '');
     seed(2);
     expect((await check(atGap(2, 45))).body).toEqual({ due: false });
     expect((await close(atGap(2, 45), 'keep_going')).body).toEqual({ due: false });
-    const res = await post('/weeks/2/review', atGap(2, 45), { reflection: 'Back now' });
-    expect(res.status).toBe(200);
-    expect(res.body.nextWeekNumber).toBe(3);
-    expect(db.goal()).toMatchObject({ currentWeek: 3, movedDays: 0, startDate: START });
+    expect(db.goal()).toMatchObject({ currentWeek: 2, movedDays: 0, startDate: START });
     expect(db.state.weeks.filter((w) => w.jumped)).toEqual([]);
-    expect(vi.mocked(generateWeekPlan).mock.calls[0][0].firstWeekBack).toBeUndefined();
+    expect(generateWeekPlan).not.toHaveBeenCalled();
   });
 });
 
@@ -485,14 +473,6 @@ describe('a close with a fixed date, WEEK_CLOSE_ENABLED on (B-106)', () => {
     expect((await close(atGap(2, 5, 24))).status).toBe(200);
     expect(db.goal()).toMatchObject({ movedDays: 28 });
     expect(logLines('fixedDate')).toEqual([]);
-  });
-
-  it('the review path logs the cut too', async () => {
-    seed(2, 0, shifted(DAY_90, 3));
-    const res = await post('/weeks/2/review', atGap(2, 5), { reflection: 'Back' });
-    expect(res.status).toBe(200);
-    expect(db.goal()).toMatchObject({ movedDays: 3 });
-    expect(logLines('fixedDate')).toEqual(['[WeekClose] goal g1 week 2 fixedDate room 3 moved 3 gap 5']);
   });
 
   it('a date that has already passed holds nothing back', async () => {

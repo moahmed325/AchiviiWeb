@@ -3,10 +3,10 @@ import express from 'express';
 import type { Server } from 'node:http';
 
 // Weekly update M1.2a, R-2 (RULE-17, AC-17, WU-30 (4)): reconcile's body after the week change is the same whether the
-// week was closed by an on-time review, by a review on the morning after the week ended (reconcile first, today's order)
-// or by an automatic close on that morning (close first). That includes what `weekHandoff` reads from the finished week:
+// week was closed the morning after it ended with reconcile first or with the close first (B-110: weeks close only
+// automatically now, so both orders run through the automatic close). That includes what `weekHandoff` reads from the finished week:
 // in today's order reconcile may first write `toNextWeek` records onto it; with the close first it has not.
-// The real reconcile, review, close and writeNextWeek run on the in-memory store; only the model call is replaced.
+// The real reconcile, close and writeNextWeek run on the in-memory store; only the model call is replaced.
 
 vi.mock('../src/lib/prisma.js', async () => ({ prisma: (await import('./weekCloseStore.js')).db.prisma }));
 vi.mock('../src/routes/auth.js', () => ({
@@ -194,7 +194,6 @@ async function post(path: string, at: string, body: unknown = {}) {
 }
 
 const reconcile = (at: string) => post('/reconcile', at);
-const reviewWeek2 = (at: string) => post('/weeks/2/review', at, { reflection: '' });
 const closeWeek = (at: string) => post('/close-week', at);
 
 /** Runs one way of closing week 2 from a fresh store; returns what R-2 compares. */
@@ -223,12 +222,11 @@ const TIMES = {
   after: '2026-10-05T08:02:00Z',
 };
 
-const onTimeReview = async (t: typeof TIMES) => {
-  await reviewWeek2(t.lastDayEvening);
-};
-const reviewMorningAfter = async (t: typeof TIMES) => {
-  await reconcile(t.morningAfter); // today's order: the open's reconcile runs first
-  await reviewWeek2(t.morningAfterLater);
+const reconcileThenClose = async (t: typeof TIMES) => {
+  await reconcile(t.morningAfter); // reconcile first, then the close
+  vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
+  expect(await closeWeek(t.morningAfterLater)).toMatchObject({ due: true, closedBy: 'auto', nextWeekNumber: 3 });
+  vi.stubEnv('WEEK_CLOSE_ENABLED', '');
 };
 const closeMorningAfter = async (t: typeof TIMES) => {
   vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
@@ -245,27 +243,17 @@ describe.each([
     vi.stubEnv('METHOD_RECOVERY_ENABLED', method);
   });
 
-  it('a week with one missed mid-week lesson: on-time review, review the morning after and close the morning after agree', async () => {
-    const onTime = await run([1], onTimeReview);
-    const reviewed = await run([1], reviewMorningAfter);
+  it('a week with one missed mid-week lesson: reconcile first and close first agree', async () => {
+    const reconciledFirst = await run([1], reconcileThenClose);
     const closed = await run([1], closeMorningAfter);
-    expect(reviewed).toEqual(onTime);
-    expect(closed).toEqual(onTime);
-    if (method) expect(onTime.handoff).toHaveLength(1);
-  });
-
-  it('the reviews give the same result with WEEK_CLOSE_ENABLED on and off', async () => {
-    const onTime = await run([1], onTimeReview);
-    const reviewed = await run([1], reviewMorningAfter);
-    vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
-    expect(await run([1], onTimeReview)).toEqual(onTime);
-    expect(await run([1], reviewMorningAfter)).toEqual(reviewed);
+    expect(closed).toEqual(reconciledFirst);
+    if (method) expect(closed.handoff).toHaveLength(1);
   });
 
   it('the last practice day left undone and first seen the morning after: reconcile first and close first agree', async () => {
     // Last open on Friday evening, so Saturday's miss is first seen on Monday morning: in today's order reconcile writes
-    // what it hands on onto week 2 before the review's handoff reads it; with the close first the handoff reads it first.
-    const reviewed = await run([1, 4], reviewMorningAfter, TIMES.fridayEvening);
+    // what it hands on onto week 2 before the close's handoff reads it; with the close first the handoff reads it first.
+    const reviewed = await run([1, 4], reconcileThenClose, TIMES.fridayEvening);
     const closed = await run([1, 4], closeMorningAfter, TIMES.fridayEvening);
     expect(closed.handoff).toEqual(reviewed.handoff);
     expect(closed.week3).toEqual(reviewed.week3);
@@ -276,7 +264,7 @@ describe.each([
   it('records for next week already on the finished week, and more first seen the morning after: both orders agree', async () => {
     // Tue and Wed missed by Friday evening: with the method switch on, Fri and Sat take lessons 7 and 8 and lessons 9 and
     // 10 are recorded for next week on Tuesday's step. Fri and Sat are then left undone too, first seen on Monday.
-    const reviewed = await run([1, 2, 3, 4], reviewMorningAfter, TIMES.fridayEvening);
+    const reviewed = await run([1, 2, 3, 4], reconcileThenClose, TIMES.fridayEvening);
     const closed = await run([1, 2, 3, 4], closeMorningAfter, TIMES.fridayEvening);
     if (method) expect(reviewed.week2.some((day) => day.detailedSteps.includes('toNextWeek'))).toBe(true);
     if (method) expect(JSON.stringify(reviewed.handoff)).toContain('Planned lesson 9');

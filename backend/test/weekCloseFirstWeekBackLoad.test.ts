@@ -217,7 +217,6 @@ async function post(path: string, at: string, body: unknown = {}) {
 }
 
 const closeWeek = (at: string, body: unknown = {}) => post('/close-week', at, body);
-const reviewWeek2 = (at: string) => post('/weeks/2/review', at, { reflection: 'Back now' });
 const safetyLines = () =>
   warn.mock.calls.filter((call: unknown[]) => call[0] === '[Safety]').map((call: unknown[]) => JSON.parse(call[1] as string) as Record<string, unknown>);
 const olderReads = () => vi.mocked(db.prisma.dailyTask.findMany).mock.calls.filter(([args]: any[]) => typeof args?.where?.weekNumber === 'object');
@@ -232,7 +231,6 @@ const nothingSaved = () => {
 describe('AC-7: the first week back is held to the last done running total', () => {
   it.each([
     ['the automatic close', () => closeWeek(atGap(10))],
-    ['the review', () => reviewWeek2(atGap(10))],
   ])('%s: over the total is refused once, retried, and given no week (503, nothing saved)', async (_name, close) => {
     seed();
     // Week 2 ran 60 (3 done runs of 20); 70 is over it (the ordinary base would allow 70).
@@ -253,7 +251,6 @@ describe('AC-7: the first week back is held to the last done running total', () 
 
   it.each([
     ['the automatic close', () => closeWeek(atGap(10))],
-    ['the review', () => reviewWeek2(atGap(10))],
   ])('%s: at the total it passes and the week is saved', async (_name, close) => {
     seed();
     modelSays(answer({ 1: 15, 2: 15, 3: 15 }, 15));

@@ -6,7 +6,7 @@ import type { DailyTask, Goal } from '../../types';
 import { BreakChoice, CLOSE_FAILED, GETTING_READY } from './WeekClose';
 import { DailyTimeCard } from './DailyTimeCard';
 import { FeelPicker } from './FeelPicker';
-import { NOT_SAVED, WEEK_CLOSED_LINES } from '../../lib/weekClose';
+import { NOT_SAVED } from '../../lib/weekClose';
 import { FIRST_WEEK_BACK_LINE } from '../../lib/stepLines';
 
 // Weekly update M4.1a (requirement 2, RULE-7, section 6): every line the feature shows in the app is free of the
@@ -50,7 +50,6 @@ describe('the app lines pass the copy check (M4.1a requirement 2)', () => {
     const lines = [
       GETTING_READY,
       CLOSE_FAILED,
-      ...Object.values(WEEK_CLOSED_LINES),
       'Paused',
     ];
     lines.forEach(expectClean);
@@ -84,10 +83,6 @@ describe("section 6's app lines and step texts, word for word (M4.1b requirement
   it('the fixed lines', () => {
     expect(GETTING_READY).toBe('Getting your next week ready…');
     expect(CLOSE_FAILED).toBe("Couldn't get your next week ready. Please try again.");
-    expect(WEEK_CLOSED_LINES).toEqual({
-      reflectionSaved: 'This week had already closed. Your reflection is saved.',
-      alreadySaved: "This week's review is already saved.",
-    });
     expect(NOT_SAVED).toBe("That didn't save. Please try again.");
     expect(FIRST_WEEK_BACK_LINE).toBe('First week back: keep the effort easy today.');
     [NOT_SAVED, FIRST_WEEK_BACK_LINE].forEach(expectClean);

@@ -23,7 +23,7 @@ import { goalRouter } from '../src/routes/goal.js';
 import { generateWeekPlan, weekLayout, type WeekDayPlan } from '../src/lib/ai/weekPlan.js';
 import { RECOVERY_TEMPLATES } from '../src/lib/recovery/index.js';
 import { WELCOME_BACK_INSIGHT } from '../src/lib/weekClose/breaks.js';
-import { AUTO_CLOSE_INSIGHT, MOVED_INSIGHT, NOT_OFFERED_WEEK_INSIGHT, PARTIAL_MOVE_INSIGHT, planWeekMove, weekScore } from '../src/lib/weekClose/close.js';
+import { AUTO_CLOSE_INSIGHT, MOVED_INSIGHT, PARTIAL_MOVE_INSIGHT, planWeekMove, weekScore } from '../src/lib/weekClose/close.js';
 import { classifyDays, findOpenGap } from '../src/lib/missedSessions.js';
 import { weekCounts } from '../src/lib/missedSignals.js';
 import { weekHandoff } from '../src/lib/recovery/handoff.js';
@@ -196,7 +196,6 @@ async function post(path: string, at: string, body: unknown = {}) {
 }
 
 const closeWeek = (at: string) => post('/close-week', at);
-const reviewWeek2 = (at: string) => post('/weeks/2/review', at, { reflection: 'Back now' });
 const reconcile = (at: string) => post('/reconcile', at);
 const closeOn = () => vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
 const week3 = () => db.tasksOf(3);
@@ -232,7 +231,6 @@ describe('a close after a gap (RULE-13, RULE-14, WU-13, WU-33 (2)), WEEK_CLOSE_E
   it('the lines are exact', () => {
     expect(MOVED_INSIGHT).toBe('Your next week starts today. Your plan now ends on {date}.');
     expect(PARTIAL_MOVE_INSIGHT).toBe('Your plan now ends on {date}.');
-    expect(NOT_OFFERED_WEEK_INSIGHT).toBe('No practice days were offered this week.');
   });
 
   it('a full move within the limit keeps the moved-plan line (24 moved, a 4-day gap moves all 4)', async () => {
@@ -276,7 +274,7 @@ describe('a close after a gap (RULE-13, RULE-14, WU-13, WU-33 (2)), WEEK_CLOSE_E
     expect(notOfferedDates()).toEqual(['2026-10-09', '2026-10-10']);
   });
 
-  it('a losing request saves no shift (WU-27): a review racing an automatic close moves the plan once', async () => {
+  it('a losing request saves no shift (WU-27): two racing closes move the plan once', async () => {
     seed();
     let waiting = 0;
     let release!: () => void;
@@ -289,22 +287,12 @@ describe('a close after a gap (RULE-13, RULE-14, WU-13, WU-33 (2)), WEEK_CLOSE_E
     vi.setSystemTime(new Date(atGap(4)));
     const send = (path: string, body: unknown) =>
       fetch(`${baseUrl}/api/goal${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' }, body: JSON.stringify(body) });
-    const [byReview, byClose] = await Promise.all([send('/weeks/2/review', { reflection: '' }), send('/close-week', {})]);
-    const reviewWon = byReview.status === 200;
-    expect(reviewWon ? await byClose.json() : (await byReview.json()).reason).toEqual(reviewWon ? { due: false, alreadyClosed: true, weekNumber: 2 } : 'week_closed');
+    const answers = await Promise.all([send('/close-week', {}), send('/close-week', {})].map(async (res) => (await res).json()));
+    expect(answers.filter((answer) => answer.alreadyClosed)).toEqual([{ due: false, alreadyClosed: true, weekNumber: 2 }]);
     expect(generateWeekPlan).toHaveBeenCalledTimes(2);
     expect(db.goal()).toMatchObject({ currentWeek: 3, movedDays: 4, startDate: shifted(START, 4), targetDate: shifted(TARGET, 4) });
     expect(week3()).toHaveLength(7);
     expect(db.state.reviews).toHaveLength(1);
-  });
-
-  it('a late review moves the plan the same way and keeps its own insight and answer (section 6)', async () => {
-    seed();
-    const res = await reviewWeek2(atGap(4));
-    expect(res.status).toBe(200);
-    expect(res.body.review.aiAdaptationInsight).toBe('5 of 5 sessions done.');
-    expect(db.goal()).toMatchObject({ movedDays: 4, startDate: shifted(START, 4) });
-    expect(week3()[0].date).toBe('2026-10-09');
   });
 
   it('the gap is counted in the person time zone, once, before the model call', () => {
@@ -316,31 +304,6 @@ describe('a close after a gap (RULE-13, RULE-14, WU-13, WU-33 (2)), WEEK_CLOSE_E
     expect(planWeekMove({ ...goal, closeTriedWeek: 1, closeTriedAt: new Date('2026-09-28T08:00:00Z') }, 2, new Date(atGap(3)), 'UTC')).toMatchObject({ gap: 3 });
     // Week 12 has no week after it.
     expect(planWeekMove(goal, 12, new Date(atGap(3)), 'UTC')).toBeNull();
-  });
-});
-
-describe('WEEK_CLOSE_ENABLED off (RULE-18, R-7, AC-19)', () => {
-  // M4.1b (WU-62 (1)): state A (the switch unset).
-  it.each([
-    ['the switch unset', ''],
-  ])('%s: a late review closes the week exactly as before: no gap, no move, no days not offered', async (_name, _update) => {
-    vi.stubEnv('WEEK_CLOSE_ENABLED', '');
-    seed();
-    expect((await reviewWeek2(atGap(4))).status).toBe(200);
-    expect(db.goal()).toMatchObject({ currentWeek: 3, movedDays: 0, startDate: START, targetDate: TARGET });
-    expect(week3()[0].date).toBe('2026-10-05');
-    expect(notOfferedDates()).toEqual([]);
-    expect(planWeekMove(db.goal(), 2, new Date(atGap(4)), 'UTC')).toBeNull();
-  });
-
-  it('reconcile after that review has no new kind', async () => {
-    vi.stubEnv('MISSED_SESSIONS_CARRY_ENABLED', 'true');
-    vi.stubEnv('METHOD_RECOVERY_ENABLED', 'true');
-    seed();
-    await reviewWeek2(atGap(4));
-    const body = (await reconcile(`${addDays('2026-10-05', 4)}T08:01:00Z`)).body;
-    expect(body.days.map((d: { kind: string }) => d.kind)).not.toContain('not_offered');
-    expect(body.days.filter((d: { kind: string; weekNumber: number }) => d.weekNumber === 3 && d.kind === 'missed')).toHaveLength(3);
   });
 });
 
@@ -469,13 +432,5 @@ describe('the score (WU-33 (3))', () => {
     expect(db.week(2)).toMatchObject({ status: 'completed', executionScore: null });
     expect(db.state.reviews[0]).toMatchObject({ tasksPlanned: 0, tasksCompleted: 0, scorePercentage: 0 });
     expect(res.body).toMatchObject({ scorePercentage: 0, isMilestoneCheckpoint: true, milestoneGateTransition: { completedPhase: 'Base', benchmarkMet: null } });
-  });
-
-  it('a review of such a week saves "No practice days were offered this week.", not "0 of 0 sessions done." (review fix 2)', async () => {
-    seed({}, { notOffered: true });
-    const res = await reviewWeek2(atGap(0));
-    expect(res.status).toBe(200);
-    expect(res.body.review).toMatchObject({ tasksPlanned: 0, tasksCompleted: 0, scorePercentage: 0, aiAdaptationInsight: NOT_OFFERED_WEEK_INSIGHT });
-    expect(db.week(2).executionScore).toBeNull();
   });
 });

@@ -540,6 +540,5 @@ export interface WeeklyReviewResponse {
 }
 
 export * from './journey';
-export * from './review';
 export * from './achievement';
 

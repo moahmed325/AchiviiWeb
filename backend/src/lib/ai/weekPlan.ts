@@ -136,8 +136,6 @@ export interface LastWeekSummary {
   feel: Record<Feel, number>;
   /** Their notes on last week's days, each with its day ("Tuesday: my knee hurt"). */
   notes: string[];
-  /** Their reflection in the weekly review, when they wrote one. */
-  reflection?: string;
 }
 
 export type Pace = 'bigger_step' | 'move_on' | 'smaller_step' | 'repeat';
@@ -323,7 +321,6 @@ function lastWeekBlock(input: WeekCallInput): string {
     `How the done sessions felt: ${taps.length ? taps.join(', ') : 'not told'}.`,
   ];
   if (last.notes.length) lines.push('Their notes (take them into account, e.g. an injury, a busy day or something they enjoyed):', ...last.notes.map((note) => `- ${note}`));
-  if (last.reflection) lines.push(`Their weekly review: "${last.reflection}"`);
   // A shorter plan's ready week (B-109) is lighter whatever the pace: its own line says so (`readyWeekLine`).
   const ready = planShape(input.totalWeeks).readyWeek === input.weekNumber;
   lines.push(`Pace this week: ${ready ? READY_PACE_LINE : PACE_LINE[paceOf(last)]}`);
