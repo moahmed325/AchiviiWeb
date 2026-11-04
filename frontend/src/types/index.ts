@@ -258,7 +258,7 @@ export interface MissedSignals {
 
 /** Response of `POST /api/goal/reconcile`. Only active plan v2 goals are classified. */
 export type ReconcileResult =
-  | { applies: false; reason: 'no_active_goal' | 'not_plan_v2' }
+  | { applies: false; reason: 'no_active_goal' | 'not_plan_v2' | 'trial_ended' }
   | {
       applies: true;
       goalId: string;

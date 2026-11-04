@@ -3,7 +3,7 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../../lib/prisma.js';
 import { getAuthUser } from '../auth.js';
 import { normalizeTimezone, resolveGoalStart } from '../../lib/timezone.js';
-import { authorizeNewCustomGoal, authorizeNextPlan } from '../../lib/billing/goalAuthorization.js';
+import { authorizeNewPlan, authorizeNextPlan } from '../../lib/billing/goalAuthorization.js';
 import { journeyResultOf, journeySummary, NEXT_PLAN_MODES, nextPlanStart, readPreviousPlan, type NextPlanMode, type PreviousPlan } from '../../lib/nextPlan.js';
 import { clarifyGoalWithAI, UserRoutineInput } from '../../lib/ai/goalDecomposer.js';
 import { findPresetForGoal } from '../../lib/ai/presets/index.js';
@@ -154,6 +154,8 @@ export async function saveV2Goal(input: {
       data: roadmapWeekRows(goal.id, roadmap, input.routine.dailyMinutes!, input.routine.planVariant as PlanVariant),
     });
     await tx.dailyTask.createMany({ data: dailyTaskRows(goal.id, 1, input.week1) });
+    // ND-37: the first plan starts the 30-day trial; a later plan never restarts it.
+    await tx.user.updateMany({ where: { id: input.userId, trialStartedAt: null }, data: { trialStartedAt: new Date() } });
     return goal.id;
   });
 }
@@ -241,18 +243,15 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
 
     const { rawGoal, clarifiedOutcome, answers, routine, startDate, domain } = req.body;
 
-    // A preset/certified pathway is determined by the same server-side preset resolver used below.
-    // New non-preset goals require a verified Pro entitlement before any plan generation or mutation.
-    const requestedPreset = typeof rawGoal === 'string' ? findPresetForGoal(rawGoal) : null;
-    const requestedClarifiedPreset = typeof clarifiedOutcome === 'string' ? findPresetForGoal(clarifiedOutcome) : null;
     // Next plan (NP-7): its own Pro check covers custom goals too.
     const nextPlan = await readNextPlanRequest(user.id, req.body?.nextPlan);
     if (nextPlan && 'error' in nextPlan) {
       res.status(nextPlan.status).json({ error: nextPlan.error, ...(nextPlan.code ? { code: nextPlan.code } : {}) });
       return;
     }
-    if (!nextPlan && !requestedPreset && !requestedClarifiedPreset) {
-      const authorization = await authorizeNewCustomGoal(user.id);
+    // ND-37: any new plan, pathway or custom, needs Pro once the 30-day trial is over.
+    if (!nextPlan) {
+      const authorization = await authorizeNewPlan(user);
       if (!authorization.allowed) {
         res.status(403).json({ error: authorization.message, code: authorization.code });
         return;

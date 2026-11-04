@@ -23,6 +23,7 @@ vi.mock('../src/lib/prisma.js', () => {
     goal: { create: db.goalCreate, updateMany: db.goalUpdateMany, findUniqueOrThrow: db.goalFind, findFirst: db.goalFindFirst },
     roadmapWeek: { createMany: db.weeksCreateMany },
     dailyTask: { createMany: db.tasksCreateMany },
+    user: { updateMany: vi.fn() },
   };
   // B-100: goal create saves in one transaction, on the same mocks.
   prisma.$transaction = async (fn: (tx: unknown) => unknown) => fn(prisma);
@@ -35,7 +36,7 @@ vi.mock('../src/routes/auth.js', () => ({
 }));
 
 vi.mock('../src/lib/billing/goalAuthorization.js', () => ({
-  authorizeNewCustomGoal: auth.custom,
+  authorizeNewPlan: auth.custom,
   authorizeNextPlan: auth.next,
 }));
 

@@ -31,6 +31,7 @@ vi.mock('../src/lib/prisma.js', () => {
     roadmapWeek: { createMany: db.weeksCreateMany, update: db.weekUpdate, updateMany: db.weekUpdateMany },
     dailyTask: { createMany: db.tasksCreateMany, findMany: db.tasksFindMany },
     weeklyReview: { upsert: db.reviewUpsert },
+    user: { updateMany: vi.fn() },
   };
   // Weekly update M1.2a: the review saves in one transaction, on the same mocks.
   prisma.$transaction = async (fn: (tx: unknown) => unknown) => fn(prisma);
@@ -43,7 +44,7 @@ vi.mock('../src/routes/auth.js', () => ({
 }));
 
 vi.mock('../src/lib/billing/goalAuthorization.js', () => ({
-  authorizeNewCustomGoal: vi.fn().mockResolvedValue({ allowed: true }),
+  authorizeNewPlan: vi.fn().mockResolvedValue({ allowed: true }),
 }));
 
 vi.mock('../src/lib/ai/roadmap.js', async (importOriginal) => ({

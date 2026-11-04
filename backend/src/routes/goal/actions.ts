@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
 import { getAuthUser } from '../auth.js';
+import { refuseIfLocked } from '../../lib/billing/accessGuard.js';
 import { handledTaskIds, parseStoredSteps, type CarriedStep } from '../../lib/carryForward.js';
 import { carryEnabled, evaluate, loadReconcileGoal, followsNewRules, methodRefusal, moveNowTarget, openSwapRefusal, runReconcile, type ReconcileGoal } from '../../lib/reconcileCore.js';
 import { doneDayIds, markerRefusal } from '../../lib/recovery/swap.js';
@@ -101,7 +102,12 @@ export const isChoice = (value: unknown): value is PastLimitChoice => value === 
 
 export async function actionUser(req: Request, res: Response) {
   const user = await getAuthUser(req);
-  if (!user) res.status(401).json({ error: 'Unauthorized.' });
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' });
+    return null;
+  }
+  // ND-37: past the 30-day trial without Pro, nothing moves the plan on.
+  if (await refuseIfLocked(user, res)) return null;
   return user;
 }
 
