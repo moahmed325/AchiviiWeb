@@ -36,6 +36,21 @@ const RailIcon: React.FC<{ icon: LucideIcon; active?: boolean }> = ({ icon: Icon
   <Icon aria-hidden="true" strokeWidth={1.5} className={cx('size-5 shrink-0', active ? 'text-accent-hover' : '')} />
 );
 
+/** ND-38: Account at the foot of the rail, a link to the Account page with the email beneath. */
+const AccountLink: React.FC = () => {
+  const { user } = useAuth();
+  const { accountActive: active } = useEntries();
+  return (
+    <Link to="/account" aria-current={active ? 'page' : undefined} className={railItem(active)}>
+      <RailIcon icon={CircleUser} active={active} />
+      <span className="min-w-0 flex-1">
+        <span className="block text-small text-text">Account</span>
+        {user?.email && <span className="block truncate text-small text-text-secondary">{user.email}</span>}
+      </span>
+    </Link>
+  );
+};
+
 /** Desktop (lg and up): a restrained left rail. Today, Roadmap, Pathways, then Account at the bottom (ND-7). */
 export const AppRail: React.FC<AppNavigationProps> = ({ onOpenPathways, onOpenCoach }) => {
   const { dashboardActive, showDashboard, todayActive, roadmapActive, showRoadmap, offline, isCompleted } = useEntries();
@@ -87,7 +102,7 @@ export const AppRail: React.FC<AppNavigationProps> = ({ onOpenPathways, onOpenCo
         </ul>
         <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
           {offline && <OfflineChip className="ml-3 self-start" />}
-          <AccountDisclosure context="app" placement="up" />
+          <AccountLink />
         </div>
       </nav>
     </div>
@@ -114,7 +129,7 @@ const ActiveMark: React.FC = () => <span aria-hidden="true" className="absolute 
  * below every dialog, sheet and focus mode (z-40 under their z-50).
  */
 export const AppBottomBar: React.FC<AppNavigationProps> = ({ onOpenPathways, onOpenCoach }) => {
-  const { dashboardActive, showDashboard, todayActive, roadmapActive, showRoadmap, offline, isCompleted } = useEntries();
+  const { dashboardActive, showDashboard, todayActive, roadmapActive, showRoadmap, accountActive, offline, isCompleted } = useEntries();
 
   return (
     <>
@@ -169,10 +184,11 @@ export const AppBottomBar: React.FC<AppNavigationProps> = ({ onOpenPathways, onO
               </button>
             </li>
             <li className="min-w-0 flex-1">
-              <AccountSheet context="app" triggerClassName={barItem(false)}>
-                <BarIcon icon={CircleUser} />
+              <Link to="/account" aria-current={accountActive ? 'page' : undefined} className={barItem(accountActive)}>
+                {accountActive && <ActiveMark />}
+                <BarIcon icon={CircleUser} active={accountActive} />
                 <span className="truncate max-w-[56px] sm:max-w-none text-center">Account</span>
-              </AccountSheet>
+              </Link>
             </li>
           </ul>
         </nav>
@@ -200,9 +216,8 @@ export const AppTopBar: React.FC = () => {
           </Button>
         ) : (
           <>
-            <AccountDisclosure context="focused" placement="down" className="hidden lg:block" />
+            <AccountDisclosure className="hidden lg:block" />
             <AccountSheet
-              context="focused"
               triggerClassName="focus-ring inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full px-3 text-small text-text-secondary transition-colors duration-(--duration-quick) hover:bg-text/[0.06] hover:text-text lg:hidden"
             >
               <CircleUser aria-hidden="true" strokeWidth={1.5} className="size-5" />

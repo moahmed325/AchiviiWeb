@@ -7,6 +7,7 @@ import { GoalProvider } from '../../context/GoalContext';
 import * as api from '../../lib/api';
 import type { Goal } from '../../types';
 import { AppShell } from './AppShell';
+import { AccountPage } from '../../pages/AccountPage';
 import { shellEntries, shellMode } from './shellEntries';
 
 vi.mock('../../lib/api', async (importOriginal) => {
@@ -21,6 +22,8 @@ vi.mock('../../lib/api', async (importOriginal) => {
     reconcileGoal: vi.fn().mockResolvedValue({ applies: false, reason: 'no_active_goal' }),
     resetActiveGoal: vi.fn(),
     updateSchedule: vi.fn(),
+    fetchBillingEntitlement: vi.fn().mockResolvedValue({ plan: 'free', entitled: false, access: 'trial', trialEndsAt: null }),
+    fetchBillingAccountState: vi.fn().mockResolvedValue({ plan: 'free', status: 'none', billingInterval: null, currentPeriodEnd: null, cancelAtPeriodEnd: false, manageUrl: null }),
   };
 });
 
@@ -55,6 +58,7 @@ const renderAt = (url: string) =>
               <Route path="/dashboard" element={<main id="main">Dashboard page</main>} />
               <Route path="/roadmap" element={<main id="main">Roadmap page</main>} />
               <Route path="/onboarding" element={<main id="main">Onboarding page</main>} />
+              <Route path="/account" element={<AccountPage />} />
             </Routes>
           </AppShell>
         </MemoryRouter>
@@ -103,7 +107,8 @@ describe('shellMode and shellEntries', () => {
     expect(shellEntries('/', true).todayActive).toBe(true);
     expect(shellEntries('/dashboard', true).todayActive).toBe(false);
     expect(shellEntries('/dashboard', true).dashboardActive).toBe(true);
-    expect(shellEntries('/roadmap', true)).toEqual({ dashboardActive: false, showDashboard: true, todayActive: false, roadmapActive: true, showRoadmap: true });
+    expect(shellEntries('/roadmap', true)).toEqual({ dashboardActive: false, showDashboard: true, todayActive: false, roadmapActive: true, showRoadmap: true, accountActive: false });
+    expect(shellEntries('/account', true).accountActive).toBe(true);
     expect(shellEntries('/progress', true).roadmapActive).toBe(true);
   });
 });
@@ -197,31 +202,24 @@ describe('entries', () => {
 });
 
 describe('Account', () => {
-  it('opens as a disclosure, shows the goal the user chose, and closes on Escape with focus back', async () => {
+  it('ND-38: Account is a page; the rail and the bar link to it and mark it, and it shows the goal the user chose', async () => {
     signedIn(GOAL);
-    const user = userEvent.setup();
-    renderAt('/roadmap');
+    renderAt('/account');
     await shellReady();
-    await rail().findByRole('link', { name: 'Roadmap' });
-    const trigger = rail().getByRole('button', { name: /^Account/ });
-    expect(trigger).toHaveAttribute('aria-expanded', 'false');
-
-    trigger.focus();
-    await user.keyboard('{Enter}');
-    expect(trigger).toHaveAttribute('aria-expanded', 'true');
-    expect(rail().getByText('mo@example.com', { selector: 'p' })).toBeInTheDocument();
-    expect(rail().getByText(GOAL.rawGoal)).toBeInTheDocument();
-    expect(rail().queryByText('49.98')).toBeNull();
-    expect(rail().getByRole('button', { name: 'Reset 90-Day Plan' })).toBeInTheDocument();
-    expect(rail().getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
-
-    await user.keyboard('{Escape}');
-    expect(trigger).toHaveAttribute('aria-expanded', 'false');
-    expect(trigger).toHaveFocus();
-    expect(rail().queryByRole('button', { name: 'Sign out' })).toBeNull();
+    const link = rail().getByRole('link', { name: /^Account/ });
+    expect(link).toHaveAttribute('href', '/account');
+    expect(link).toHaveAttribute('aria-current', 'page');
+    expect(bottomBar().getByRole('link', { name: 'Account' })).toHaveAttribute('aria-current', 'page');
+    const main = within(screen.getByRole('main'));
+    expect(await main.findByText(GOAL.rawGoal)).toBeInTheDocument();
+    expect(main.queryByText('49.98')).toBeNull();
+    expect(main.getByRole('button', { name: 'Edit my schedule' })).toBeInTheDocument();
+    expect(main.getByRole('button', { name: 'Reset my plan' })).toBeInTheDocument();
+    expect(main.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
+    expect(main.getByRole('region', { name: 'Membership' })).toHaveTextContent('Free trial');
   });
 
-  // B-108: Edit my schedule, from the account menu.
+  // B-108: Edit my schedule, from the Account page (ND-38).
   const SCHEDULED = {
     ...GOAL,
     startDate: '2026-09-21T00:00:00.000Z',
@@ -233,11 +231,9 @@ describe('Account', () => {
     signedIn(SCHEDULED);
     mocked.updateSchedule.mockResolvedValue({ startsWeek: 4, startsOn: '2026-10-12' });
     const user = userEvent.setup();
-    renderAt('/roadmap');
+    renderAt('/account');
     await shellReady();
-    await rail().findByRole('link', { name: 'Roadmap' });
-    await user.click(rail().getByRole('button', { name: /^Account/ }));
-    await user.click(rail().getByRole('button', { name: 'Edit my schedule' }));
+    await user.click(await screen.findByRole('button', { name: 'Edit my schedule' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Edit my schedule' });
     // A Monday start: "steady" rests on Thursday and Sunday until they choose.
@@ -259,11 +255,9 @@ describe('Account', () => {
   it('Edit my schedule holds Save until the days add up, and says when it is the final week', async () => {
     signedIn(SCHEDULED);
     const user = userEvent.setup();
-    const { unmount } = renderAt('/roadmap');
+    const { unmount } = renderAt('/account');
     await shellReady();
-    await rail().findByRole('link', { name: 'Roadmap' });
-    await user.click(rail().getByRole('button', { name: /^Account/ }));
-    await user.click(rail().getByRole('button', { name: 'Edit my schedule' }));
+    await user.click(await screen.findByRole('button', { name: 'Edit my schedule' }));
     const dialog = await screen.findByRole('dialog', { name: 'Edit my schedule' });
     await user.click(within(dialog).getByRole('checkbox', { name: 'Thu' }));
     expect(within(dialog).getByText('6 picked. Pick exactly 5.')).toBeInTheDocument();
@@ -271,11 +265,9 @@ describe('Account', () => {
     unmount();
 
     signedIn({ ...SCHEDULED, currentWeek: 12 } as Goal);
-    renderAt('/roadmap');
+    renderAt('/account');
     await shellReady();
-    await rail().findByRole('link', { name: 'Roadmap' });
-    await user.click(rail().getByRole('button', { name: /^Account/ }));
-    await user.click(rail().getByRole('button', { name: 'Edit my schedule' }));
+    await user.click(await screen.findByRole('button', { name: 'Edit my schedule' }));
     const last = await screen.findByRole('dialog', { name: 'Edit my schedule' });
     expect(last).toHaveTextContent("This is your plan's final week, so there is no next week to change.");
     expect(within(last).getByRole('button', { name: 'Save schedule' })).toBeDisabled();
@@ -285,19 +277,17 @@ describe('Account', () => {
     signedIn(GOAL);
     mocked.resetActiveGoal.mockResolvedValue(true);
     const user = userEvent.setup();
-    renderAt('/roadmap');
+    renderAt('/account');
     await shellReady();
-    await rail().findByRole('link', { name: 'Roadmap' });
-    await user.click(rail().getByRole('button', { name: /^Account/ }));
-    await user.click(rail().getByRole('button', { name: 'Reset 90-Day Plan' }));
+    await user.click(await screen.findByRole('button', { name: 'Reset my plan' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Reset your 90-day plan?' });
     expect(dialog).toHaveTextContent("It can't be undone");
     await user.click(within(dialog).getByRole('button', { name: 'Keep my plan' }));
     expect(mocked.resetActiveGoal).not.toHaveBeenCalled();
-    expect(screen.getByText('Roadmap page')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Membership' })).toBeInTheDocument();
 
-    await user.click(rail().getByRole('button', { name: 'Reset 90-Day Plan' }));
+    await user.click(screen.getByRole('button', { name: 'Reset my plan' }));
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Reset plan' }));
     expect(await screen.findByText('Onboarding page')).toBeInTheDocument();
     expect(mocked.resetActiveGoal).toHaveBeenCalledTimes(1);
@@ -308,15 +298,13 @@ describe('Account', () => {
     mocked.resetActiveGoal.mockRejectedValue(new Error('Failed to reset goal'));
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const user = userEvent.setup();
-    renderAt('/roadmap');
+    renderAt('/account');
     await shellReady();
-    await rail().findByRole('link', { name: 'Roadmap' });
-    await user.click(rail().getByRole('button', { name: /^Account/ }));
-    await user.click(rail().getByRole('button', { name: 'Reset 90-Day Plan' }));
+    await user.click(await screen.findByRole('button', { name: 'Reset my plan' }));
     const dialog = await screen.findByRole('dialog', { name: 'Reset your 90-day plan?' });
     await user.click(within(dialog).getByRole('button', { name: 'Reset plan' }));
     expect(await within(dialog).findByRole('alert')).toHaveTextContent("We couldn't reset your plan. Please try again.");
-    expect(screen.getByText('Roadmap page')).toBeInTheDocument();
+    expect(screen.queryByText('Onboarding page')).toBeNull();
   });
 
   it('on onboarding: only the top bar, and Account has Sign out but no Reset', async () => {
@@ -330,7 +318,7 @@ describe('Account', () => {
     expect(within(banner).getByRole('link', { name: 'Achivii, home' })).toHaveAttribute('href', '/');
     await user.click(within(banner).getAllByRole('button', { name: /^Account/ })[0]);
     expect(within(banner).getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Reset 90-Day Plan' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reset my plan' })).toBeNull();
     expect(screen.queryByText(GOAL.rawGoal)).toBeNull();
   });
 

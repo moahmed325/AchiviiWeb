@@ -28,6 +28,8 @@ export interface ShellEntries {
   roadmapActive: boolean;
   /** Roadmap needs an active goal; without one ProtectedRoute would send it to onboarding, so it leads nowhere real. */
   showRoadmap: boolean;
+  /** ND-38: Account is a page. */
+  accountActive: boolean;
 }
 
 /** Today is active on `/` and `/achievement` (OD-3, M9.3). */
@@ -39,5 +41,6 @@ export function shellEntries(pathname: string, hasGoal: boolean): ShellEntries {
     // ND-31: Progress lives on the Roadmap; /progress redirects there.
     roadmapActive: pathname === '/roadmap' || pathname === '/progress',
     showRoadmap: hasGoal,
+    accountActive: pathname === '/account',
   };
 }

@@ -569,6 +569,26 @@ html:has(.marketing) {
     box-shadow: var(--shadow-raised);
   }
 
+  /* ND-38: the Account page's initial and its set-apart "Start over" card. Flat colour, no glow. */
+  .account-avatar {
+    display: inline-flex;
+    width: 4rem;
+    height: 4rem;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background-color: color-mix(in oklab, var(--color-achievement) 16%, transparent);
+    color: var(--color-achievement);
+    font-size: var(--text-h3);
+    font-weight: 600;
+  }
+
+  .account-restart {
+    border-radius: var(--radius-panel);
+    border: 1px dashed color-mix(in oklab, var(--color-danger) 35%, transparent);
+  }
+
   /* ProgressRing: a quiet track and an arc that fills once on arrival. */
   @keyframes progress-ring-fill {
     from { stroke-dashoffset: 100; }
