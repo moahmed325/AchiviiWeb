@@ -288,7 +288,7 @@ test.describe('pathways, account and offline', () => {
     await expect(opener).toBeFocused();
   });
 
-  test('without Pro, Skills leads to Pro instead of adding to the timeline (ND-38)', async ({ page }) => {
+  test('without Pro, Skills leads to Pro instead of adding to the timeline (ND-39)', async ({ page }) => {
     const calls = await mockApi(page, { goal: shellGoal(), plan: 'free', access: 'trial' });
     await signIn(page);
     await page.goto('/roadmap');

@@ -152,7 +152,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-27 | Visitors see their plan before signing up | Product | Decided | — |
 | ND-36 | Achivii starts from the goal the person types | Product | Decided | — |
 | ND-37 | Thirty days free, then Pro | Product | Decided | — |
-| ND-38 | Guided skills on the timeline | Product | Decided | — |
+| ND-39 | Guided skills on the timeline | Product | Decided | — |
 
 **What blocks the next phase:** Phases 0–9 are complete. Phase 10 (Premium Architecture) is unblocked and **IN PROGRESS** (M10.1 complete: ND-9 Decided A, ND-10 Decided A, ND-11 Decided A, OD-1c Decided B). M10.2 (Coach placement and honest state) is active.
 
@@ -1919,6 +1919,32 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 ---
 
+### ND-38 — Missed work comes back: shorter when it doesn't fit, and after a gap
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-11-04 — Mo: "make this whole missed session thing as best as possible, dont ask me for nothing" |
+| Decided | 2026-11-04 — measured with the scenario sweep (recovery on against off), built under Mo's standing ask |
+
+**Context.** The scenario sweep, now measuring how much of the main work gets done in the end, showed recovery adding almost nothing (about 90% of main steps done with it on and off). Two rules lost the work: a missed step moved only if it fitted whole on a later day after that day's lower-priority steps came off, and a day's main step is usually its biggest part, so it almost never fitted ("no room" on about 2,500 missed days); and after a gap of three or more missed days (missed sessions ND-11) nothing moved at all (about 1,000 days).
+
+**Decision.**
+* **Shorter when it doesn't fit.** When no later day this week takes the whole step, the first open day takes a shorter version of it in place of its lower-priority steps, if at least 10 minutes (20 for a physical step, whose moved version has a 5-minute warm-up and 5 easy minutes) and at least half of it fit. The step says "Shorter today: {n} minutes in all, so do the most important part." and the app shows that line first. A whole fit always wins.
+* **A day that is over doesn't block the search** (amends MR-10). When the first day that would take the step is done, closed or already taken, the next open day takes it (whole first, else shorter), instead of the step being dropped. It is still worked out the same way every time, a moved step is never moved again (its marker), and the most recent miss still wins a day: an older miss goes on to the next open day.
+* **After a gap, the most important step comes back.** On the first open day after a gap, the most recent gap day's highest-priority move step that is not hard and not of an in-order kind takes the place of steps that are neither more important nor hard, whole or shorter. One step per gap; the gentle return and the easy line on the first hard step back are unchanged.
+* **Nothing important is forgotten at the week's end.** Next week's writer is told the main steps of last week's days that were not done (a day done only through its 10-minute version counts as not done), not done elsewhere and not handed on (up to 5, most recent first, key sessions listed apart, never an old test step, none in a first week back after a break), and asked to bring back the ones that still matter early in the week, in place of less important steps, never making a day longer.
+* Unchanged: a day never gets longer than planned (missed sessions ND-10), one moved step per day, the most recent miss wins a day, the safety limits, and in-order steps keep their own queue.
+
+**Consequences.** In the full sweep (913 runs), people who miss often get 5 to 7 points more of their main steps done than with recovery off (before: 0 to 1), with no rule broken in any run. A day holding a moved step can't be swapped, as before, so a return day holding the gap's step isn't swapped. Code: `fitCarriedStep` in `lib/carryForward.ts`, the move and gap-return steps of `planRecovery` in `lib/recovery/carry.ts`, `SHORTER_LINE` in `frontend/src/lib/stepLines.ts`; measure: `npm run report:recovery` and the sweep's `work` (SWEEP_BASELINE=1 for recovery off).
+
+**Related.** missed sessions ND-10 to ND-18 (`docs/archive/missed-sessions`), MR-10 (amended), I-30, B-110.
+
+---
+
+
 ### ND-31 — A calmer app: no glow, one Roadmap page, a plain Pathways dialog
 
 | Field | Value |
@@ -2001,7 +2027,8 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-10-31 | ND-35 Decided by Mo: no weekly tests, targets, checkpoints or final test; next week follows sessions done, the feel taps and the notes. The ND-33 goal ring and Roadmap progress count the plan's weeks and days instead of a measured number, and Coming up has no weekly check. |
 | 2026-11-04 | ND-36 Decided by Mo (stage 1 of 4): the landing page and Home ask for the goal first; onboarding asks one thing per page, routine first, turns a vague goal into a measurable one, and is open to visitors, who sign up from the summary. ND-13 and ND-14 marked Superseded. |
 | 2026-11-04 | ND-37 Decided by Mo (stage 2 of 4): every plan starts with 30 days free, no card; after them, without Pro, the plan is paused (kept and readable, not moved on). ND-10 and ND-23 marked Superseded. |
-| 2026-11-05 | ND-38 Decided by Mo (stage 3 of 4): the 10 guided plans are skills; with Pro, one is added to the timeline ("Up next") and offered first when the current plan ends, with its routine carried over. |
+| 2026-11-05 | ND-38 Under Mo's ask to make missed sessions the best: a missed step that can't fit whole moves shorter, a day that is over doesn't block the search (MR-10 amended), after a gap the most important missed step comes back on the first day back, and next week's writer hears the main steps never done. |
+| 2026-11-05 | ND-39 Decided by Mo (stage 3 of 4): the 10 guided plans are skills; with Pro, one is added to the timeline ("Up next") and offered first when the current plan ends, with its routine carried over. |
 
 ### ND-32 — The Roadmap at a glance, a name in the greeting, no weekly review by hand
 
@@ -2023,6 +2050,8 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Consequences.** `WeeklyReviewModal` and the parts only it used (`ReviewSummaryCard`, `ReviewReflectionStep`, `PhaseGateOutcomeCard`, `AdaptationMomentStep`, `lib/reviewDraft.ts`, `submitWeeklyReview`, `isWeekReviewDue`), `Staircase` and its styles are removed. The test entry (`ReviewTestResultStep`, `LightTestEntry`) stays, used by Today's week-close card and the late-test card. The backend review route stays (B-110). With `WEEK_CLOSE_ENABLED` off, weeks would no longer close at all; it must stay on.
 
+**Amended by ND-35 (2026-10-31).** No weekly tests: the test entry this decision kept was removed with them.
+
 **Related.** ND-24, ND-29, ND-31.
 
 ### ND-33 — A Dashboard worth opening, the Roadmap with progress and every week, no late-test card
@@ -2043,6 +2072,8 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 * **No late-test card on Today:** the week's test is asked for once, when the week closes (`WeekTestFirst`). The re-test entry stays.
 
 **Consequences.** New: `ProgressRing` (ui), `practiceStreak` (`lib/dashboard.ts`), `comingUp` (`lib/plan.ts`). Removed: `LateTestCard`, `lib/lateTest.ts`, the old roadmap styles.
+
+**Amended by ND-35 (2026-10-31).** No weekly tests: the goal rings count the plan's days and weeks, the results line, checks and test entries are gone, and Coming up has no weekly check.
 
 **Related.** ND-29, ND-31, ND-32.
 
@@ -2176,7 +2207,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 ---
 
-### ND-38 — Guided skills on the timeline
+### ND-39 — Guided skills on the timeline
 
 | Field | Value |
 |---|---|
@@ -2196,4 +2227,3 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 **Consequences.** Running a skill alongside the main goal is stage 4.
 
 **Related.** ND-36, ND-37, `frontend/src/components/PathwaysExplorerModal.tsx`, `frontend/src/components/pathways/UpNextSkill.tsx`, `backend/src/routes/auth.ts`.
-

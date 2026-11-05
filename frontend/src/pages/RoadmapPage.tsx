@@ -13,8 +13,8 @@ import type { Goal } from '../types';
 import type { JourneyData, JourneyPhase } from '../types/journey';
 
 /**
- * ND-33: the plan and the person's progress, calm. A progress card (a ring for the plan's weeks done and plain counts;
- * no weekly checks, ND-35), then the whole plan by phase: each phase and each week's
+ * ND-33: the plan and the person's progress, calm. A progress card (a ring for the plan's weeks done, practice days
+ * by week, ND-33, and plain counts; no weekly checks, ND-35), then the whole plan by phase: each phase and each week's
  * title always shown, a week's details opening on request (this week open), the finish line, and why the plan works.
  * Read only; nothing here writes.
  */
@@ -90,7 +90,7 @@ const RoadmapContent: React.FC<{ journey: JourneyData; goal: Goal }> = ({ journe
               </div>
             </div>
           </li>
-          {/* ND-38: the skill added to the timeline, after the finish line. */}
+          {/* ND-39: the skill added to the timeline, after the finish line. */}
           {goal.status === 'active' && <UpNextSkill goalTitle={goal.rawGoal} />}
         </ol>
       </section>
@@ -115,11 +115,14 @@ const Progress: React.FC<{ goal: Goal; rows: WeekRow[] }> = ({ goal, rows }) => 
   return (
     <section aria-labelledby="progress-heading" className="dash-panel animate-rise-in mt-10 p-6 sm:p-8" style={{ animationDelay: '100ms' }}>
       <h2 id="progress-heading" className="font-ui-mono text-micro uppercase text-text-secondary">Your progress</h2>
-      <div className="mt-6 flex items-center gap-6">
-        <ProgressRing label="Progress toward your goal" value={percent} valueText={percent + '% ' + caption} size={9.5}>
-          <span className="tabular block text-4xl font-semibold tracking-[-0.03em] text-text">{percent}%</span>
-        </ProgressRing>
-        <p className="max-w-[14ch] text-small text-text-secondary">{caption}</p>
+      <div className="mt-6 grid items-center gap-8 md:grid-cols-[auto_minmax(0,1fr)] md:gap-12">
+        <div className="flex items-center gap-6">
+          <ProgressRing label="Progress toward your goal" value={percent} valueText={percent + '% ' + caption} size={9.5}>
+            <span className="tabular block text-4xl font-semibold tracking-[-0.03em] text-text">{percent}%</span>
+          </ProgressRing>
+          <p className="max-w-[14ch] text-small text-text-secondary">{caption}</p>
+        </div>
+        <WeekBars rows={rows} />
       </div>
       <dl className="mt-8 grid grid-cols-3 gap-4 border-t border-border pt-6">
         <div>
@@ -139,6 +142,42 @@ const Progress: React.FC<{ goal: Goal; rows: WeekRow[] }> = ({ goal, rows }) => 
         </div>
       </dl>
     </section>
+  );
+};
+
+/**
+ * ND-33: practice days done in each week, one bar per week (its height the share of the week's planned days done).
+ * Weeks gone by are gold, this week is outlined, weeks ahead are a faint stub, a paused week is dashed.
+ */
+const WeekBars: React.FC<{ rows: WeekRow[] }> = ({ rows }) => {
+  const label =
+    'Practice days done by week: ' +
+    rows
+      .filter((row) => row.state !== 'ahead')
+      .map((row) => 'week ' + row.weekNumber + (row.state === 'paused' ? ' paused' : row.sessions ? ' ' + row.sessions.done + ' of ' + row.sessions.planned : ' none'))
+      .join(', ') +
+    '.';
+  return (
+    <figure className="min-w-0">
+      <figcaption className="text-small text-text-secondary">Practice days by week</figcaption>
+      <div role="img" aria-label={label} className="road-bars mt-4">
+        {rows.map((row, i) => {
+          const share = row.sessions && row.sessions.planned > 0 ? row.sessions.done / row.sessions.planned : 0;
+          return (
+            <div key={row.weekNumber} className="road-bars__col" aria-hidden="true">
+              <div className="road-bars__track">
+                <div
+                  className="road-bars__bar"
+                  data-state={row.state}
+                  style={{ height: row.state === 'ahead' ? undefined : Math.max(share, 0.06) * 100 + '%', animationDelay: 200 + i * 40 + 'ms' }}
+                />
+              </div>
+              <span className="tabular font-ui-mono text-micro text-text-secondary">{row.weekNumber}</span>
+            </div>
+          );
+        })}
+      </div>
+    </figure>
   );
 };
 

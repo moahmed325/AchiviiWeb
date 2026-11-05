@@ -50,7 +50,7 @@ beforeEach(() => {
 });
 afterEach(() => localStorage.clear());
 
-describe('Skills (ND-38)', () => {
+describe('Skills (ND-39)', () => {
   it('Pro with a plan running: adds the chosen skill to the timeline, never the current plan', async () => {
     renderScreen({ activeGoalTitle: 'Build & Ship a SaaS Web App' });
     const dialog = await open();

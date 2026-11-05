@@ -18,7 +18,7 @@ export interface GoalLaunch {
  */
 export const pathwayLaunch = (pathway: CertifiedPathway, routine?: RoutineSettings | null): GoalLaunch => ({
   to: '/onboarding',
-  // ND-38: a skill started after a plan carries that plan's routine, so the routine pages only need confirming.
+  // ND-39: a skill started after a plan carries that plan's routine, so the routine pages only need confirming.
   state: { presetGoal: pathway.title, isPreset: true, switchGoal: true, ...(routine ? { routine } : {}) },
   draftGoal: pathway.title,
 });

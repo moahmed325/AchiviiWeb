@@ -36,7 +36,7 @@ interface AuthContextType {
   setTimezone: (timezone: string) => Promise<void>;
   /** ND-28: the missed-day reminder email on or off. */
   setReminders: (enabled: boolean) => Promise<void>;
-  /** ND-38: the skill added to the timeline (Pro), or null to remove it. */
+  /** ND-39: the skill added to the timeline (Pro), or null to remove it. */
   setUpNextSkill: (skill: string | null) => Promise<void>;
   /** Saves the name the Dashboard greets by; an empty one removes it. */
   setFirstName: (firstName: string) => Promise<void>;
@@ -220,12 +220,12 @@ export function useUserTimezone(): string | undefined {
   return useContext(AuthContext)?.user?.timezone || undefined;
 }
 
-/** ND-38: the signed-in user, or null; never throws outside an AuthProvider. */
+/** ND-39: the signed-in user, or null; never throws outside an AuthProvider. */
 export function useAuthUser(): User | null {
   return useContext(AuthContext)?.user ?? null;
 }
 
-/** ND-38: sets the skill added to the timeline; never throws outside an AuthProvider (it then refuses). */
+/** ND-39: sets the skill added to the timeline; never throws outside an AuthProvider (it then refuses). */
 export function useSetUpNextSkill(): (skill: string | null) => Promise<void> {
   const context = useContext(AuthContext);
   return context?.setUpNextSkill ?? (async () => Promise.reject(new Error('Sign in first.')));

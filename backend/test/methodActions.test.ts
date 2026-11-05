@@ -543,8 +543,20 @@ describe('M3.2 person actions with method-aware recovery', () => {
     const easy = (id: string) => stepsOf(id).filter((s) => String(s.instructions).startsWith(EASY_START_LINE)).map((s) => s.title);
     /** Every step in the week that carries the line, as [day, title]. */
     const lines = () => OPEN.flatMap((id) => easy(id).map((title) => [id, title]));
+    // The gap's days let go, so no gap-return step (2026-11-04) lands on today: these tests are about the line alone.
+    const gapDays = { mon: { steps: letGo('mon talk') }, tue: { steps: letGo('tue talk') }, wed: { steps: letGo('wed talk') } };
     const back = (spec: Partial<Record<Id, DaySpec>>, profile: unknown = { ...PROFILE, restGapDays: 0 }) =>
-      seed({ thu: { rest: false, steps: day('thu practice', 'practice') }, sun: { rest: false, steps: day('sun practice', 'practice') }, ...spec }, profile);
+      seed({ ...gapDays, thu: { rest: false, steps: day('thu practice', 'practice') }, sun: { rest: false, steps: day('sun practice', 'practice') }, ...spec }, profile);
+
+    it('2026-11-04: with movable steps in the gap, the most recent one comes back on today; a day holding it is not swapped', async () => {
+      seed({ thu: { rest: false, steps: day('thu practice', 'practice') }, sun: { rest: false, steps: day('sun practice', 'practice') }, fri: { steps: day('fri intervals', 'heavy') } }, { ...PROFILE, restGapDays: 0 });
+      at(THU);
+      const { body } = await reconcile();
+      expect(body.carry.carries.map((c: { fromTaskId: string; toTaskId: string }) => [c.fromTaskId, c.toTaskId])).toEqual([['wed', 'thu']]);
+      expect(stepsOf('thu').map((s) => s.title)).toEqual(['thu practice', 'wed practice']);
+      expect(lines()).toEqual([['fri', 'fri intervals']]);
+      expect((await swap('thu', 'fri')).status).toBe(409);
+    });
 
     it("today without a hard step swapped with Friday's hard step: the hard step now on today has the line, Friday has none", async () => {
       back({ fri: { steps: day('fri intervals', 'heavy') } });

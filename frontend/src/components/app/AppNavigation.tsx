@@ -36,7 +36,7 @@ const RailIcon: React.FC<{ icon: LucideIcon; active?: boolean }> = ({ icon: Icon
   <Icon aria-hidden="true" strokeWidth={1.5} className={cx('size-5 shrink-0', active ? 'text-accent-hover' : '')} />
 );
 
-/** Desktop (lg and up): a restrained left rail. Today, Roadmap, Skills (ND-38), then Account at the bottom (ND-7). */
+/** Desktop (lg and up): a restrained left rail. Today, Roadmap, Skills (ND-39), then Account at the bottom (ND-7). */
 export const AppRail: React.FC<AppNavigationProps> = ({ onOpenPathways, onOpenCoach }) => {
   const { dashboardActive, showDashboard, todayActive, roadmapActive, showRoadmap, offline, isCompleted } = useEntries();
 

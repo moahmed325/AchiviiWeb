@@ -131,7 +131,7 @@ test.describe('Home without a goal (ND-36)', () => {
 test.describe('pathway library with a goal', () => {
   // M5.3: the strip left Today; the shell's Pathways entry is how Today reaches the explorer. /dashboard is an overview
   // again (ND-19, superseding OD-3) and has no strip either.
-  test('Skills from Today opens the explorer, and Pro adds a skill to the timeline (ND-38)', async ({ page }) => {
+  test('Skills from Today opens the explorer, and Pro adds a skill to the timeline (ND-39)', async ({ page }) => {
     const calls = await mockApi(page, { goal: GOAL, clarify: baseline.presetClarify });
     const deletes: string[] = [];
     page.on('request', (request) => {
@@ -154,7 +154,7 @@ test.describe('pathway library with a goal', () => {
     await expect(opener).toBeFocused();
     expect(await draftGoal(page)).toBeNull();
 
-    // ND-38: with a plan running, Pro adds the skill to the timeline; nothing starts, nothing is replaced.
+    // ND-39: with a plan running, Pro adds the skill to the timeline; nothing starts, nothing is replaced.
     await opener.click();
     await dialog.getByRole('tab', { name: 'Fitness' }).click();
     await chooseOption(page, PRESET_GOAL);

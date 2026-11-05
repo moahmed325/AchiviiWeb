@@ -136,7 +136,7 @@ describe('goal create saves in one transaction (B-100)', () => {
     expect(tx.user.updateMany).toHaveBeenCalledWith({ where: { id: 'u1', trialStartedAt: null }, data: { trialStartedAt: expect.any(Date) } });
   });
 
-  it('a pathway plan empties the up-next slot when it held that skill, in the same transaction (ND-38)', async () => {
+  it('a pathway plan empties the up-next slot when it held that skill, in the same transaction (ND-39)', async () => {
     await fetch(`${baseUrl}/api/goal/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },

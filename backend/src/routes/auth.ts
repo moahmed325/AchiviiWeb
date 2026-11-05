@@ -19,7 +19,7 @@ type AuthenticatedUser = {
   remindersEnabled: boolean;
   /** ND-37: when the 30-day trial started; read with the person so access checks need no second query. */
   trialStartedAt: Date | null;
-  /** ND-38: the skill added to the timeline, offered when the current plan ends; null for none. */
+  /** ND-39: the skill added to the timeline, offered when the current plan ends; null for none. */
   upNextSkill: string | null;
 };
 
@@ -183,7 +183,7 @@ authRouter.put('/timezone', async (req: Request, res: Response): Promise<void> =
   res.status(200).json({ user: presentUser(updated) });
 });
 
-// PUT /api/auth/up-next: ND-38, the skill a Pro person adds to their timeline (one at a time), or null to remove it.
+// PUT /api/auth/up-next: ND-39, the skill a Pro person adds to their timeline (one at a time), or null to remove it.
 // Adding needs Pro; removing never does.
 authRouter.put('/up-next', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {

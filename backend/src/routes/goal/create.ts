@@ -119,7 +119,7 @@ export async function saveV2Goal(input: {
   /** B-109: the plan's weeks (`planLengthFor`); missing is 12. */
   totalWeeks?: number;
   isPreset: boolean;
-  /** ND-38: the pathway this plan follows; when it was the person's up-next skill, that slot is emptied. */
+  /** ND-39: the pathway this plan follows; when it was the person's up-next skill, that slot is emptied. */
   presetId?: string;
   /** Method-aware recovery (M1.3a): saved under `recovery` when it passed the checks. */
   recovery?: RecoveryProfile | null;

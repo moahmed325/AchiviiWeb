@@ -232,7 +232,8 @@ describe('M3.3 the miss line with method-aware recovery', () => {
     });
 
     it('no room this week, never the drop line (a method no-room day has a drop too)', async () => {
-      seed({ tue: { status: 'completed' } });
+      // Every later practice day is done (ND-38: an open later day would take the step).
+      seed({ tue: { status: 'completed' }, wed: { status: 'completed' }, fri: { status: 'completed' } });
       at(TUE);
       const body = await reconcile();
       expect(body.carry.drops.map((d: any) => d.taskId)).toEqual(['mon']);

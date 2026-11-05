@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import express from 'express';
 import type { Server } from 'node:http';
 
-// ND-38: one guided skill added to the timeline, Pro only to add.
+// ND-39: one guided skill added to the timeline, Pro only to add.
 
 const findUnique = vi.fn();
 const update = vi.fn();
