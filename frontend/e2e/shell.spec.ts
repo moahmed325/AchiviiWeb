@@ -53,7 +53,7 @@ const entryNames = async (page: Page) =>
     .evaluateAll((items) => items.map((item) => (item.textContent ?? '').replace(/\s+/g, ' ').trim()));
 
 test.describe('entries', () => {
-  test('with a goal: Dashboard (Home on mobile), Today, Roadmap, Pathways, Coach and Account (ND-31), and nothing else', async ({
+  test('with a goal: Dashboard (Home on mobile), Today, Roadmap, Skills, Coach and Account (ND-31), and nothing else', async ({
     page,
     isMobile,
   }) => {
@@ -65,7 +65,7 @@ test.describe('entries', () => {
 
     const names = await entryNames(page);
     const home = isMobile ? 'Home' : 'Dashboard';
-    expect(names.map((name) => name.replace(/e2e@example\.com$/, ''))).toEqual([home, 'Today', 'Roadmap', 'Pathways', 'Coach ✦', 'Account']);
+    expect(names.map((name) => name.replace(/e2e@example\.com$/, ''))).toEqual([home, 'Today', 'Roadmap', 'Skills', 'Coach ✦', 'Account']);
     await expect(primary(page).getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
     await expect(primary(page).getByRole('link', { name: home })).not.toHaveAttribute('aria-current');
     await expect(primary(page).getByRole('link', { name: 'Roadmap' })).not.toHaveAttribute('aria-current');
@@ -90,7 +90,7 @@ test.describe('entries', () => {
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1, name: 'What do you want to achieve?' })).toBeVisible();
     const names = await entryNames(page);
-    expect(names.map((name) => name.replace(/e2e@example\.com$/, ''))).toEqual(['Today', 'Pathways', 'Coach ✦', 'Account']);
+    expect(names.map((name) => name.replace(/e2e@example\.com$/, ''))).toEqual(['Today', 'Skills', 'Coach ✦', 'Account']);
   });
 
   test('a goal that failed to load: the shell still renders, and Roadmap is hidden', async ({ page }) => {
@@ -357,7 +357,7 @@ test.describe('pathways, account and offline', () => {
         }),
       );
     }
-    expect(order).toEqual(['Skip to content', 'Achivii, home', 'Dashboard', 'Today', 'Roadmap', 'Pathways', 'Coach ✦', 'Account']);
+    expect(order).toEqual(['Skip to content', 'Achivii, home', 'Dashboard', 'Today', 'Roadmap', 'Skills', 'Coach ✦', 'Account']);
     await page.keyboard.press('Enter');
     await page.keyboard.press('Tab');
     await expect(page.getByRole('textbox', { name: 'Your first name' })).toBeFocused();
