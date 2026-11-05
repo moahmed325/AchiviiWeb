@@ -108,9 +108,11 @@ export interface TextareaProps extends React.ComponentProps<'textarea'> {
    * limit (80%), linked to the control as a description. `className` then goes to the wrapper.
    */
   showCount?: boolean;
+  /** `compact`: one line to start, for a message box (Coach, ND-40); it doesn't resize. */
+  size?: 'default' | 'compact';
 }
 
-export const Textarea: React.FC<TextareaProps> = ({ className, rows = 4, showCount = false, ...props }) => {
+export const Textarea: React.FC<TextareaProps> = ({ className, rows = 4, showCount = false, size = 'default', ...props }) => {
   const countId = useId();
   const max = showCount ? (props.maxLength ?? 0) : 0;
   const length = typeof props.value === 'string' ? props.value.length : 0;
@@ -124,7 +126,7 @@ export const Textarea: React.FC<TextareaProps> = ({ className, rows = 4, showCou
       {...props}
       {...wiring}
       rows={rows}
-      className={cx(control, 'min-h-28 resize-y px-4 py-3 leading-relaxed', showCount ? undefined : className)}
+      className={cx(control, size === 'compact' ? 'min-h-12 resize-none px-4 py-3 leading-snug' : 'min-h-28 resize-y px-4 py-3 leading-relaxed', showCount ? undefined : className)}
     />
   );
   if (!showCount) return textarea;

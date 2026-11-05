@@ -23,6 +23,7 @@ model User {
 
   goals         Goal[]
   subscriptions Subscription[]
+  coachMessages CoachMessage[]
 
   @@map("users")
 }
@@ -104,6 +105,7 @@ model Goal {
   roadmapWeeks     RoadmapWeek[]
   dailyTasks       DailyTask[]
   weeklyReviews    WeeklyReview[]
+  coachMessages    CoachMessage[]
 
   @@map("goals")
 }
@@ -191,4 +193,21 @@ model WeeklyReview {
 
   @@unique([goalId, weekNumber])
   @@map("weekly_reviews")
+}
+
+// ND-40: Achivii Coach. One conversation per plan, deleted with it (a reset deletes the plan and its history).
+model CoachMessage {
+  id         String   @id @default(uuid())
+  userId     String
+  goalId     String
+  role       String   // 'user' | 'coach'
+  content    String
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId, created_at])
+  @@index([userId, created_at])
+  @@map("coach_messages")
 }

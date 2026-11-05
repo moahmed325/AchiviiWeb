@@ -63,6 +63,10 @@ services:
       # only after the Resend settings below are in place; turning it off is the kill switch. Dashboard only.
       - key: MISSED_DAY_REMINDERS_ENABLED
         sync: false
+      # ND-40: Achivii Coach. Unset or anything but "true" means off (the app shows "coming soon"); turning it off is
+      # the kill switch. Dashboard only.
+      - key: COACH_ENABLED
+        sync: false
       # Resend API key and the From address on a domain verified in Resend (e.g. Achivii <reminders@mail.example.com>).
       - key: RESEND_API_KEY
         sync: false

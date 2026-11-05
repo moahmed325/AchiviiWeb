@@ -153,6 +153,40 @@ export async function updateReminders(token: string, enabled: boolean): Promise<
   return data.user;
 }
 
+/** ND-40: one message in the Coach conversation. */
+export interface CoachMessage {
+  id: string;
+  role: 'user' | 'coach';
+  content: string;
+  createdAt: string;
+}
+
+export interface CoachState {
+  /** False until `COACH_ENABLED` is on (Render): the page shows "coming soon". */
+  enabled: boolean;
+  hasGoal: boolean;
+  /** `locked`: the trial is over without Pro; the conversation reads, nothing sends. */
+  access: 'ok' | 'locked';
+  messages: CoachMessage[];
+  remainingToday: number;
+  dailyLimit: number;
+}
+
+export async function fetchCoach(token: string): Promise<CoachState> {
+  const response = await fetch(`${API_BASE_URL}/api/coach`, { headers: { Accept: 'application/json', Authorization: `Bearer ${token}` } });
+  return readJson<CoachState>(response, "Couldn't load Coach");
+}
+
+/** Sends one message; the answer holds it and the coach's reply, saved together. */
+export async function sendCoachMessage(token: string, text: string, firstName?: string | null): Promise<{ messages: CoachMessage[]; remainingToday: number }> {
+  const response = await fetch(`${API_BASE_URL}/api/coach/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ text, ...(firstName ? { firstName } : {}) }),
+  });
+  return readJson(response, "Coach couldn't answer just now. Please try again.");
+}
+
 export async function clarifyGoal(rawGoal: string): Promise<import('../types').GoalClarification> {
   const response = await fetch(`${API_BASE_URL}/api/goal/clarify`, {
     method: 'POST',

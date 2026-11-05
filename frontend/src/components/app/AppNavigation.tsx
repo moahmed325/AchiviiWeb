@@ -11,7 +11,6 @@ import { shellEntries } from './shellEntries';
 
 interface AppNavigationProps {
   onOpenPathways: () => void;
-  onOpenCoach: () => void;
 }
 
 const useEntries = () => {
@@ -52,8 +51,8 @@ const AccountLink: React.FC = () => {
 };
 
 /** Desktop (lg and up): a restrained left rail. Today, Roadmap, Pathways, then Account at the bottom (ND-7). */
-export const AppRail: React.FC<AppNavigationProps> = ({ onOpenPathways, onOpenCoach }) => {
-  const { dashboardActive, showDashboard, todayActive, roadmapActive, showRoadmap, offline, isCompleted } = useEntries();
+export const AppRail: React.FC<AppNavigationProps> = ({ onOpenPathways }) => {
+  const { dashboardActive, showDashboard, todayActive, roadmapActive, showRoadmap, coachActive, offline, isCompleted } = useEntries();
 
   return (
     <div
@@ -94,10 +93,10 @@ export const AppRail: React.FC<AppNavigationProps> = ({ onOpenPathways, onOpenCo
             </button>
           </li>
           <li>
-            <button type="button" onClick={onOpenCoach} className={railItem(false)}>
+            <Link to="/coach" aria-current={coachActive ? 'page' : undefined} className={railItem(coachActive)}>
               <Sparkles aria-hidden="true" strokeWidth={1.5} className="size-5 shrink-0 text-achievement" />
               <span>Coach <span aria-hidden="true" className="text-achievement">✦</span></span>
-            </button>
+            </Link>
           </li>
         </ul>
         <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
@@ -128,8 +127,8 @@ const ActiveMark: React.FC = () => <span aria-hidden="true" className="absolute 
  * takes its own height at the end of the page and never covers content. It sits above the bottom safe area, and
  * below every dialog, sheet and focus mode (z-40 under their z-50).
  */
-export const AppBottomBar: React.FC<AppNavigationProps> = ({ onOpenPathways, onOpenCoach }) => {
-  const { dashboardActive, showDashboard, todayActive, roadmapActive, showRoadmap, accountActive, offline, isCompleted } = useEntries();
+export const AppBottomBar: React.FC<AppNavigationProps> = ({ onOpenPathways }) => {
+  const { dashboardActive, showDashboard, todayActive, roadmapActive, showRoadmap, accountActive, coachActive, offline, isCompleted } = useEntries();
 
   return (
     <>
@@ -178,10 +177,11 @@ export const AppBottomBar: React.FC<AppNavigationProps> = ({ onOpenPathways, onO
               </button>
             </li>
             <li className="min-w-0 flex-1">
-              <button type="button" onClick={onOpenCoach} className={barItem(false)}>
+              <Link to="/coach" aria-current={coachActive ? 'page' : undefined} className={barItem(coachActive)}>
+                {coachActive && <ActiveMark />}
                 <Sparkles aria-hidden="true" strokeWidth={1.5} className={cx('size-5', 'text-achievement')} />
                 <span className="truncate max-w-[56px] sm:max-w-none text-center">Coach <span aria-hidden="true" className="text-achievement">✦</span></span>
-              </button>
+              </Link>
             </li>
             <li className="min-w-0 flex-1">
               <Link to="/account" aria-current={accountActive ? 'page' : undefined} className={barItem(accountActive)}>
