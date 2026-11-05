@@ -102,6 +102,17 @@ describe('mainStepsNotDoneOf (ND-36)', () => {
     expect(lastWeekOf(week).mainStepsNotDone).toEqual(['Monday: Scales']);
   });
 
+  it('never an old test step (priority 0 or "Weekly test:"); a day done only through its 10-minute version did not do its steps', () => {
+    const week = [
+      at('Monday', '2026-09-21', { status: 'pending', detailedSteps: steps(['Weekly test: 5 km', 0], ['Warm up', 2]) }),
+      at('Tuesday', '2026-09-22', { status: 'pending', detailedSteps: steps(['Weekly test: plank', 1], ['Core', 2]) }),
+      // Wednesday's main step was moved to Thursday, done there only through the 10-minute version.
+      at('Wednesday', '2026-09-23', { status: 'pending', detailedSteps: steps(['Hill repeats', 1], ['Drills', 2]) }),
+      at('Thursday', '2026-09-24', { status: 'completed', usedMinimumVersion: true, detailedSteps: steps(['Easy run', 1], ['Hill repeats', 2]) }),
+    ];
+    expect(mainStepsNotDoneOf(week)).toEqual(['Thursday: Easy run', 'Wednesday: Hill repeats', 'Tuesday: Core', 'Monday: Warm up']);
+  });
+
   it(`at most ${MAIN_STEPS_NOT_DONE_MAX}, and absent when there are none`, () => {
     const many = Array.from({ length: 7 }, (_, i) => at(`Day${i}`, `2026-09-2${i + 1}`, { status: 'pending', detailedSteps: steps([`Step ${i}`, 1]) }));
     expect(mainStepsNotDoneOf(many)).toEqual(['Day6: Step 6', 'Day5: Step 5', 'Day4: Step 4', 'Day3: Step 3', 'Day2: Step 2']);
@@ -117,6 +128,14 @@ describe('writeNextWeek tells the writer last week', () => {
     expect(input.lastWeek).not.toHaveProperty('reflection');
     expect(input).not.toHaveProperty('target');
     expect(input).not.toHaveProperty('test');
+  });
+
+  it('ND-36: the main steps not done, except in a first week back after a break', async () => {
+    const missed = [day('Monday', { date: '2026-09-21', status: 'pending', detailedSteps: JSON.stringify([{ stepNumber: 1, title: 'Values study', durationMinutes: 20, instructions: '', priority: 1 }]) })];
+    await writeNextWeek(goal, 1, missed, '19:30', null, []);
+    expect(vi.mocked(generateWeekPlan).mock.calls.at(-1)![0].lastWeek!.mainStepsNotDone).toEqual(['Monday: Values study']);
+    await writeNextWeek(goal, 1, missed, '19:30', null, [], { firstWeekBack: { awayDays: 10, length: '1-2 weeks', note: null, highLoad: false, everyStep: false } as never });
+    expect(vi.mocked(generateWeekPlan).mock.calls.at(-1)![0].lastWeek).not.toHaveProperty('mainStepsNotDone');
   });
 
   it('nothing for a week with no tasks', async () => {

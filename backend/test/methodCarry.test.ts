@@ -260,26 +260,35 @@ describe('RULE-9 the receiving day search (MR-10, MR-17)', () => {
     expect(plan.carries[0].steps.map((s) => s.title)).toContain('Weekly class');
   });
 
-  it('stops at a done day: no room, never a later day', () => {
+  // ND-36 (amends MR-10): when the first day that takes the step is done, closed or taken, the next open day does.
+  it('passes a done day: the next open day takes it', () => {
     const plan = on(week({ mon: { kind: 'missed' }, tue: { kind: 'done' } }, { today: '2026-09-23' }));
-    expect(plan.carries).toEqual([]);
-    expect(dropOf(plan, 'mon')).toBe('receiving_day_done');
-    expect(outcomeOf(plan, 'mon')).toMatchObject({ outcome: 'no_room', topStep: 'no_room' });
+    expect(plan.carries.map((c) => [c.fromTaskId, c.toTaskId])).toEqual([[id('mon'), id('wed')]]);
+    expect(outcomeOf(plan, 'mon')).toMatchObject({ outcome: 'moved', topStep: 'moved' });
   });
 
-  it('stops at a closed day (missed, or dated before today)', () => {
+  it('passes a closed day (missed, or dated before today)', () => {
     const closed = on(week({ mon: { kind: 'missed' }, tue: { kind: 'missed' } }, { today: '2026-09-23' }));
-    expect(dropOf(closed, 'mon')).toBe('receiving_day_closed');
-    expect(closed.carries.map((c) => [c.fromTaskId, c.toTaskId])).toEqual([[id('tue'), id('wed')]]);
+    expect(closed.carries.map((c) => [c.fromTaskId, c.toTaskId])).toEqual([
+      [id('mon'), id('fri')],
+      [id('tue'), id('wed')],
+    ]);
     const past = on(week({ mon: { kind: 'missed' } }, { today: '2026-09-23' }));
-    expect(dropOf(past, 'mon')).toBe('receiving_day_closed');
+    expect(past.carries.map((c) => [c.fromTaskId, c.toTaskId])).toEqual([[id('mon'), id('wed')]]);
   });
 
-  it('stops at a day that already holds a carry', () => {
+  it('passes a day that already holds a carry', () => {
     const tue = tagged('tue');
     tue[2] = { ...tue[2], carriedFrom: { taskId: 'elsewhere', date: '2026-09-20', replaced: [] } };
     const plan = on(week({ mon: { kind: 'missed' }, tue: { steps: tue } }));
-    expect(dropOf(plan, 'mon')).toBe('receiving_day_taken');
+    expect(plan.carries.map((c) => [c.fromTaskId, c.toTaskId])).toEqual([[id('mon'), id('wed')]]);
+  });
+
+  it('no open day left: no room, with the first day\'s reason', () => {
+    const plan = on(week({ mon: { kind: 'missed' }, tue: { kind: 'done' }, wed: { kind: 'done' }, fri: { kind: 'done' } }, { today: '2026-09-26' }));
+    expect(plan.carries).toEqual([]);
+    expect(dropOf(plan, 'mon')).toBe('receiving_day_done');
+    expect(outcomeOf(plan, 'mon')).toMatchObject({ outcome: 'no_room', topStep: 'no_room' });
   });
 
   it('never lands on the test day or a rest day; the day before the test has no room', () => {
@@ -289,12 +298,15 @@ describe('RULE-9 the receiving day search (MR-10, MR-17)', () => {
     expect(on(week({ wed: { kind: 'missed' } }, { today: '2026-09-24' })).carries.map((c) => c.toTaskId)).toEqual([id('fri')]);
   });
 
-  it('most recent wins when two missed days get the same receiving day (ND-12)', () => {
+  it('most recent wins when two missed days get the same receiving day (ND-12); the older one goes on', () => {
     // Tue has no room for Mon's step, so both Mon's and Tue's searches reach Wed.
     const tue = [step('tue practice', 1, 5, 'practice'), step('Weekly class', 2, 25, 'fixed_time_session')];
     const plan = on(week({ mon: { kind: 'missed' }, tue: { kind: 'missed', steps: tue } }, { today: '2026-09-23' }));
-    expect(dropOf(plan, 'mon')).toBe('lost_to_later_miss');
-    expect(plan.carries.map((c) => [c.fromTaskId, c.toTaskId])).toEqual([[id('tue'), id('wed')]]);
+    // The most recent miss takes Wed; Mon's step goes on to the next open day (ND-36), never two on one day.
+    expect(plan.carries.map((c) => [c.fromTaskId, c.toTaskId])).toEqual([
+      [id('mon'), id('fri')],
+      [id('tue'), id('wed')],
+    ]);
   });
 
   it('is deterministic, and a stored carry is never planned again', () => {
@@ -561,9 +573,9 @@ describe('RULE-17 counts (MR-19, MR-26)', () => {
   });
 
   it('a moved session counted as no room is counted once, however many steps it left behind', () => {
-    // Its receiving day (Tue) is done, so the session is no room.
+    // Every later practice day is done, so the session is no room.
     const mon = [step('mon warm-up', 1, 5, 'heavy'), step('mon main', 2, 20, 'heavy'), step('mon cool-down', 3, 5, 'heavy')];
-    const input = week({ mon: { kind: 'missed', steps: mon }, tue: { kind: 'done' } }, { today: '2026-09-23' });
+    const input = week({ mon: { kind: 'missed', steps: mon }, tue: { kind: 'done' }, wed: { kind: 'done' }, fri: { kind: 'done' } }, { today: '2026-09-26' });
     expect(weekCounts(1, { tasks: countable(input), days: input.days, carry: on(input) })).toMatchObject({ noRoom: 1, letGo: 0, continued: 0 });
   });
 });

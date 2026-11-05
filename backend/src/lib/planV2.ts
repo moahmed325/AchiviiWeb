@@ -253,7 +253,7 @@ export async function writeNextWeek(
   const brief = handOn ? handoffBrief(handOn.handoff) : [];
 
   const load = loadGoalInput(goal, measureTarget(stored, next), startingPointValue(goal));
-  const lastWeek = withoutHandedOn(finishedWeek >= 1 && finishedTasks.length > 0 ? lastWeekOf(finishedTasks) : null, brief);
+  const lastWeek = withoutHandedOn(finishedWeek >= 1 && finishedTasks.length > 0 ? lastWeekOf(finishedTasks) : null, brief, Boolean(options.firstWeekBack));
   const days = await generateWeekPlan({
     finalGoal: stored.finalGoal,
     answers: stored.answers,
@@ -364,9 +364,11 @@ export function readFeel(value: unknown): Feel | null {
 /** Longest note the week writer is sent, on one line; a longer one is cut with "…". */
 export const WRITER_NOTE_MAX_CHARS = 400;
 
+const oneLine = (text: string) => text.replace(/\s+/g, ' ').trim();
+
 /** One line, at most `max` characters: a note can never add lines or headings of its own to the prompt. */
 function promptText(text: string, max: number): string {
-  const line = text.replace(/\s+/g, ' ').trim();
+  const line = oneLine(text);
   return line.length > max ? `${line.slice(0, max - 1).trimEnd()}…` : line;
 }
 
@@ -400,11 +402,14 @@ export function lastWeekOf(tasks: readonly DailyTask[]): LastWeekSummary {
   };
 }
 
-/** ND-36: a main step the handoff already tells the writer about (an in-order step it places) is not listed twice. */
-function withoutHandedOn(lastWeek: LastWeekSummary | null, brief: readonly string[]): LastWeekSummary | null {
-  if (!lastWeek?.mainStepsNotDone || brief.length === 0) return lastWeek;
-  const told = brief.join('\n');
-  const kept = lastWeek.mainStepsNotDone.filter((item) => !told.includes(`"${item.slice(item.indexOf(': ') + 2)}"`));
+/**
+ * ND-36: a main step the handoff already tells the writer about (an in-order step it places) is not listed twice; after
+ * a break (a first week back) none is, as that week eases back in rather than catching up.
+ */
+function withoutHandedOn(lastWeek: LastWeekSummary | null, brief: readonly string[], firstWeekBack: boolean): LastWeekSummary | null {
+  if (!lastWeek?.mainStepsNotDone) return lastWeek;
+  const told = oneLine(brief.join(' '));
+  const kept = firstWeekBack ? [] : lastWeek.mainStepsNotDone.filter((item) => !told.includes(`"${item.slice(item.indexOf(': ') + 2)}"`));
   const { mainStepsNotDone: _all, ...rest } = lastWeek;
   return kept.length ? { ...rest, mainStepsNotDone: kept } : rest;
 }
@@ -418,20 +423,28 @@ export const MAIN_STEPS_NOT_DONE_MAX = 5;
  * `MAIN_STEPS_NOT_DONE_MAX`.
  */
 export function mainStepsNotDoneOf(tasks: readonly DailyTask[]): string[] {
+  const stepsOf = new Map(tasks.map((task) => [task.id, parseStoredSteps(task.detailedSteps)]));
+  // A day done only through its 10-minute version did not do its steps (OD-2).
+  const fullyDone = (task: DailyTask) => task.status === 'completed' && !task.usedMinimumVersion;
   const doneTitles = new Set<string>();
   const handed = new Set<string>();
   for (const task of tasks) {
-    for (const step of parseStoredSteps(task.detailedSteps)) {
-      if (task.status === 'completed') doneTitles.add(step.title);
+    for (const step of stepsOf.get(task.id)!) {
+      if (fullyDone(task)) doneTitles.add(step.title);
       for (const record of Array.isArray(step.toNextWeek) ? step.toNextWeek : []) handed.add(record.step?.title);
     }
   }
+  // A step stored before the weekly tests went (priority 0, or a "Weekly test:" title) is never a main step (ND-35).
+  const isMain = (step: { priority?: unknown; title?: unknown }) =>
+    typeof step.priority === 'number' && step.priority >= 1 && typeof step.title === 'string' && !/^weekly test\b/i.test(step.title);
   const out: string[] = [];
   for (const task of [...tasks].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))) {
-    if (task.isRestDay || task.notOffered || task.isKeySession || task.status === 'completed') continue;
-    const steps = parseStoredSteps(task.detailedSteps);
-    const main = [...steps].sort((a, b) => (typeof a.priority === 'number' ? a.priority : 99) - (typeof b.priority === 'number' ? b.priority : 99))[0];
-    if (!main?.title || doneTitles.has(main.title) || handed.has(main.title)) continue;
+    if (task.isRestDay || task.notOffered || task.isKeySession || fullyDone(task)) continue;
+    const main = stepsOf
+      .get(task.id)!
+      .filter(isMain)
+      .sort((a, b) => (a.priority as number) - (b.priority as number))[0];
+    if (!main || doneTitles.has(main.title) || handed.has(main.title)) continue;
     out.push(`${task.dayOfWeek}: ${promptText(main.title, WRITER_NOTE_MAX_CHARS)}`);
     if (out.length >= MAIN_STEPS_NOT_DONE_MAX) break;
   }

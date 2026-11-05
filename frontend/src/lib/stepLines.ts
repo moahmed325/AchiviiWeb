@@ -25,7 +25,7 @@ const STORED_LEADS = [EASY_START_LINE, FIRST_WEEK_BACK_LINE, MOVED_WARM_UP_LINE]
  * 2026-11-04: a moved step too long for its new day comes as a shorter version, with this line at the end of its
  * instructions (backend `SHORTER_CARRY_LINE` in `carryForward.ts`). Shown first, so the time is clear before the step.
  */
-export const SHORTER_LINE = /\n?(Shorter today: do the most important part in \d+ minutes\.)$/;
+export const SHORTER_LINE = /(?:^|\n)(Shorter today: \d+ minutes in all, so do the most important part\.)$/;
 
 export interface StepLines {
   /** The lines shown first, each on its own line: the continue line, then the stored easy (or first-week-back) and warm-up lines. */

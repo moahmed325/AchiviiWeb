@@ -222,12 +222,16 @@ export function byDate(a: DayClassification, b: DayClassification): number {
  */
 export const SHORTER_CARRY_MIN_MINUTES = 10;
 export const SHORTER_CARRY_MIN_SHARE = 0.5;
-/** Added at the end of a shortened moved step's instructions (the first lines stay for the recovery lines). */
-export const SHORTER_CARRY_LINE = 'Shorter today: do the most important part in {n} minutes.';
+/**
+ * Added at the end of a shortened moved step's instructions (the first lines stay for the recovery lines). `{n}` is
+ * the step's minutes in all, a moved physical step's warm-up and easy end included.
+ */
+export const SHORTER_CARRY_LINE = 'Shorter today: {n} minutes in all, so do the most important part.';
+const SHORTER_LINE_AT_END = new RegExp(`(^|\\n)${SHORTER_CARRY_LINE.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace('{n}', '\\d+')}$`);
 
-/** The step's instructions with the shorter line for `minutes`, once. */
+/** The step's instructions with the shorter line for `minutes`, once (an earlier one is replaced). */
 export function withShorterLine(instructions: unknown, minutes: number): string {
-  const text = (typeof instructions === 'string' ? instructions : '').replace(/\nShorter today: do the most important part in \d+ minutes\.$/, '');
+  const text = (typeof instructions === 'string' ? instructions : '').replace(SHORTER_LINE_AT_END, '');
   const line = SHORTER_CARRY_LINE.replace('{n}', String(minutes));
   return text.trim() ? `${text}\n${line}` : line;
 }

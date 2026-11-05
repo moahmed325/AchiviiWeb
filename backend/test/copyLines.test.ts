@@ -23,6 +23,6 @@ describe("section 6's rows match the code word for word", () => {
   it('the step text code writes', () => {
     expect(FIRST_WEEK_BACK_LINE).toBe('First week back: keep the effort easy today.');
     // The app reads it back by this exact wording (frontend `SHORTER_LINE` in lib/stepLines.ts).
-    expect(SHORTER_CARRY_LINE).toBe('Shorter today: do the most important part in {n} minutes.');
+    expect(SHORTER_CARRY_LINE).toBe('Shorter today: {n} minutes in all, so do the most important part.');
   });
 });
