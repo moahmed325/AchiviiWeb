@@ -5,7 +5,7 @@ import { writeFileSync } from 'node:fs';
 
 // Scenario sweep (2026-10-29, Mo: "make sure missed sessions and the weekly thing work for every scenario, custom goals
 // especially"). Made-up people run whole plans day by day through the real routes (open the app: close the week when
-// due, reconcile; complete tasks and tap how they felt, review, mark missed, carry or swap, change the schedule,
+// due, reconcile; complete tasks and tap how they felt, mark missed, carry or swap, change the schedule,
 // finish the goal) on the in-memory store, with every switch as in production. Only the week writer is replaced (steps
 // of the goal's own kinds, seats for carried steps as the real writer is asked). No weekly tests (2026-10-30): no test,
 // target or checkpoint; the week writer is told what was done, and the sweep checks it is told exactly that. After every
@@ -108,8 +108,6 @@ interface Person {
   /** After a done session, the tap for how it felt (null or missing: no tap), and sometimes a note. */
   feels?: (c: Ctx) => Feel | null;
   notes?: (c: Ctx) => string | null;
-  /** Submits the review on the week's last day instead of waiting for the automatic close. */
-  reviews?: boolean;
   /** On a day they skip, they tap "I missed it" and answer any held key session (carry now or swap). */
   actions?: boolean;
   /** Past the limit after a long break. */
@@ -122,8 +120,8 @@ interface Person {
 }
 
 const PEOPLE: Person[] = [
-  { name: 'Perfect Pat (reviews, taps just right)', reviews: true, feels: () => 'just_right' },
-  { name: 'Auto Ana (never reviews, never taps)' },
+  { name: 'Perfect Pat (taps just right)', feels: () => 'just_right' },
+  { name: 'Auto Ana (never taps)' },
   { name: 'Busy Sam (skips 1 day in 3)', practises: (c) => c.day % 3 !== 1 },
   { name: 'Coin-flip Carl (does half the days at random, taps at random)', practises: (c) => c.rng() < 0.5, feels: (c) => FEELS[Math.floor(c.rng() * 3)], actions: true },
   { name: 'Two-bad-weeks Ben (nothing in weeks 3 and 4)', practises: (c) => c.week !== 3 && c.week !== 4, feels: () => 'just_right' },
@@ -134,7 +132,7 @@ const PEOPLE: Person[] = [
   { name: 'Weekend Wes (only opens Sat and Sun)', away: (c) => c.weekday !== 0 && c.weekday !== 6 },
   { name: 'Clicker Cleo (taps I missed it, carries and swaps)', practises: (c) => c.rng() < 0.6, actions: true, feels: () => 'just_right' },
   { name: 'Shift Sid (5 days to 4 in week 5, weekends off)', schedule: { day: 30, body: { planVariant: 'minimal', restWeekdays: [0, 3, 6] } } },
-  { name: 'Strong Stella (does it all, always too easy)', feels: () => 'too_easy', reviews: true },
+  { name: 'Strong Stella (does it all, always too easy)', feels: () => 'too_easy' },
   { name: 'Struggling Sue (does 3 in 4, always too hard, writes notes)', practises: (c) => c.rng() < 0.75, feels: () => 'too_hard', notes: (c) => (c.rng() < 0.3 ? 'My knee hurts a bit' : null) },
   { name: 'Mixed Max (too hard on Mondays, too easy otherwise)', feels: (c) => (c.weekday === 1 ? 'too_hard' : 'too_easy') },
   { name: 'Night-owl Nia (Auckland, opens at 23:30)', timezone: 'Pacific/Auckland', hour: 23.5, feels: () => 'just_right' },
@@ -534,12 +532,6 @@ async function runPlan(spec: GoalSpec, person: Person, length: (typeof LENGTHS)[
           }
         }
       }
-    }
-    // The review on the week's last day.
-    const weekTasks = db.tasksOf(db.goal().currentWeek);
-    if (person.reviews && weekTasks.length && weekTasks[weekTasks.length - 1].date === today) {
-      const reviewed = await call(`/weeks/${db.goal().currentWeek}/review`, at, { reflection: 'It went fine.' });
-      if (reviewed.status !== 200 && reviewed.status !== 409) add(where, `review answered ${reviewed.status} ${JSON.stringify(reviewed.body)?.slice(0, 200)}`);
     }
     // The last week closed: they finish the goal.
     if (db.week(shape.weeks).status === 'completed') {

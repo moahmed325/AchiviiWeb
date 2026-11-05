@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { getAuthUser } from "./auth.js";
 import { createLemonSqueezyCheckout, CheckoutInterval } from "../lib/billing/lemonSqueezyCheckout.js";
-import { hasProEntitlement } from "../lib/billing/entitlement.js";
+import { accessFor } from "../lib/billing/access.js";
 import { getBillingAccountState } from "../lib/billing/accountState.js";
 import { reconcileUserSubscription } from "../lib/billing/lemonSqueezyReconciliation.js";
 
@@ -11,8 +11,15 @@ export const entitlementHandler = async (req: Request, res: Response): Promise<v
   const user = await getAuthUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized. Please sign in." }); return; }
   try {
-    const entitled = await hasProEntitlement(user.id);
-    res.status(200).json({ plan: entitled ? "pro" : "free", entitled });
+    // ND-37: the trial, for the app's trial line and the paused plan. `access` is `pro`, `new`, `trial` or `locked`.
+    const access = await accessFor(user);
+    const entitled = access.state === "pro";
+    res.status(200).json({
+      plan: entitled ? "pro" : "free",
+      entitled,
+      access: access.state,
+      trialEndsAt: access.trial ? access.trial.endsAt.toISOString() : null,
+    });
   } catch (error) {
     console.error("Billing entitlement error:", error);
     res.status(500).json({ error: "Unable to load billing status. Please try again." });

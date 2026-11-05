@@ -28,7 +28,7 @@ vi.mock('../src/routes/auth.js', () => ({
 }));
 
 vi.mock('../src/lib/billing/goalAuthorization.js', () => ({
-  authorizeNewCustomGoal: vi.fn().mockResolvedValue({ allowed: true }),
+  authorizeNewPlan: vi.fn().mockResolvedValue({ allowed: true }),
 }));
 
 vi.mock('../src/lib/ai/roadmap.js', async (importOriginal) => ({
@@ -69,6 +69,8 @@ const tx = {
   goal: { create: db.goalCreate, updateMany: db.goalUpdateMany },
   roadmapWeek: { createMany: db.weeksCreateMany },
   dailyTask: { createMany: db.tasksCreateMany },
+  // ND-37: the first plan starts the trial, in the same transaction.
+  user: { updateMany: vi.fn() },
 };
 
 let server: Server;
@@ -130,6 +132,8 @@ describe('goal create saves in one transaction (B-100)', () => {
     expect(db.tasksCreateMany).toHaveBeenCalledTimes(1);
     // The archive comes first, inside the transaction.
     expect(db.goalUpdateMany.mock.invocationCallOrder[0]).toBeLessThan(db.goalCreate.mock.invocationCallOrder[0]);
+    // ND-37: the 30-day trial starts with the first plan only (a set start is never moved).
+    expect(tx.user.updateMany).toHaveBeenCalledWith({ where: { id: 'u1', trialStartedAt: null }, data: { trialStartedAt: expect.any(Date) } });
   });
 
   it('a failed write fails the transaction: no goal is read back and the person gets the honest error', async () => {

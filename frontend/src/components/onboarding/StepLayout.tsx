@@ -9,8 +9,10 @@ interface StepHeaderProps {
   eyebrow: string;
   title: string;
   description?: React.ReactNode;
-  /** The goal step opens the flow at display size; later steps are calmer. */
-  size?: 'display' | 'h1';
+  /** The goal step opens the flow at display size; later steps are calmer, and long questions calmer still. */
+  size?: 'display' | 'h1' | 'h2';
+  /** Phones: the progress bar above already names the part of onboarding, so the eyebrow is dropped. */
+  eyebrowFromSm?: boolean;
   /**
    * Question steps on phones: the progress bar already names the step, so the eyebrow is dropped and the description
    * is left to screen readers, bringing the first answer above the sticky footer.
@@ -19,13 +21,13 @@ interface StepHeaderProps {
   children?: React.ReactNode;
 }
 
-export const StepHeader: React.FC<StepHeaderProps> = ({ eyebrow, title, description, size = 'h1', compact = false, children }) => (
+export const StepHeader: React.FC<StepHeaderProps> = ({ eyebrow, title, description, size = 'h1', compact = false, eyebrowFromSm = false, children }) => (
   <header className="flex flex-col gap-4">
-    <p className={cx('font-ui-mono text-micro uppercase text-accent-hover', compact && 'max-sm:hidden')}>{eyebrow}</p>
+    <p className={cx('font-ui-mono text-micro uppercase text-accent-hover', (compact || eyebrowFromSm) && 'max-sm:hidden')}>{eyebrow}</p>
     <h1
       id={STEP_HEADING_ID}
       tabIndex={-1}
-      className={cx('max-w-[20ch] text-text outline-none', size === 'display' ? 'mb-2 text-display' : 'text-h1')}
+      className={cx('max-w-[20ch] text-text outline-none', size === 'display' ? 'mb-2 text-display' : size === 'h2' ? 'max-w-[28ch] text-h2' : 'text-h1')}
     >
       {title}
     </h1>

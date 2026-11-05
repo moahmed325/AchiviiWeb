@@ -8,6 +8,8 @@ import { ResetPlanDialog } from './ResetPlanDialog';
 import { EditScheduleDialog } from './EditScheduleDialog';
 import { NameForm } from '../dashboard/NameForm';
 import { fetchBillingAccountState, BillingAccountState } from '../../lib/api';
+import { useAccess } from '../../hooks/useAccess';
+import { trialDaysLeft } from '../../lib/access';
 
 /**
  * `app`: email, the goal the user chose (ND-18: `rawGoal`, never the stored outcome), Reset and Sign out.
@@ -119,6 +121,8 @@ export const RemindersSetting: React.FC = () => {
 
 const AccountPanel: React.FC<AccountPanelProps> = ({ context, onEditSchedule, onReset, onSignOut }) => {
   const { user, token } = useAuth();
+  // ND-37: the free trial, named beside the plan.
+  const access = useAccess();
   const [billing, setBilling] = useState<BillingAccountState | null>(null);
   const [billingError, setBillingError] = useState<string | null>(null);
   const [billingLoading, setBillingLoading] = useState(false);
@@ -165,7 +169,7 @@ const AccountPanel: React.FC<AccountPanelProps> = ({ context, onEditSchedule, on
         <p className="font-ui-mono text-micro uppercase text-text-secondary">Plan</p>
         {billingLoading && <p className="mt-1 text-small text-text-secondary">Checking billing…</p>}
         {!billingLoading && billing && <>
-          <div className="mt-1 flex items-center justify-between gap-3"><p className="text-small font-medium text-text">{billing.plan === 'pro' ? 'Pro' : 'Free'}</p><span className="text-micro uppercase text-text-secondary">{billing.status === 'none' ? 'No subscription' : billing.status === 'PAST_DUE_RECOVERY' ? 'Payment needs attention' : billing.status === 'UNPAID' ? 'Payment needs attention' : billing.status === 'PAUSED' ? 'Paused' : billing.status.replace(/_/g, ' ').toLowerCase()}</span></div>
+          <div className="mt-1 flex items-center justify-between gap-3"><p className="text-small font-medium text-text">{billing.plan === 'pro' ? 'Pro' : access.state === 'trial' ? 'Free trial' : access.state === 'locked' ? 'Free trial ended' : 'Free'}</p><span className="text-micro uppercase text-text-secondary">{billing.plan !== 'pro' && access.state === 'trial' ? `${trialDaysLeft(access.trialEndsAt)} ${trialDaysLeft(access.trialEndsAt) === 1 ? 'day' : 'days'} left` : billing.status === 'none' ? 'No subscription' : billing.status === 'PAST_DUE_RECOVERY' ? 'Payment needs attention' : billing.status === 'UNPAID' ? 'Payment needs attention' : billing.status === 'PAUSED' ? 'Paused' : billing.status.replace(/_/g, ' ').toLowerCase()}</span></div>
           {billing.plan === 'pro' && billing.currentPeriodEnd && <p className="mt-1 text-small text-text-secondary">{billing.cancelAtPeriodEnd ? 'Access until ' : 'Next billing date '}{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(billing.currentPeriodEnd))}</p>}
           {billing.plan === 'pro' && billing.manageUrl && <a href={billing.manageUrl} target="_blank" rel="noreferrer" className={itemClass + ' mt-2 no-underline'}>Manage subscription</a>}
         </>}

@@ -240,7 +240,7 @@ export async function writeNextWeek(
   recovery?: RecoveryProfile | null,
   /** M3.1d review: the week before `finishedWeek`, only to see a break that started there. Read only with the switch on. */
   weekBefore: DailyTask[] = [],
-  options: { firstWeekBack?: FirstWeekBack; weekNumber?: number; olderWeeks?: DailyTask[]; reflection?: string } = {}
+  options: { firstWeekBack?: FirstWeekBack; weekNumber?: number; olderWeeks?: DailyTask[] } = {}
 ): Promise<WeekDayPlan[] | null> {
   const stored = readStoredRoadmap(goal);
   const next = goal.roadmapWeeks.find((week) => week.weekNumber === (options.weekNumber ?? finishedWeek + 1));
@@ -253,7 +253,7 @@ export async function writeNextWeek(
   const brief = handOn ? handoffBrief(handOn.handoff) : [];
 
   const load = loadGoalInput(goal, measureTarget(stored, next), startingPointValue(goal));
-  const lastWeek = finishedWeek >= 1 && finishedTasks.length > 0 ? lastWeekOf(finishedTasks, options.reflection) : null;
+  const lastWeek = finishedWeek >= 1 && finishedTasks.length > 0 ? lastWeekOf(finishedTasks) : null;
   const days = await generateWeekPlan({
     finalGoal: stored.finalGoal,
     answers: stored.answers,
@@ -361,9 +361,8 @@ export function readFeel(value: unknown): Feel | null {
   return typeof value === 'string' && (FEELS as readonly string[]).includes(value) ? (value as Feel) : null;
 }
 
-/** Longest note and reflection the week writer is sent, each on one line; longer ones are cut with "…". */
+/** Longest note the week writer is sent, on one line; a longer one is cut with "…". */
 export const WRITER_NOTE_MAX_CHARS = 400;
-export const WRITER_REFLECTION_MAX_CHARS = 1000;
 
 /** One line, at most `max` characters: a note can never add lines or headings of its own to the prompt. */
 function promptText(text: string, max: number): string {
@@ -376,7 +375,7 @@ function promptText(text: string, max: number): string {
  * written from it. WU-13: a day not offered is not part of how the week went. The taps count done sessions only; each
  * note keeps its day ("Tuesday: my knee hurt"), on one line and cut to `WRITER_NOTE_MAX_CHARS`.
  */
-export function lastWeekOf(tasks: readonly DailyTask[], reflection?: string): LastWeekSummary {
+export function lastWeekOf(tasks: readonly DailyTask[]): LastWeekSummary {
   const practice = tasks.filter((task) => !task.isRestDay && !task.notOffered);
   const done = practice.filter((task) => task.status === 'completed');
   const feel: Record<Feel, number> = { too_easy: 0, just_right: 0, too_hard: 0 };
@@ -394,7 +393,6 @@ export function lastWeekOf(tasks: readonly DailyTask[], reflection?: string): La
       .map((task) => `${task.dayOfWeek}: ${task.title}`),
     feel,
     notes,
-    ...(reflection?.trim() ? { reflection: promptText(reflection, WRITER_REFLECTION_MAX_CHARS) } : {}),
   };
 }
 

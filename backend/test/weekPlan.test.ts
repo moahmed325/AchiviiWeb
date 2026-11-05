@@ -228,7 +228,7 @@ describe('buildWeekPrompt', () => {
     expect(prompt).not.toContain('LAST WEEK');
   });
 
-  it('includes last week from week 2: sessions, feel taps, notes, the review and the pace', () => {
+  it('includes last week from week 2: sessions, feel taps, notes and the pace, and no weekly review (B-110)', () => {
     const prompt = buildWeekPrompt(
       {
         ...input,
@@ -237,7 +237,6 @@ describe('buildWeekPrompt', () => {
           keySessionsSkipped: ['Wednesday: Type set 3'],
           feel: { too_easy: 0, just_right: 2, too_hard: 1 },
           notes: ['Tuesday: my wrist hurt a bit'],
-          reflection: 'Busy week at work',
         }),
       },
       weekLayout('steady', input.weekStart)
@@ -247,7 +246,7 @@ describe('buildWeekPrompt', () => {
     expect(prompt).toContain('Key sessions skipped: Wednesday: Type set 3.');
     expect(prompt).toContain('How the done sessions felt: 2 just right, 1 too hard.');
     expect(prompt).toContain('- Tuesday: my wrist hurt a bit');
-    expect(prompt).toContain('Their weekly review: "Busy week at work"');
+    expect(prompt).not.toContain('weekly review');
     expect(prompt).toContain('Pace this week: They did most of last week: move on to the next step, as the method says.');
   });
 

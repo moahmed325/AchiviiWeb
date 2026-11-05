@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
 import { getAuthUser } from '../auth.js';
+import { refuseIfLocked } from '../../lib/billing/accessGuard.js';
 import { handledTaskIds, parseStoredSteps, type CarriedStep } from '../../lib/carryForward.js';
 import { carryEnabled, evaluate, loadReconcileGoal, followsNewRules, methodRefusal, moveNowTarget, openSwapRefusal, runReconcile, type ReconcileGoal } from '../../lib/reconcileCore.js';
 import { doneDayIds, markerRefusal } from '../../lib/recovery/swap.js';
@@ -21,7 +22,6 @@ export const actionRoutes = Router();
 export type ActionReason =
   | 'not_today'
   | 'not_yet'
-  | 'week_not_over'
   | 'rest_day'
   | 'completed'
   | 'already_handled'
@@ -43,7 +43,6 @@ export type ActionReason =
   | 'would_not_move'
   | 'week_close_disabled'
   | 'not_auto_closed'
-  | 'reflection_saved'
   | 'choice_needed'
   | 'no_daily_time_check'
   | 'last_week'
@@ -51,9 +50,8 @@ export type ActionReason =
 
 export const ACTION_ERRORS: Record<ActionReason, string> = {
   not_today: 'This can only be done for today.',
-  // Ahead days: a day can be completed from its own date on, and a week reviewed from its last day on.
+  // Ahead days: a day can be completed from its own date on.
   not_yet: "This day hasn't started yet.",
-  week_not_over: 'This week can be reviewed from its last day.',
   rest_day: 'Rest days cannot be changed this way.',
   completed: 'This day is already done.',
   already_handled: 'This day has already been changed.',
@@ -75,10 +73,9 @@ export const ACTION_ERRORS: Record<ActionReason, string> = {
   out_of_order: 'This swap would put steps out of order.',
   rest_gap: 'This swap would put two hard sessions too close together.',
   would_not_move: 'This step cannot be moved this week.',
-  // Weekly update M1.2b (WU-28, WU-31): the close's line and a late reflection.
+  // Weekly update M1.2b (WU-28): the close's line.
   week_close_disabled: 'This action is not available yet.',
   not_auto_closed: 'This week did not close on its own.',
-  reflection_saved: 'This week already has a reflection.',
   // Weekly update M1.5b (WU-38 (1)): a break past the limit waits for the person's choice on Today.
   choice_needed: 'Choose how to continue on Today first.',
   // Weekly update M3.3b (WU-58 (4)): the daily-time answer.
@@ -101,7 +98,12 @@ export const isChoice = (value: unknown): value is PastLimitChoice => value === 
 
 export async function actionUser(req: Request, res: Response) {
   const user = await getAuthUser(req);
-  if (!user) res.status(401).json({ error: 'Unauthorized.' });
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' });
+    return null;
+  }
+  // ND-37: past the 30-day trial without Pro, nothing moves the plan on.
+  if (await refuseIfLocked(user, res)) return null;
   return user;
 }
 

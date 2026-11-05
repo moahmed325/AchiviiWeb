@@ -4,11 +4,11 @@ import { expect, test, type Page } from '@playwright/test';
 import { mockApi, type GenerationStreamStep, signIn } from './mockApi';
 import {
   PRESET_GOAL,
+  answerEssentials,
   answerPresetQuestions,
   baseline,
-  chooseOption,
-  chooseSchedule,
   generate,
+  startGoal,
 } from './onboardingFlow';
 
 const stream = (name: string) =>
@@ -43,11 +43,9 @@ test.afterEach(async ({}, testInfo) => {
 
 const reachReview = async (page: Page) => {
   await page.goto('/onboarding');
-  await chooseOption(page, 'Fitness');
-  await chooseOption(page, PRESET_GOAL);
-  await page.getByRole('button', { name: 'Start this pathway' }).click();
+  await startGoal(page, PRESET_GOAL);
+  await answerEssentials(page);
   await answerPresetQuestions(page, baseline.presetClarify.followUpQuestions);
-  await chooseSchedule(page, 'review');
 };
 
 const expectNoAxeViolations = async (page: Page) => {
@@ -95,7 +93,7 @@ test('an error after search still explains the failure and keeps the answers [er
   await expect(page.getByText('Search sources')).toHaveCount(0);
   await expect(page).toHaveURL(/\/onboarding/);
   await alert.getByRole('button', { name: 'Review your answers' }).click();
-  await expect(page.getByRole('heading', { name: 'Before we build your path' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Here’s where you’re going' })).toBeVisible();
 });
 
 test('browser Back during generation stays on the generation screen', async ({ page }) => {

@@ -24,9 +24,16 @@ export function resolveApiBaseUrl(): string {
 
 const API_BASE_URL = resolveApiBaseUrl();
 
+/** ND-37: `new` before the first plan, `trial` for its first 30 days, `locked` after them without Pro. */
+export type AccessState = 'pro' | 'new' | 'trial' | 'locked';
+
 export interface BillingEntitlementResponse {
   plan: 'free' | 'pro';
   entitled: boolean;
+  /** Missing from an older server: read as `new`. */
+  access?: AccessState;
+  /** When the 30-day trial ends (ISO), or null before the first plan. */
+  trialEndsAt?: string | null;
 }
 
 export async function fetchBillingEntitlement(token: string): Promise<BillingEntitlementResponse> {
@@ -260,9 +267,9 @@ export async function reconcileGoal(token: string): Promise<import('../types').R
  * and a string `reason` as `code`; a success whose body is not JSON throws `ApiError` with `fallbackMessage` (B-34).
  */
 async function readJson<T>(response: Response, fallbackMessage: string): Promise<T> {
-  const data: { error?: string; reason?: unknown } | undefined = await response.json().catch(() => undefined);
+  const data: { error?: string; reason?: unknown; code?: unknown } | undefined = await response.json().catch(() => undefined);
   if (!response.ok) {
-    throw new ApiError(data?.error || fallbackMessage, response.status, typeof data?.reason === 'string' ? data.reason : undefined);
+    throw new ApiError(data?.error || fallbackMessage, response.status, typeof data?.reason === 'string' ? data.reason : typeof data?.code === 'string' ? data.code : undefined);
   }
   if (data === undefined) {
     throw new ApiError(fallbackMessage, response.status);
@@ -431,16 +438,3 @@ export async function updateSchedule(change: ScheduleChange, token: string): Pro
   return readJson(response, "Couldn't save your schedule. Please try again.");
 }
 
-/**
- * Weekly update M1.2b (WU-31): a review that lost to an automatic close saves its typed reflection onto that week.
- * Refused (`ApiError`, `code` `not_auto_closed` or `reflection_saved`) unless the week closed on its own with none yet.
- */
-export async function saveClosedWeekReflection(weekNumber: number, reflection: string, token: string): Promise<{ reflection: string }> {
-  const response = await fetch(`${API_BASE_URL}/api/goal/weeks/${weekNumber}/reflection`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
-    body: JSON.stringify({ reflection }),
-  });
-
-  return readJson(response, 'Failed to save the reflection');
-}

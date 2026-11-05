@@ -160,7 +160,6 @@ const post = async (path: string, body: unknown = {}) => {
   });
   return { status: res.status, body: await res.json() };
 };
-const review = (weekNumber = 1, body: unknown = { reflection: 'Went fine' }) => post(`/weeks/${weekNumber}/review`, body);
 const closeWeek = (body: unknown = {}) => post('/close-week', body);
 const snapshot = () => structuredClone(db.state);
 const closeLines = () => vi.mocked(console.log).mock.calls.map((args) => String(args[0])).filter((line) => line.startsWith('[WeekClose]'));
@@ -184,92 +183,6 @@ describe('the switches (RULE-18)', () => {
     expect(weekCloseEnabled()).toBe(false);
     vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
     expect(weekCloseEnabled()).toBe(true);
-  });
-});
-
-describe.each([
-  ['the switch off', {}],
-  ['WEEK_CLOSE_ENABLED on', { WEEK_CLOSE_ENABLED: 'true' }],
-])('the review guard (B-59, WU-27), %s', (_name, env: Record<string, string>) => {
-  beforeEach(() => {
-    for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
-  });
-
-  it('an on-time review closes the week once, in one save, marked as closed by review', async () => {
-    seed(1);
-    vi.setSystemTime(new Date('2026-09-27T15:00:00Z'));
-    const res = await review();
-    expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ nextWeekNumber: 2, scorePercentage: 60 });
-    expect(res.body).not.toHaveProperty('testResult');
-    expect(res.body.nextWeekTasks).toHaveLength(7);
-    expect(db.week(1)).toMatchObject({ status: 'completed', closedBy: 'review', closedAt: new Date('2026-09-27T15:00:00Z'), reviewNotes: 'Went fine', executionScore: 60 });
-    expect(db.week(2).status).toBe('active');
-    expect(db.goal().currentWeek).toBe(2);
-    expect(db.tasksOf(2)).toHaveLength(7);
-    // No weekly tests (2026-10-30): no weekly update; the review's line is what was done.
-    const insight = '3 of 5 sessions done.';
-    expect(db.state.reviews).toEqual([expect.objectContaining({ weekNumber: 1, reflection: 'Went fine', aiAdaptationInsight: insight })]);
-    expect(db.prisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(closeLines()).toEqual([expect.stringMatching(/^\[WeekClose\] goal g1 week 1 by review gapDays 0 ms \d+$/)]);
-  });
-
-  it('a repeat review is refused with week_closed and makes no model call', async () => {
-    seed(1);
-    expect((await review()).status).toBe(200);
-    const after = snapshot();
-    const repeat = await review();
-    expect(repeat).toEqual({ status: 409, body: { error: 'This week has already been reviewed.', reason: 'week_closed' } });
-    expect(generateWeekPlan).toHaveBeenCalledTimes(1);
-    expect(db.state).toEqual(after);
-  });
-
-  it('an old or a future week is refused with week_closed and makes no model call', async () => {
-    seed(2);
-    const before = snapshot();
-    expect(await review(1)).toMatchObject({ status: 409, body: { reason: 'week_closed' } });
-    expect(await review(3)).toMatchObject({ status: 409, body: { reason: 'week_closed' } });
-    expect(generateWeekPlan).not.toHaveBeenCalled();
-    expect(db.state).toEqual(before);
-  });
-
-  it('two racing reviews: both may call the model, the loser of the conditional update saves nothing', async () => {
-    seed(1);
-    holdModelCalls(2);
-    const results = await Promise.all([review(1, { reflection: 'First' }), review(1, { reflection: 'Second' })]);
-    expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
-    expect(results.find((r) => r.status === 409)!.body.reason).toBe('week_closed');
-    expect(generateWeekPlan).toHaveBeenCalledTimes(2);
-    expect(db.state.reviews).toHaveLength(1);
-    expect(db.tasksOf(2)).toHaveLength(7);
-    expect(db.week(1).reviewNotes).toBe(db.state.reviews[0].reflection);
-    expect(closeLines()).toHaveLength(1);
-  });
-
-  it('a failure inside the save saves nothing, and the next try closes the week', async () => {
-    seed(1);
-    const before = snapshot();
-    db.failCreate = true;
-    expect((await review()).status).toBe(500);
-    expect(db.state).toEqual(before);
-    expect(closeLines()).toEqual([]);
-
-    db.failCreate = false;
-    expect((await review()).status).toBe(200);
-    expect(db.week(1).status).toBe('completed');
-  });
-
-  it('week 12 closes with its review row and writes no week', async () => {
-    seed(12);
-    vi.setSystemTime(new Date('2026-12-13T15:00:00Z'));
-    const res = await review(12);
-    expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ nextWeekNumber: null, nextWeekTasks: [] });
-    expect(generateWeekPlan).not.toHaveBeenCalled();
-    expect(db.week(12)).toMatchObject({ status: 'completed', closedBy: 'review' });
-    expect(db.state.reviews).toHaveLength(1);
-    expect(db.goal().currentWeek).toBe(12);
-    expect((await review(12)).status).toBe(409);
   });
 });
 
@@ -316,7 +229,7 @@ describe('POST /api/goal/close-week (RULE-8, RULE-9)', () => {
     expect(db.state).toEqual(before);
   });
 
-  it('due: closes the week as the review would, with no reflection, the neutral line and closedBy auto', async () => {
+  it('due: closes the week once, in one save, with no reflection, the neutral line and closedBy auto', async () => {
     closeOn();
     seed(1);
     const res = await closeWeek();
@@ -329,49 +242,24 @@ describe('POST /api/goal/close-week (RULE-8, RULE-9)', () => {
     expect(db.week(1)).toMatchObject({ status: 'completed', closedBy: 'auto', closedAt: now, reviewNotes: '', executionScore: 60 });
     expect(db.week(2).status).toBe('active');
     expect(db.goal()).toMatchObject({ currentWeek: 2, closeTriedAt: now, closeTriedWeek: 1 });
+    expect(db.prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(closeLines()).toEqual([expect.stringMatching(/^\[WeekClose\] goal g1 week 1 by auto gapDays 0 ms \d+$/)]);
   });
 
-  it('a close and a review store the week the same, apart from the reflection, the line and closedBy', async () => {
-    seed(1);
-    await review(1, { reflection: '' });
-    const reviewed = snapshot();
-    const reviewInput = vi.mocked(generateWeekPlan).mock.calls[0][0];
-
-    db.reset();
-    vi.clearAllMocks();
+  it('a failure inside the save saves nothing, and the next try closes the week', async () => {
     closeOn();
     seed(1);
-    await closeWeek();
-    const closed = snapshot();
-    expect(vi.mocked(generateWeekPlan).mock.calls[0][0]).toEqual(reviewInput);
+    const before = snapshot();
+    db.failCreate = true;
+    expect((await closeWeek()).status).toBe(500);
+    expect(db.state.weeks).toEqual(before.weeks);
+    expect(db.state.tasks).toEqual(before.tasks);
+    expect(db.state.reviews).toEqual(before.reviews);
+    expect(closeLines()).toEqual([]);
 
-    const strip = (state: ReturnType<typeof snapshot>) => ({
-      weeks: state.weeks.map(({ closedBy, closedAt, ...week }) => week),
-      tasks: state.tasks.map(({ id, ...task }) => task),
-      goals: state.goals.map(({ closeTriedAt, closeTriedWeek, ...goal }) => goal),
-      reviews: state.reviews.map(({ id, aiAdaptationInsight, ...row }) => row),
-    });
-    expect(strip(closed)).toEqual(strip(reviewed));
-    expect(reviewed.weeks[0].closedBy).toBe('review');
-    expect(closed.weeks[0].closedBy).toBe('auto');
-  });
-
-  it('a close and a review answer with the same fields for the same week (closeAnswer)', async () => {
-    seed(1);
-    const reviewed = await review(1, { reflection: '' });
-    db.reset();
-    closeOn();
-    seed(1);
-    const closed = await closeWeek();
-    const { due, closedBy, ...shared } = closed.body;
-    expect({ due, closedBy }).toEqual({ due: true, closedBy: 'auto' });
-    expect(Object.keys(shared)).toEqual(Object.keys(reviewed.body));
-    const withoutReview = ({ review: _review, ...rest }: Record<string, unknown>) => rest;
-    expect(withoutReview(shared)).toEqual(withoutReview(reviewed.body));
-    const { id: _a, aiAdaptationInsight: _b, ...reviewRow } = reviewed.body.review;
-    const { id: _c, aiAdaptationInsight: _d, ...closeRow } = shared.review;
-    expect(closeRow).toEqual(reviewRow);
+    db.failCreate = false;
+    expect((await closeWeek()).status).toBe(200);
+    expect(db.week(1).status).toBe('completed');
   });
 
   it('the save runs with a 15 s transaction timeout', async () => {
@@ -449,17 +337,6 @@ describe('POST /api/goal/close-week (RULE-8, RULE-9)', () => {
     expect(closeLines()).toHaveLength(1);
   });
 
-  it('a review racing an automatic close: one closes the week, the other saves nothing', async () => {
-    closeOn();
-    seed(1);
-    holdModelCalls(2);
-    const [byReview, byClose] = await Promise.all([review(1, { reflection: 'Late' }), closeWeek()]);
-    const reviewWon = byReview.status === 200;
-    expect(reviewWon ? byClose.body : byReview.body).toEqual(reviewWon ? { due: false, alreadyClosed: true, weekNumber: 1 } : { error: 'This week has already been reviewed.', reason: 'week_closed' });
-    expect(db.state.reviews).toHaveLength(1);
-    expect(db.tasksOf(2)).toHaveLength(7);
-    expect(db.week(1).closedBy).toBe(reviewWon ? 'review' : 'auto');
-  });
 });
 
 describe('gapDays (WU-30 log line)', () => {
@@ -473,9 +350,8 @@ describe('gapDays (WU-30 log line)', () => {
   });
 });
 
-describe('the close line and a late reflection (weekly update M1.2b, WU-28, WU-31)', () => {
+describe('the close line (weekly update M1.2b, WU-28)', () => {
   const lineSeen = (weekNumber = 1) => post(`/weeks/${weekNumber}/close-line-seen`);
-  const reflect = (weekNumber = 1, reflection: unknown = 'It went well') => post(`/weeks/${weekNumber}/reflection`, { reflection });
   const closedAuto = async () => {
     vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
     seed(1);
@@ -483,12 +359,12 @@ describe('the close line and a late reflection (weekly update M1.2b, WU-28, WU-3
   };
 
   describe.each([[''], ['TRUE'], ['1']])('with WEEK_CLOSE_ENABLED=%j', (value) => {
-    it('both refuse and read nothing (RULE-18)', async () => {
+    it('it refuses and reads nothing (RULE-18)', async () => {
       await closedAuto();
       vi.stubEnv('WEEK_CLOSE_ENABLED', value);
       const before = snapshot();
       vi.mocked(db.prisma.goal.findFirst).mockClear();
-      for (const answer of [await lineSeen(), await reflect()]) {
+      for (const answer of [await lineSeen()]) {
         expect(answer).toEqual({ status: 409, body: { error: 'This action is not available yet.', reason: 'week_close_disabled' } });
       }
       expect(db.prisma.goal.findFirst).not.toHaveBeenCalled();
@@ -496,12 +372,12 @@ describe('the close line and a late reflection (weekly update M1.2b, WU-28, WU-3
     });
   });
 
-  it('M4.1b, AC-19 state A: with the switch unset, both refuse and read nothing', async () => {
+  it('M4.1b, AC-19 state A: with the switch unset, it refuses and reads nothing', async () => {
     await closedAuto();
     vi.stubEnv('WEEK_CLOSE_ENABLED', '');
     const before = snapshot();
     vi.mocked(db.prisma.goal.findFirst).mockClear();
-    for (const answer of [await lineSeen(), await reflect()]) {
+    for (const answer of [await lineSeen()]) {
       expect(answer).toEqual({ status: 409, body: { error: 'This action is not available yet.', reason: 'week_close_disabled' } });
     }
     expect(db.prisma.goal.findFirst).not.toHaveBeenCalled();
@@ -536,32 +412,7 @@ describe('the close line and a late reflection (weekly update M1.2b, WU-28, WU-3
     await closedAuto();
     db.state.goals[0].userId = 'someone-else';
     expect((await lineSeen()).status).toBe(404);
-    expect((await reflect()).status).toBe(404);
     expect(db.week(1).closeLineSeenAt ?? null).toBeNull();
     expect(db.week(1).reviewNotes).toBe('');
-  });
-
-  it('saves a lost review reflection onto the week closed automatically, and its review row; a repeat is fine', async () => {
-    await closedAuto();
-    expect(db.week(1).reviewNotes).toBe('');
-    expect(await reflect(1, 'Typed in the other tab')).toEqual({ status: 200, body: { reflection: 'Typed in the other tab' } });
-    expect(db.week(1).reviewNotes).toBe('Typed in the other tab');
-    expect(db.state.reviews[0]).toMatchObject({ weekNumber: 1, reflection: 'Typed in the other tab', aiAdaptationInsight: AUTO_CLOSE_INSIGHT });
-    expect(await reflect(1, 'Typed in the other tab')).toEqual({ status: 200, body: { reflection: 'Typed in the other tab' } });
-    // A second, different reflection never replaces the first.
-    expect(await reflect(1, 'Something else')).toEqual({ status: 409, body: { error: 'This week already has a reflection.', reason: 'reflection_saved' } });
-    expect(db.week(1).reviewNotes).toBe('Typed in the other tab');
-    expect(db.state.reviews[0].reflection).toBe('Typed in the other tab');
-  });
-
-  it('the reflection: refuses a week the review closed, an open week, and an empty reflection', async () => {
-    vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
-    seed(2);
-    const before = snapshot();
-    expect(await reflect(1)).toEqual({ status: 409, body: { error: 'This week did not close on its own.', reason: 'not_auto_closed' } });
-    expect((await reflect(2)).body.reason).toBe('not_auto_closed');
-    expect((await reflect(1, '   ')).status).toBe(400);
-    expect((await reflect(1, 42)).status).toBe(400);
-    expect(db.state).toEqual(before);
   });
 });

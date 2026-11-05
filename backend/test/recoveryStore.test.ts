@@ -3,7 +3,8 @@ import express from 'express';
 import type { Server } from 'node:http';
 
 // Method-aware recovery M1.3a: every new plan v2 goal is saved with a checked profile (RULE-2 to RULE-4), and an
-// older goal gets one at its next weekly review without ever changing that review's result (RULE-1, MR-14).
+// older goal gets one when its week closes without ever changing that close's result (RULE-1, MR-14). B-110: weeks
+// close only automatically, so these run through POST /api/goal/close-week.
 
 const db = vi.hoisted(() => ({
   goalCreate: vi.fn(),
@@ -31,8 +32,9 @@ vi.mock('../src/lib/prisma.js', () => {
     roadmapWeek: { createMany: db.weeksCreateMany, update: db.weekUpdate, updateMany: db.weekUpdateMany },
     dailyTask: { createMany: db.tasksCreateMany, findMany: db.tasksFindMany },
     weeklyReview: { upsert: db.reviewUpsert },
+    user: { updateMany: vi.fn() },
   };
-  // Weekly update M1.2a: the review saves in one transaction, on the same mocks.
+  // Weekly update M1.2a: the close saves in one transaction, on the same mocks.
   prisma.$transaction = async (fn: (tx: unknown) => unknown) => fn(prisma);
   return { prisma };
 });
@@ -43,7 +45,7 @@ vi.mock('../src/routes/auth.js', () => ({
 }));
 
 vi.mock('../src/lib/billing/goalAuthorization.js', () => ({
-  authorizeNewCustomGoal: vi.fn().mockResolvedValue({ allowed: true }),
+  authorizeNewPlan: vi.fn().mockResolvedValue({ allowed: true }),
 }));
 
 vi.mock('../src/lib/ai/roadmap.js', async (importOriginal) => ({
@@ -207,31 +209,45 @@ const olderGoal = (overrides: Record<string, unknown> = {}, week12Target: object
   currentWeek: 1,
   roadmap: storedRoadmap,
   roadmapWeeks: [1, 2, 12].map((weekNumber) => ({ id: `rw-${weekNumber}`, weekNumber, status: weekNumber === 1 ? 'active' : 'pending', target: weekNumber === 12 ? week12Target : number })),
-  dailyTasks: [{ id: 't1', weekNumber: 1, dayNumber: 1, isRestDay: false, status: 'completed' }],
+  dailyTasks: [{ id: 't1', weekNumber: 1, dayNumber: 1, date: '2026-09-01', isRestDay: false, status: 'completed' }],
   ...overrides,
 });
 
-async function review(goal: object) {
+type ClosingGoal = { currentWeek: number; dailyTasks: { date: string }[] };
+
+/** Closes the goal's open week the day after its last day, as the app's automatic close does. */
+async function closeWeek(goal: ClosingGoal, weekBefore: () => Promise<unknown> = async () => []) {
+  vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
+  const lastDay = goal.dailyTasks.reduce((last, task) => (task.date > last ? task.date : last), '');
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(new Date(`${lastDay}T12:00:00Z`).getTime() + 86_400_000));
   db.goalFindFirst.mockResolvedValue(goal);
+  db.tasksFindMany.mockImplementation(async ({ where }: { where: { weekNumber: number } }) =>
+    where.weekNumber === goal.currentWeek ? goal.dailyTasks : weekBefore()
+  );
   db.reviewUpsert.mockResolvedValue({ id: 'rev-1', scorePercentage: 100 });
   db.weekUpdate.mockResolvedValue({});
   db.weekUpdateMany.mockResolvedValue({ count: 1 });
   vi.mocked(writeNextWeek).mockResolvedValue([{ dayNumber: 1, title: 'Day', isRestDay: false }] as never);
   vi.mocked(saveWeekTasks).mockResolvedValue([] as never);
-  const res = await fetch(`${baseUrl}/api/goal/weeks/1/review`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
-    body: JSON.stringify({ reflection: 'Fine' }),
-  });
-  return { status: res.status, body: await res.json() };
+  try {
+    const res = await fetch(`${baseUrl}/api/goal/close-week`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
+      body: JSON.stringify({}),
+    });
+    return { status: res.status, body: await res.json() };
+  } finally {
+    vi.useRealTimers();
+  }
 }
 
 const roadmapWrites = () => db.goalUpdate.mock.calls.filter(([args]) => 'roadmap' in args.data);
 
-describe('the weekly review gives an older goal its profile (RULE-1, MR-14)', () => {
+describe('the week close gives an older goal its profile (RULE-1, MR-14)', () => {
   it('saves the pathway profile before the week call and keeps the rest of the roadmap', async () => {
     db.goalUpdate.mockResolvedValue({});
-    const { status } = await review(olderGoal());
+    const { status } = await closeWeek(olderGoal());
     expect(status).toBe(200);
     expect(roadmapWrites()).toHaveLength(1);
     const [{ where, data }] = roadmapWrites()[0];
@@ -244,18 +260,18 @@ describe('the weekly review gives an older goal its profile (RULE-1, MR-14)', ()
 
   it('gives a custom older goal the keyword template, with no deliverable check (MR-22) and no profile call (MR-14)', async () => {
     db.goalUpdate.mockResolvedValue({});
-    await review(olderGoal({ rawGoal: 'Draw a portrait', clarifiedOutcome: 'Draw a realistic portrait' }, deliverable));
+    await closeWeek(olderGoal({ rawGoal: 'Draw a portrait', clarifiedOutcome: 'Draw a realistic portrait' }, deliverable));
     expect(roadmapWrites()[0][0].data.roadmap.recovery).toEqual(RECOVERY_TEMPLATES.creative);
 
     db.goalUpdate.mockClear();
-    await review(olderGoal({ rawGoal: 'Fold origami cranes', clarifiedOutcome: 'Fold origami cranes at home' }, deliverable));
+    await closeWeek(olderGoal({ rawGoal: 'Fold origami cranes', clarifiedOutcome: 'Fold origami cranes at home' }, deliverable));
     expect(roadmapWrites()[0][0].data.roadmap.recovery).toEqual(RECOVERY_TEMPLATES.general);
   });
 
-  it('a profile that fails its checks at the review is not saved and is logged', async () => {
+  it('a profile that fails its checks at the close is not saved and is logged', async () => {
     db.goalUpdate.mockResolvedValue({});
     vi.mocked(makeGoalProfile).mockReturnValueOnce({ reasons: ['the catch-all kind is missing.'] });
-    const { status } = await review(olderGoal());
+    const { status } = await closeWeek(olderGoal());
     expect(status).toBe(200);
     expect(roadmapWrites()).toHaveLength(0);
     expect(console.warn).toHaveBeenCalledWith('[Recovery] No profile saved for goal', 'g-old', ['the catch-all kind is missing.']);
@@ -264,88 +280,78 @@ describe('the weekly review gives an older goal its profile (RULE-1, MR-14)', ()
   it('M2.1: the week call gets the profile just made, the one the goal already had, or none', async () => {
     db.goalUpdate.mockResolvedValue({});
     const passed = () => vi.mocked(writeNextWeek).mock.calls.at(-1)![4];
-    await review(olderGoal());
+    await closeWeek(olderGoal());
     expect(passed()).toEqual(PATHWAY_PROFILES.run10k);
 
-    await review(olderGoal({ roadmap: { ...storedRoadmap, recovery: RECOVERY_TEMPLATES.general } }));
+    await closeWeek(olderGoal({ roadmap: { ...storedRoadmap, recovery: RECOVERY_TEMPLATES.general } }));
     expect(passed()).toEqual(RECOVERY_TEMPLATES.general);
 
     db.goalUpdate.mockImplementation(async (args: { data: Record<string, unknown> }) => {
       if ('roadmap' in args.data) throw new Error('write failed');
       return {};
     });
-    await review(olderGoal());
+    await closeWeek(olderGoal());
     expect(passed()).toBeNull();
   });
 
   it('does not rewrite a profile the goal already has', async () => {
     db.goalUpdate.mockResolvedValue({});
-    const { status } = await review(olderGoal({ roadmap: { ...storedRoadmap, recovery: RECOVERY_TEMPLATES.general } }));
+    const { status } = await closeWeek(olderGoal({ roadmap: { ...storedRoadmap, recovery: RECOVERY_TEMPLATES.general } }));
     expect(status).toBe(200);
     expect(roadmapWrites()).toHaveLength(0);
     expect(makeGoalProfile).not.toHaveBeenCalled();
   });
 
-  it('a failure while making or saving the profile leaves the review result unchanged', async () => {
+  it('a failure while making or saving the profile leaves the close result unchanged', async () => {
     db.goalUpdate.mockResolvedValue({});
-    const baseline = await review(olderGoal({ roadmap: { ...storedRoadmap, recovery: PATHWAY_PROFILES.run10k } }));
+    const baseline = await closeWeek(olderGoal({ roadmap: { ...storedRoadmap, recovery: PATHWAY_PROFILES.run10k } }));
 
     db.goalUpdate.mockImplementation(async (args: { data: Record<string, unknown> }) => {
       if ('roadmap' in args.data) throw new Error('write failed');
       return {};
     });
-    const failedSave = await review(olderGoal());
+    const failedSave = await closeWeek(olderGoal());
     expect(failedSave).toEqual(baseline);
 
     db.goalUpdate.mockResolvedValue({});
     vi.mocked(makeGoalProfile).mockImplementationOnce(() => {
       throw new Error('boom');
     });
-    const failedMake = await review(olderGoal());
+    const failedMake = await closeWeek(olderGoal());
     expect(failedMake).toEqual(baseline);
     expect(writeNextWeek).toHaveBeenCalledTimes(3);
     expect(console.warn).toHaveBeenCalledWith('[Recovery] Could not save a profile for goal', 'g-old', expect.any(Error));
   });
 });
 
-describe('M3.1d review: the review passes the week before to the handoff only with the method switch on', () => {
-  const reviewWeek2 = async () => {
+describe('M3.1d: the close passes the week before to the handoff only with the method switch on', () => {
+  const closeWeek2 = async (weekBefore?: () => Promise<unknown>) => {
     db.goalUpdate.mockResolvedValue({});
-    // Week 2 is the open week (weekly update M1.2a: only the open week can be reviewed).
+    // Week 2 is the open week.
     const weeks = [1, 2, 3].map((weekNumber) => ({ id: `rw-${weekNumber}`, weekNumber, status: weekNumber === 2 ? 'active' : weekNumber === 1 ? 'completed' : 'pending' }));
-    db.goalFindFirst.mockResolvedValue(olderGoal({ roadmap: { ...storedRoadmap, recovery: PATHWAY_PROFILES.run10k }, currentWeek: 2, roadmapWeeks: weeks }));
-    db.reviewUpsert.mockResolvedValue({ id: 'rev-2', scorePercentage: 100 });
-    db.weekUpdate.mockResolvedValue({});
-    db.weekUpdateMany.mockResolvedValue({ count: 1 });
-    vi.mocked(writeNextWeek).mockResolvedValue([{ dayNumber: 1, title: 'Day', isRestDay: false }] as never);
-    vi.mocked(saveWeekTasks).mockResolvedValue([] as never);
-    const res = await fetch(`${baseUrl}/api/goal/weeks/2/review`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
-      body: JSON.stringify({ reflection: 'Fine' }),
-    });
-    return res.status;
+    const tasks = [{ id: 't8', weekNumber: 2, dayNumber: 8, date: '2026-09-08', isRestDay: false, status: 'completed' }];
+    const goal = olderGoal({ roadmap: { ...storedRoadmap, recovery: PATHWAY_PROFILES.run10k }, currentWeek: 2, roadmapWeeks: weeks, dailyTasks: tasks });
+    return (await closeWeek(goal as unknown as ClosingGoal, weekBefore)).status;
   };
+  const weekBeforeRead = () => db.tasksFindMany.mock.calls.filter(([args]) => args.where.weekNumber === 1);
   const weekBeforePassed = () => vi.mocked(writeNextWeek).mock.calls.at(-1)![5];
 
   it('off: no extra read, and the week call gets no week before', async () => {
     vi.stubEnv('METHOD_RECOVERY_ENABLED', '');
-    expect(await reviewWeek2()).toBe(200);
-    expect(db.tasksFindMany).not.toHaveBeenCalled();
+    expect(await closeWeek2()).toBe(200);
+    expect(weekBeforeRead()).toEqual([]);
     expect(weekBeforePassed()).toEqual([]);
     vi.unstubAllEnvs();
   });
 
-  it('on: reads week 1 and passes it; a failed read never fails the review', async () => {
+  it('on: reads week 1 and passes it; a failed read never fails the close', async () => {
     vi.stubEnv('METHOD_RECOVERY_ENABLED', 'true');
     const week1 = [{ id: 'w1-fri', weekNumber: 1 }];
-    db.tasksFindMany.mockResolvedValueOnce(week1);
-    expect(await reviewWeek2()).toBe(200);
+    expect(await closeWeek2(async () => week1)).toBe(200);
     expect(db.tasksFindMany).toHaveBeenCalledWith({ where: { goalId: 'g-old', weekNumber: 1 }, orderBy: { dayNumber: 'asc' } });
     expect(weekBeforePassed()).toEqual(week1);
 
-    db.tasksFindMany.mockRejectedValueOnce(new Error('db down'));
-    expect(await reviewWeek2()).toBe(200);
+    expect(await closeWeek2(async () => Promise.reject(new Error('db down')))).toBe(200);
     expect(weekBeforePassed()).toEqual([]);
     expect(console.warn).toHaveBeenCalledWith('[GoalRouter] Could not read the week before for the handoff:', expect.any(Error));
     vi.unstubAllEnvs();

@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "ping:llm": "tsx scripts/ping-llm.ts"
+    "ping:llm": "tsx scripts/ping-llm.ts",
+    "report:recovery": "tsx scripts/recovery-report.ts"
   },
   "dependencies": {
     "@google/genai": "^2.21.0",

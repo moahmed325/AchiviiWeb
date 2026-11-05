@@ -10,7 +10,7 @@ type Step = 'time' | 'days' | 'plan';
 
 const STEP_EYEBROW: Record<Step, string> = { time: 'Question 1 of 2', days: 'Question 2 of 2', plan: 'Your plan' };
 
-/** The visitor's 90 days for one free goal, from two answers. Nothing here is generated; see lib/planPreview. */
+/** The visitor's 90 days for one guided goal, from two answers. Nothing here is generated; see lib/planPreview. */
 const PlanView: React.FC<{ pathway: CertifiedPathway; answers: PlanPreviewAnswers }> = ({ pathway, answers }) => {
   const plan = buildPlanPreview(pathway, answers);
   return (
@@ -94,7 +94,7 @@ export const PlanPreviewDialog: React.FC<{ pathway: CertifiedPathway }> = ({ pat
           to={`/signup?pathway=${encodeURIComponent(pathway.id)}`}
           onClick={() => savePlanPreview(pathway, answers)}
         >
-          Save my plan, free
+          Save my plan
         </Button>
       </>
     ) : (

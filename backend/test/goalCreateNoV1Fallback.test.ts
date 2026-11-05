@@ -27,7 +27,7 @@ vi.mock('../src/routes/auth.js', () => ({
 }));
 
 vi.mock('../src/lib/billing/goalAuthorization.js', () => ({
-  authorizeNewCustomGoal: vi.fn().mockResolvedValue({ allowed: true }),
+  authorizeNewPlan: vi.fn().mockResolvedValue({ allowed: true }),
 }));
 
 vi.mock('../src/lib/ai/roadmap.js', async (importOriginal) => ({

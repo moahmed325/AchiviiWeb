@@ -6,7 +6,7 @@ import type { Server } from 'node:http';
 // gap of 7 days or more is a break. Its length (from the closing week's last done step) is stored as `breakDays` on the
 // first week back, the week writer is told the days away and the return rule's note, a high-load goal's hard high-load
 // steps start with the first-week-back line, and an automatic close says welcome back. The move is M1.4's.
-// The real review, close and writeNextWeek run on the in-memory store; only the model call is replaced.
+// The real close and writeNextWeek run on the in-memory store; only the model call is replaced.
 
 vi.mock('../src/lib/prisma.js', async () => ({ prisma: (await import('./weekCloseStore.js')).db.prisma }));
 vi.mock('../src/routes/auth.js', () => ({
@@ -221,7 +221,6 @@ async function post(path: string, at: string, body: unknown = {}) {
 }
 
 const closeWeek = (at: string) => post('/close-week', at);
-const reviewWeek2 = (at: string) => post('/weeks/2/review', at, { reflection: 'Back now' });
 const closeOn = () => vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
 const writerInput = () => vi.mocked(generateWeekPlan).mock.calls.at(-1)![0];
 const promptOf = (input: WeekCallInput) => buildWeekPrompt(input, weekLayout(input.planVariant, input.weekStart));
@@ -279,15 +278,6 @@ describe('a break (RULE-13, WU-33 (2)), WEEK_CLOSE_ENABLED on', () => {
     expect((await closeWeek(atGap(12))).status).toBe(200);
     expect(db.week(3).breakDays).toBe(daysBetween(lastPractice, addDays('2026-10-05', 8)));
     expect(writerInput().firstWeekBack!.awayDays).toBe(daysBetween(lastPractice, addDays('2026-10-05', 8)));
-  });
-
-  it('a review that closes after a break keeps its own insight and answer, and stores breakDays too', async () => {
-    seed();
-    const res = await reviewWeek2(atGap(10));
-    expect(res.status).toBe(200);
-    expect(res.body.review.aiAdaptationInsight).toBe(`${WEEK2_PRACTICE.length} of ${WEEK2_PRACTICE.length} sessions done.`);
-    expect(db.week(3).breakDays).toBe(daysBetween(lastPractice, addDays('2026-10-05', 10)));
-    expect(writerInput().firstWeekBack).toBeDefined();
   });
 
   it('breakDays is stored by the request that wins only (WU-27): a losing save writes nothing', async () => {
@@ -520,42 +510,5 @@ describe('M1.5a review: the line belongs to the week, through the real close (ME
     expect(db.week(3).breakDays).toBeNull();
     expect(handedOn()!.instructions).toBe(`${WARM_UP}\nDo Workout ${lastPracticeDay}.`);
     expect(withLine()).toEqual([]);
-  });
-});
-
-describe('WEEK_CLOSE_ENABLED off (RULE-18, R-7, AC-19)', () => {
-  // M4.1b (WU-62 (1)): state A (the switch unset).
-  it.each([
-    ['the switch unset', ''],
-  ])('%s: a late review after 10 days: no break, no breakDays, no block, no line, the review insight', async (_name, _update) => {
-    vi.stubEnv('WEEK_CLOSE_ENABLED', '');
-    seed({ goal: RUN_10K, recovery: ENDURANCE });
-    vi.mocked(generateWeekPlan).mockImplementation(async (input) => runWeek(input.weekStart));
-    const res = await reviewWeek2(atGap(10));
-    expect(res.status).toBe(200);
-    expect(db.week(3).breakDays).toBeNull();
-    expect('firstWeekBack' in writerInput()).toBe(false);
-    expect(promptOf(writerInput())).not.toContain('FIRST WEEK BACK');
-    expect(withLine()).toEqual([]);
-    expect(db.state.reviews[0].aiAdaptationInsight).toBe(`${WEEK2_PRACTICE.length} of ${WEEK2_PRACTICE.length} sessions done.`);
-    expect(logged()).toEqual([]);
-  });
-});
-
-describe('R-2: a normal week change with nobody away', () => {
-  it('the week call and the stored week are the same with WEEK_CLOSE_ENABLED on and off', async () => {
-    const run = async (on: boolean) => {
-      db.reset();
-      vi.mocked(generateWeekPlan).mockClear();
-      vi.stubEnv('WEEK_CLOSE_ENABLED', on ? 'true' : '');
-      seed({ goal: RUN_10K, recovery: ENDURANCE });
-      vi.mocked(generateWeekPlan).mockImplementation(async (input) => runWeek(input.weekStart));
-      expect((await reviewWeek2('2026-10-04T18:00:00Z')).status).toBe(200);
-      return { input: writerInput(), week: week3Steps(), breakDays: db.week(3).breakDays, insight: db.state.reviews[0].aiAdaptationInsight };
-    };
-    const off = await run(false);
-    const on = await run(true);
-    expect(on).toEqual(off);
-    expect('firstWeekBack' in on.input).toBe(false);
   });
 });

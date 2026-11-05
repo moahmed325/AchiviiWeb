@@ -165,7 +165,7 @@ export function findOpenGap(days: readonly DayClassification[]): Gap | null {
 
 /** What `POST /api/goal/reconcile` returns (M1.3). Data for P2 and P3: no copy, no labels. */
 export type ReconcileResult =
-  | { applies: false; reason: 'no_active_goal' | 'not_plan_v2' }
+  | { applies: false; reason: 'no_active_goal' | 'not_plan_v2' | 'trial_ended' }
   | { applies: true; goalId: string; asOf: string; timezone: string; days: DayClassification[]; gap: Gap | null };
 
 /**
