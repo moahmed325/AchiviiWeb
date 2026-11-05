@@ -22,7 +22,7 @@ const placeOf = (zone: string) => (zone.split('/').pop() ?? zone).replace(/_/g, 
 const longDate = (iso: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'long' }).format(new Date(iso));
 
 /**
- * ND-38: Account as a page. Who you are, your membership (the trial or Pro, with the one action that fits), the goal
+ * ND-39: Account as a page. Who you are, your membership (the trial or Pro, with the one action that fits), the goal
  * you're on and its schedule, your preferences, then sign out and, set apart, starting over.
  */
 export const AccountPage: React.FC = () => {

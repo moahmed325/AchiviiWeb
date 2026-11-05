@@ -28,7 +28,7 @@ export interface ShellEntries {
   roadmapActive: boolean;
   /** Roadmap needs an active goal; without one ProtectedRoute would send it to onboarding, so it leads nowhere real. */
   showRoadmap: boolean;
-  /** ND-38: Account is a page. */
+  /** ND-39: Account is a page. */
   accountActive: boolean;
 }
 

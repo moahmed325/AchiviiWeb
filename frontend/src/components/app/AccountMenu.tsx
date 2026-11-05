@@ -85,7 +85,7 @@ export const RemindersSetting: React.FC = () => {
   );
 };
 
-/** Onboarding's Account: who is signed in and Sign out. Everything else lives on the Account page (ND-38). */
+/** Onboarding's Account: who is signed in and Sign out. Everything else lives on the Account page (ND-39). */
 const AccountPanel: React.FC<{ onSignOut: () => void }> = ({ onSignOut }) => {
   const { user } = useAuth();
   return (

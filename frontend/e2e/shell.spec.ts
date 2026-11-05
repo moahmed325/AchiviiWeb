@@ -7,7 +7,7 @@ import { SHELL_GOAL_TITLE, STORED_OUTCOME, axeViolations, documentOverflow, shel
 
 const primary = (page: Page) => page.getByRole('navigation', { name: 'Primary' });
 const explorer = (page: Page) => page.getByRole('dialog', { name: 'Explore pathways' });
-/** ND-38: Account is a page; the rail and the bar link to it. */
+/** ND-39: Account is a page; the rail and the bar link to it. */
 const accountLink = (page: Page) => primary(page).getByRole('link', { name: /^Account/ });
 const openAccount = async (page: Page) => {
   await accountLink(page).click();

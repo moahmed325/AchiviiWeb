@@ -298,6 +298,11 @@ describe('stepLines (RULE-10, RULE-21, MR-26)', () => {
     // M1.5a: the first-week-back line comes off the top too, before the warm-up line.
     expect(stepLines({ instructions: `${FIRST_WEEK_BACK_LINE}\n${MOVED_WARM_UP_LINE}\nRun.` })).toEqual({ lead: [FIRST_WEEK_BACK_LINE, MOVED_WARM_UP_LINE], body: 'Run.' });
     expect(FIRST_WEEK_BACK_LINE).toBe('First week back: keep the effort easy today.');
+    // 2026-11-04: a shorter moved step's line sits at the end as stored; it is shown first, before the warm-up line.
+    const shorter = 'Shorter today: 12 minutes in all, so do the most important part.';
+    expect(stepLines({ instructions: `${MOVED_WARM_UP_LINE}\nRide steady.\n${shorter}` })).toEqual({ lead: [shorter, MOVED_WARM_UP_LINE], body: 'Ride steady.' });
+    expect(stepLines({ instructions: shorter })).toEqual({ lead: [shorter], body: '' });
+    expect(stepLines({ instructions: 'Ride. Shorter today: 12 minutes in all, so do the most important part. Then stop.' }).lead).toEqual([]);
     // Only an exact first line counts.
     expect(stepLines({ instructions: `${EASY_START_LINE} Then run.` })).toEqual({ lead: [], body: `${EASY_START_LINE} Then run.` });
     expect(stepLines({ instructions: 'Run 5 km.' })).toEqual({ lead: [], body: 'Run 5 km.' });

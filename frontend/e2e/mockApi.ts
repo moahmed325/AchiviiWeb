@@ -307,7 +307,7 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     if (path === '/api/billing/entitlement') {
       return json(route, 200, { plan, entitled: plan === 'pro', access: plan === 'pro' ? 'pro' : access, trialEndsAt });
     }
-    // ND-38: the Account page's membership card. No subscription details; a spec that needs them routes this itself.
+    // ND-39: the Account page's membership card. No subscription details; a spec that needs them routes this itself.
     if (path === '/api/billing/account') {
       return json(route, 200, { plan, status: plan === 'pro' ? 'ACTIVE' : 'none', billingInterval: null, currentPeriodEnd: null, cancelAtPeriodEnd: false, manageUrl: null });
     }

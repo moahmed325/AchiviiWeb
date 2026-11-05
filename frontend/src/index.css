@@ -569,7 +569,7 @@ html:has(.marketing) {
     box-shadow: var(--shadow-raised);
   }
 
-  /* ND-38: the Account page's initial and its set-apart "Start over" card. Flat colour, no glow. */
+  /* ND-39: the Account page's initial and its set-apart "Start over" card. Flat colour, no glow. */
   .account-avatar {
     display: inline-flex;
     width: 4rem;

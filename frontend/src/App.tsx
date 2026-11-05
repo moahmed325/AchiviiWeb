@@ -97,7 +97,7 @@ export const App: React.FC = () => {
                 }
               />
 
-              {/* ND-38: Account is a page; it needs a session, not a goal. */}
+              {/* ND-39: Account is a page; it needs a session, not a goal. */}
               <Route
                 path="/account"
                 element={

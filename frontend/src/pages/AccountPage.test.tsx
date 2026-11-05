@@ -35,7 +35,7 @@ beforeEach(() => {
   billing.fetch.mockReset().mockResolvedValue(FREE);
 });
 
-describe('the Account page (ND-38)', () => {
+describe('the Account page (ND-39)', () => {
   it('heads with the first name and email, and the time zone in words', async () => {
     renderPage();
     expect(screen.getByRole('heading', { level: 1, name: 'Mo' })).toBeInTheDocument();

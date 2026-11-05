@@ -166,6 +166,8 @@ const hash = (text: string) => [...text].reduce((h, ch) => (Math.imul(h, 31) + c
 /** Per kind: the next number to write, and every title written (for the "nothing lost" rule). */
 let counters = new Map<string, number>();
 let writtenByKind = new Map<string, string[]>();
+/** Every title the writer wrote with its priority (1: a day's main step), for the "work saved" measure. */
+let writtenPriority = new Map<string, number>();
 let profileNow: RecoveryProfile;
 
 const practiceKinds = () => profileNow.kinds.filter((k) => k.action !== 'fixed');
@@ -193,6 +195,7 @@ function fakeWeek(input: WeekCallInput): WeekDayPlan[] {
       counters.set(kindId, n);
       title = `${kindId} ${n}`;
       writtenByKind.set(kindId, [...(writtenByKind.get(kindId) ?? []), title]);
+      writtenPriority.set(title, priority);
     }
     return { stepNumber: priority, title, durationMinutes: mins, instructions: `Do ${title}.`, focusCue: '', pitfallToAvoid: '', priority, kind: kindId };
   };
@@ -309,6 +312,8 @@ beforeEach(() => {
   for (const method of ['log', 'warn', 'error', 'info'] as const) vi.spyOn(console, method).mockImplementation(() => {});
   // The production switch states (docs: CLAUDE.md).
   for (const flag of ['WEEK_CLOSE_ENABLED', 'MISSED_SESSIONS_CARRY_ENABLED', 'METHOD_RECOVERY_ENABLED', 'CUSTOM_RECOVERY_PROFILES_ENABLED']) vi.stubEnv(flag, 'true');
+  // `SWEEP_BASELINE=1`: recovery off (nothing moves after a miss), to measure what recovery adds.
+  if (process.env.SWEEP_BASELINE) for (const flag of ['MISSED_SESSIONS_CARRY_ENABLED', 'METHOD_RECOVERY_ENABLED']) vi.stubEnv(flag, '');
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -386,11 +391,27 @@ interface RunResult {
   /** The pace each written week was given (week 2 on). */
   paces: Partial<Record<Pace, number>>;
   daysToFinish: number;
+  /**
+   * Work saved: main steps (priority 1) written, done in the end (on a completed day, wherever recovery put them), and
+   * the most that could have been done (one main step a practised day, never more than were written). Main steps of
+   * let-go kinds are counted apart, as recovery means to drop them.
+   */
+  /** Per missed day, the last outcome and drop reason recovery gave it, counted. */
+  outcomes: Record<string, number>;
+  dropReasons: Record<string, number>;
+  work: { mainWritten: number; mainDone: number; mainCeiling: number; letGoWritten: number; letGoDone: number; practisedDays: number; missedDays: number; byClass: Record<string, { written: number; done: number; mainWritten: number; mainDone: number }> };
 }
+
+const tally = (map: Map<string, string>) => {
+  const out: Record<string, number> = {};
+  for (const value of map.values()) out[value] = (out[value] ?? 0) + 1;
+  return out;
+};
 
 async function runPlan(spec: GoalSpec, person: Person, length: (typeof LENGTHS)[number]): Promise<RunResult> {
   counters = new Map();
   writtenByKind = new Map();
+  writtenPriority = new Map();
   writerCalls = [];
   const tz = person.timezone ?? 'UTC';
   currentUser = { id: 'u1', email: 'u1@achivii.com', timezone: tz };
@@ -407,6 +428,8 @@ async function runPlan(spec: GoalSpec, person: Person, length: (typeof LENGTHS)[
   };
   let lastWeekSeen = 1;
   let day = 0;
+  const lastOutcome = new Map<string, string>();
+  const lastDrop = new Map<string, string>();
   let callsChecked = 0;
   let tookFinalWeek = false;
   const dailyMinutes = () => JSON.parse(db.goal().routine).dailyMinutes as number;
@@ -435,6 +458,9 @@ async function runPlan(spec: GoalSpec, person: Person, length: (typeof LENGTHS)[
     if (close.status !== 200) add(where, `close answered ${close.status} ${JSON.stringify(close.body)}`);
     const rec = await call('/reconcile', at);
     if (rec.status !== 200) add(where, `reconcile answered ${rec.status} ${JSON.stringify(rec.body)?.slice(0, 200)}`);
+    // What recovery last said about each missed day (its outcome, and why nothing moved), for the work-saved measure.
+    for (const o of rec.body?.carry?.outcomes ?? []) lastOutcome.set(o.taskId, o.outcome);
+    for (const d of rec.body?.carry?.drops ?? []) lastDrop.set(d.taskId, d.reason);
     const again = await call('/close-week', at, { mode: 'check' });
     if (again.body?.due === true && close.body?.due === true && db.goal().currentWeek === weekBefore) add(where, 'still due after closing');
 
@@ -553,6 +579,40 @@ async function runPlan(spec: GoalSpec, person: Person, length: (typeof LENGTHS)[
   if (process.env.SWEEP_DEBUG && (spec.name + ' / ' + person.name + ' / ' + length.name).includes(process.env.SWEEP_DEBUG)) {
     writeFileSync(process.env.SWEEP_DEBUG_OUT ?? 'sweep-debug.json', JSON.stringify({ problems, state: db.state, calls: writerCalls.map(({ input, closing }) => ({ week: input.weekNumber, lastWeek: input.lastWeek, closing, whereTheyAre: input.whereTheyAre })) }, null, 1));
   }
+  const doneTitles = new Set<string>();
+  for (const task of db.state.tasks) if (task.status === 'completed' && !task.isRestDay) for (const item of steps(task)) doneTitles.add(item.title);
+  const kindById = new Map(profileNow.kinds.map((k) => [k.id, k]));
+  const kindOfTitle = (title: string) => kindById.get(title.slice(0, title.lastIndexOf(' ')));
+  const classOf = (title: string) => {
+    const kind = kindOfTitle(title);
+    return !kind ? 'unknown' : kind.action === 'let_go' ? 'let_go' : kind.inOrder ? 'in_order' : kind.action;
+  };
+  const byClass: RunResult['work']['byClass'] = {};
+  for (const [title, priority] of writtenPriority) {
+    const c = (byClass[classOf(title)] ??= { written: 0, done: 0, mainWritten: 0, mainDone: 0 });
+    const done = doneTitles.has(title);
+    c.written += 1;
+    if (done) c.done += 1;
+    if (priority === 1) {
+      c.mainWritten += 1;
+      if (done) c.mainDone += 1;
+    }
+  }
+  const mains = [...writtenPriority].filter(([t, p]) => p === 1 && classOf(t) !== 'let_go').map(([t]) => t);
+  const letGoMains = [...writtenPriority].filter(([t, p]) => p === 1 && classOf(t) === 'let_go').map(([t]) => t);
+  const practisedDays = db.state.tasks.filter((t) => t.status === 'completed' && !t.isRestDay && !t.notOffered).length;
+  const todayAtEnd = localKey(openAt(day, person.hour ?? 8, tz), tz);
+  const missedDays = db.state.tasks.filter((t) => t.status !== 'completed' && !t.isRestDay && !t.notOffered && t.date < todayAtEnd).length;
+  const work = {
+    mainWritten: mains.length,
+    mainDone: mains.filter((t) => doneTitles.has(t)).length,
+    mainCeiling: Math.min(mains.length, practisedDays),
+    letGoWritten: letGoMains.length,
+    letGoDone: letGoMains.filter((t) => doneTitles.has(t)).length,
+    practisedDays,
+    missedDays,
+    byClass,
+  };
   const paces: Partial<Record<Pace, number>> = {};
   for (const { input } of writerCalls) if (input.lastWeek) paces[paceOf(input.lastWeek)] = (paces[paceOf(input.lastWeek)] ?? 0) + 1;
   return {
@@ -565,6 +625,9 @@ async function runPlan(spec: GoalSpec, person: Person, length: (typeof LENGTHS)[
     lostMove,
     paces,
     daysToFinish: day + 1,
+    work,
+    outcomes: tally(lastOutcome),
+    dropReasons: tally(lastDrop),
   };
 }
 

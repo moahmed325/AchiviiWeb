@@ -1136,8 +1136,10 @@ describe('generated weeks (AC-6, AC-14): no in-order step is lost, the order hol
       expect(again.continues).toEqual([]);
     }
     // Near M3.1b's 296 carries and 124 hard moves (2000 goals with in-order kinds then).
+    // About 625 carries and 125 hard moves before shorter moved steps (2026-11-04); since then a more recent miss that
+    // now fits shorter takes its day first (ND-12), so about 83 of them are hard.
     expect(totals.carries).toBeGreaterThan(450);
-    expect(totals.hardMoves).toBeGreaterThan(100);
+    expect(totals.hardMoves).toBeGreaterThan(60);
   });
 
   it('300 weeks lived day by day (missed days, breaks, steps missed twice): what was done is in order, and done plus next week is every step', () => {

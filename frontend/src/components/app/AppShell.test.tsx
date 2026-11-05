@@ -202,7 +202,7 @@ describe('entries', () => {
 });
 
 describe('Account', () => {
-  it('ND-38: Account is a page; the rail and the bar link to it and mark it, and it shows the goal the user chose', async () => {
+  it('ND-39: Account is a page; the rail and the bar link to it and mark it, and it shows the goal the user chose', async () => {
     signedIn(GOAL);
     renderAt('/account');
     await shellReady();
@@ -219,7 +219,7 @@ describe('Account', () => {
     expect(main.getByRole('region', { name: 'Membership' })).toHaveTextContent('Free trial');
   });
 
-  // B-108: Edit my schedule, from the Account page (ND-38).
+  // B-108: Edit my schedule, from the Account page (ND-39).
   const SCHEDULED = {
     ...GOAL,
     startDate: '2026-09-21T00:00:00.000Z',

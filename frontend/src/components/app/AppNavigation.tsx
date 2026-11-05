@@ -36,7 +36,7 @@ const RailIcon: React.FC<{ icon: LucideIcon; active?: boolean }> = ({ icon: Icon
   <Icon aria-hidden="true" strokeWidth={1.5} className={cx('size-5 shrink-0', active ? 'text-accent-hover' : '')} />
 );
 
-/** ND-38: Account at the foot of the rail, a link to the Account page with the email beneath. */
+/** ND-39: Account at the foot of the rail, a link to the Account page with the email beneath. */
 const AccountLink: React.FC = () => {
   const { user } = useAuth();
   const { accountActive: active } = useEntries();
