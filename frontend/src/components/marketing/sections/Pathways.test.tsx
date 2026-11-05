@@ -14,7 +14,7 @@ const renderPathways = () =>
   );
 
 const railTitles = () =>
-  within(screen.getByRole('list', { name: 'Free goals' }))
+  within(screen.getByRole('list', { name: 'Guided goals' }))
     .getAllByRole('button')
     .map((card) => CERTIFIED_PATHWAYS.find((p) => card.textContent?.includes(p.title))?.id);
 
@@ -32,7 +32,7 @@ describe('landing Pathways', () => {
     const rest = CERTIFIED_PATHWAYS.filter((p) => !FEATURED_PATHWAYS.includes(p));
     expect(railTitles()).toEqual([...FEATURED_PATHWAYS, ...rest].map((p) => p.id));
 
-    const rail = screen.getByRole('list', { name: 'Free goals' });
+    const rail = screen.getByRole('list', { name: 'Guided goals' });
     for (const p of CERTIFIED_PATHWAYS) {
       const card = within(rail).getByText(p.title).closest('button') as HTMLElement;
       expect(card.querySelector('img')).toHaveAttribute('src', p.image);
@@ -61,7 +61,7 @@ describe('landing Pathways', () => {
   it('a goal card opens the plan preview: two questions, then that visitor’s plan, saved for sign-up', async () => {
     const user = userEvent.setup();
     renderPathways();
-    await user.click(within(screen.getByRole('list', { name: 'Free goals' })).getByRole('button', { name: /Run a 10K Under 50 Minutes/ }));
+    await user.click(within(screen.getByRole('list', { name: 'Guided goals' })).getByRole('button', { name: /Run a 10K Under 50 Minutes/ }));
 
     const dialog = screen.getByRole('dialog', { name: 'Run a 10K Under 50 Minutes' });
     expect(within(dialog).getByRole('radio', { name: /30 min/ })).toBeChecked();
@@ -75,16 +75,16 @@ describe('landing Pathways', () => {
     expect(dialog).toHaveTextContent(PATHWAY_ARCS.run10k.dayNinety);
     expect(within(dialog).getByRole('list', { name: 'The three phases' }).children).toHaveLength(3);
 
-    const save = within(dialog).getByRole('link', { name: 'Save my plan, free' });
+    const save = within(dialog).getByRole('link', { name: 'Save my plan' });
     expect(save).toHaveAttribute('href', '/signup?pathway=run10k');
     await user.click(save);
     expect(JSON.parse(localStorage.getItem(PLAN_PREVIEW_KEY) ?? 'null')).toEqual({ pathwayId: 'run10k', dailyMinutes: 30, planVariant: 'accelerated' });
   });
 
-  it('makes the case for a goal of your own, leading to Pro', () => {
+  it('makes the case for a goal of your own, leading to the question at the top (ND-36, ND-37)', () => {
     renderPathways();
     expect(screen.getByRole('heading', { level: 3, name: 'Or bring your own goal.' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Build my own plan' })).toHaveAttribute('href', '/signup?premium=1');
-    expect(screen.getByText('$9 a month or $72 a year')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Type my goal' })).toHaveAttribute('href', '#top');
+    expect(screen.getByText('30 days free, then $9 a month')).toBeInTheDocument();
   });
 });

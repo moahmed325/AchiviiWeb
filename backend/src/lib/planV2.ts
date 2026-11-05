@@ -403,7 +403,7 @@ export function lastWeekOf(tasks: readonly DailyTask[]): LastWeekSummary {
 }
 
 /**
- * ND-36: a main step the handoff already tells the writer about (an in-order step it places) is not listed twice; after
+ * ND-38: a main step the handoff already tells the writer about (an in-order step it places) is not listed twice; after
  * a break (a first week back) none is, as that week eases back in rather than catching up.
  */
 function withoutHandedOn(lastWeek: LastWeekSummary | null, brief: readonly string[], firstWeekBack: boolean): LastWeekSummary | null {
@@ -414,11 +414,11 @@ function withoutHandedOn(lastWeek: LastWeekSummary | null, brief: readonly strin
   return kept.length ? { ...rest, mainStepsNotDone: kept } : rest;
 }
 
-/** The most main steps not done the week writer is told (ND-36). */
+/** The most main steps not done the week writer is told (ND-38). */
 export const MAIN_STEPS_NOT_DONE_MAX = 5;
 
 /**
- * ND-36: each practice day not done (not a key session, which is listed apart) whose highest-priority step was not done
+ * ND-38: each practice day not done (not a key session, which is listed apart) whose highest-priority step was not done
  * on another day this week and was not handed to next week, as "Tuesday: title", most recent first, at most
  * `MAIN_STEPS_NOT_DONE_MAX`.
  */

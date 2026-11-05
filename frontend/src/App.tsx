@@ -60,11 +60,11 @@ export const App: React.FC = () => {
               <Route path="/forgot-password" element={<React.Suspense fallback={null}><ForgotPasswordPage /></React.Suspense>} />
               <Route path="/reset-password" element={<React.Suspense fallback={null}><ResetPasswordPage /></React.Suspense>} />
 
-              {/* Onboarding / Plan Creation (Protected, only for users without active plan) */}
+              {/* Onboarding: open to visitors (ND-36), who sign up from its last page */}
               <Route
                 path="/onboarding"
                 element={
-                  <ProtectedRoute requireGoal={false}>
+                  <ProtectedRoute requireGoal={false} allowAnonymous>
                     <React.Suspense fallback={null}>
                       <OnboardingPage />
                     </React.Suspense>

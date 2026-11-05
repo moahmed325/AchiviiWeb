@@ -137,7 +137,7 @@ export interface LastWeekSummary {
   /** Their notes on last week's days, each with its day ("Tuesday: my knee hurt"). */
   notes: string[];
   /**
-   * ND-36: the main steps of days not done whose work recovery could not bring back this week (not done elsewhere,
+   * ND-38: the main steps of days not done whose work recovery could not bring back this week (not done elsewhere,
    * not handed to next week), each with its day ("Tuesday: Hill repeats"); key sessions are listed apart. Present
    * only when there are some.
    */

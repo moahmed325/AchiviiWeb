@@ -3,8 +3,8 @@
 ### Roadmap, milestones and exit criteria
 
 **Feature:** Lemon Squeezy subscription billing for international Achivii subscriptions  
-**Primary paid capability:** Custom goals  
-**Initial commercial model:** Free + Pro, monthly + yearly  
+**Primary paid capability:** Custom goals (until 2026-11-04; since ND-37, every plan after a 30-day trial)  
+**Initial commercial model:** Free + Pro, monthly + yearly (since ND-37: 30 days free, no card, then Pro)  
 **Provider:** Lemon Squeezy  
 **Payout destination:** Intended Ethiopian bank account (CBE), subject to production onboarding verification  
 **Current position:** Feature definition approved; implementation has not started.

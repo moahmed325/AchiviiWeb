@@ -3,30 +3,31 @@ import { Check } from 'lucide-react';
 import { Button } from '../Button';
 import { Section, Eyebrow, HEADING } from '../Section';
 
+/** ND-37: every plan starts with 30 days free, no card; then Pro keeps it going. */
 const PLANS = [
   {
-    name: 'Free',
+    name: 'Your first 30 days',
     price: '$0',
-    note: 'for as long as you like',
-    includes: ['Every guided goal', 'A daily step sized to your schedule', 'A weekly review and a plan that adjusts'],
-    cta: { label: 'Start free', to: '/signup' },
+    note: 'no card needed',
+    includes: ['Your full plan, built around your week', 'A step every day, sized to your time', 'Each week planned from the last'],
+    cta: { label: 'Start my 30 days', href: '#top' },
     featured: false,
   },
   {
-    name: 'Pro',
+    name: 'Achivii Pro',
     price: '$9',
     note: 'a month, or $72 a year',
-    includes: ['Everything in Free', 'A 90-day plan built around your own goal'],
+    includes: ['Keep your plan going after 30 days', 'A new plan whenever you finish one', 'Your plans and progress, kept'],
     cta: { label: 'Get Pro', to: '/signup?premium=1' },
     featured: true,
   },
-];
+] as const;
 
 export const Pricing: React.FC = () => (
   <Section id="pricing" labelledBy="pricing-title">
     <Eyebrow>Pricing</Eyebrow>
     <h2 id="pricing-title" className={`mt-4 ${HEADING}`}>
-      Free to start. Pro if you want your own goal.
+      Thirty days free. Then Pro keeps it going.
     </h2>
 
     <ul className="mt-12 grid gap-4 md:grid-cols-2">
@@ -38,7 +39,7 @@ export const Pricing: React.FC = () => (
           }`}
         >
           <div>
-            <h3 className="text-body font-medium text-text">Achivii {plan.name}</h3>
+            <h3 className="text-body font-medium text-text">{plan.name}</h3>
             <p className="mt-6 flex items-baseline gap-2">
               <span className="tabular text-h1 text-text">{plan.price}</span>
               <span className="text-body text-text-secondary">{plan.note}</span>
@@ -56,9 +57,15 @@ export const Pricing: React.FC = () => (
               ))}
             </ul>
           </div>
-          <Button variant={plan.featured ? 'gold' : 'secondary'} to={plan.cta.to} className="mt-8 self-start">
-            {plan.cta.label}
-          </Button>
+          {'href' in plan.cta ? (
+            <Button variant={plan.featured ? 'gold' : 'secondary'} href={plan.cta.href} className="mt-8 self-start">
+              {plan.cta.label}
+            </Button>
+          ) : (
+            <Button variant={plan.featured ? 'gold' : 'secondary'} to={plan.cta.to} className="mt-8 self-start">
+              {plan.cta.label}
+            </Button>
+          )}
         </li>
       ))}
     </ul>

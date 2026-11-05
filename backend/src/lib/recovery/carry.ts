@@ -662,7 +662,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     const { carriedFrom: _ignored, ...content } = step;
     const marker: CarryMarker = { taskId: missed.taskId, date: missed.date, replaced: [] };
     const carried: CarriedStep = { ...content, instructions: isPhysical(content) ? withWarmUpLine(content.instructions) : content.instructions, carriedFrom: marker };
-    // ND-36: the shortest a shorter version may be; a physical step's warm-up and easy end need more room.
+    // ND-38: the shortest a shorter version may be; a physical step's warm-up and easy end need more room.
     return { marker, carried, minShorter: isPhysical(content) ? SHORTER_PHYSICAL_MIN_MINUTES : SHORTER_CARRY_MIN_MINUTES };
   };
   /** The first of `days` whose row takes `carried` (whole when `minShorter` is Infinity) and keeps the rest gap. */
@@ -711,7 +711,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     // the search on that day: closed, done or taken is that reason, open is no room (nothing is ever placed after it).
     let found: { receiving: DayClassification; fit: Placement['fit'] | null } | null = firstFit(before, carried, marker, isProtected, Infinity);
     if (!found && nextOfKind) found = { receiving: nextOfKind, fit: null };
-    // ND-36: when that day can't take it (none, closed, done, taken or reached by a more recent miss), the first open
+    // ND-38: when that day can't take it (none, closed, done, taken or reached by a more recent miss), the first open
     // day before the next session of its kind that takes it whole, else shorter. A usable whole fit always wins.
     if (!found || !found.fit || !usable(found.receiving)) {
       const open = before.filter(usable);
@@ -740,7 +740,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     accept(missed, { receiving, fit }, marker);
   }
 
-  // ---- Gap return (ND-36): after an open gap (ND-11) nothing else moves, but the first open day back takes the gap's
+  // ---- Gap return (ND-38): after an open gap (ND-11) nothing else moves, but the first open day back takes the gap's
   // most important missed step, so the work that mattered most is not lost. One step for the whole gap (never again
   // once one moved): the most recent gap day's highest-priority move step that is not hard (a hard step back keeps
   // RULE-21's easy line) and not of an in-order kind (those keep their queue, RULE-20). It goes on an open day after the
@@ -841,7 +841,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
       switch (top.recovery.action) {
         case 'move':
           // The top step is the day's highest-priority ordinary move step, so it is the one that moved, if any did. A gap
-          // return (ND-36) may move a lower step past a hard top step, which stays behind with the gap.
+          // return (ND-38) may move a lower step past a hard top step, which stays behind with the gap.
           if (gapReturn.has(day.taskId) && gapReturn.get(day.taskId) !== top.step.title) topStep = 'in_gap';
           else topStep = carried ? 'moved' : drops.some((item) => item.taskId === day.taskId && item.reason === 'due_date_passed') ? 'due_passed' : 'no_room';
           break;

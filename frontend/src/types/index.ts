@@ -44,6 +44,8 @@ export interface GoalClarification {
   primaryDomain: string;
   followUpQuestions: FollowUpQuestion[];
   evidenceTriad?: EvidenceTriad;
+  /** ND-36: set only when the goal is too vague to measure in 90 days; 3 to 5 concrete goals to choose from. */
+  focusOptions?: string[];
 }
 
 export interface CommitmentItem {
@@ -256,7 +258,7 @@ export interface MissedSignals {
 
 /** Response of `POST /api/goal/reconcile`. Only active plan v2 goals are classified. */
 export type ReconcileResult =
-  | { applies: false; reason: 'no_active_goal' | 'not_plan_v2' }
+  | { applies: false; reason: 'no_active_goal' | 'not_plan_v2' | 'trial_ended' }
   | {
       applies: true;
       goalId: string;

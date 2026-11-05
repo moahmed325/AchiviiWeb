@@ -260,7 +260,7 @@ describe('RULE-9 the receiving day search (MR-10, MR-17)', () => {
     expect(plan.carries[0].steps.map((s) => s.title)).toContain('Weekly class');
   });
 
-  // ND-36 (amends MR-10): when the first day that takes the step is done, closed or taken, the next open day does.
+  // ND-38 (amends MR-10): when the first day that takes the step is done, closed or taken, the next open day does.
   it('passes a done day: the next open day takes it', () => {
     const plan = on(week({ mon: { kind: 'missed' }, tue: { kind: 'done' } }, { today: '2026-09-23' }));
     expect(plan.carries.map((c) => [c.fromTaskId, c.toTaskId])).toEqual([[id('mon'), id('wed')]]);
@@ -302,7 +302,7 @@ describe('RULE-9 the receiving day search (MR-10, MR-17)', () => {
     // Tue has no room for Mon's step, so both Mon's and Tue's searches reach Wed.
     const tue = [step('tue practice', 1, 5, 'practice'), step('Weekly class', 2, 25, 'fixed_time_session')];
     const plan = on(week({ mon: { kind: 'missed' }, tue: { kind: 'missed', steps: tue } }, { today: '2026-09-23' }));
-    // The most recent miss takes Wed; Mon's step goes on to the next open day (ND-36), never two on one day.
+    // The most recent miss takes Wed; Mon's step goes on to the next open day (ND-38), never two on one day.
     expect(plan.carries.map((c) => [c.fromTaskId, c.toTaskId])).toEqual([
       [id('mon'), id('fri')],
       [id('tue'), id('wed')],

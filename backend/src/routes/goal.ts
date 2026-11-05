@@ -8,6 +8,7 @@ import { actionRoutes } from './goal/actions.js';
 import { taskRoutes } from './goal/tasks.js';
 import { weekRoutes } from './goal/weeks.js';
 import { scheduleRoutes } from './goal/schedule.js';
+import { isLocked } from '../lib/billing/accessGuard.js';
 
 // Kept for the importers of routes/goal.js (tests, other modules).
 export { TASK_STATUSES, TASK_NOTES_MAX_LENGTH, TASK_NOTES_HARD_MAX, notesWithinLimit } from './goal/tasks.js';
@@ -92,6 +93,11 @@ goalRouter.post('/reconcile', async (req: Request, res: Response): Promise<void>
     const user = await getAuthUser(req);
     if (!user) {
       res.status(401).json({ error: 'Unauthorized.' });
+      return;
+    }
+    // ND-37: a plan paused after the trial is never moved on, so nothing is marked missed or carried.
+    if (await isLocked(user)) {
+      res.json({ applies: false, reason: 'trial_ended' });
       return;
     }
     // M2.2 carry-forward and M2.3 signals, shared with the M2.4 actions (lib/reconcileCore.ts). Idempotent

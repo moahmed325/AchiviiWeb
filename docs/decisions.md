@@ -135,11 +135,11 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-7 | Application shell and navigation | Design | Decided (A narrowed) | 5 |
 | ND-8 | Progress: separate page or Journey layer | Design | Decided (A) | 8 |
 | ND-9 | Payments in scope or not | Product | Decided (A) | 10 |
-| ND-10 | Custom-goal gating | Product | Decided (A) | 10 |
+| ND-10 | Custom-goal gating | Product | Superseded by ND-37 | 10 |
 | ND-11 | Coach scope | Product | Decided (A) | 10 |
 | ND-12 | Phase 2 frontend scope additions (`api.ts` status, `GoalContext` failure flag) | Architecture | Decided (A) | 2 |
-| ND-13 | Onboarding step order around the clarify wait | Design | Decided (A) | 3 |
-| ND-14 | Grouping clarify questions into "starting point" and "success" | Design | Decided (A) | 3 |
+| ND-13 | Onboarding step order around the clarify wait | Design | Superseded by ND-36 | 3 |
+| ND-14 | Grouping clarify questions into "starting point" and "success" | Design | Superseded by ND-36 | 3 |
 | ND-15 | Scope of the single pathway library | Architecture | Decided (A) | 3 |
 | ND-16 | Pre-existing onboarding bugs fixed in Phase 3 | Architecture | Decided (A) | 3 |
 | ND-17 | TED-style speech pathway matching | Product | Decided (A) | 4 |
@@ -150,6 +150,8 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-22 | Gemini only; no fallback model for now | Architecture | Decided | — |
 | ND-26 | The landing page is built around picking a goal | Product | Decided | — |
 | ND-27 | Visitors see their plan before signing up | Product | Decided | — |
+| ND-36 | Achivii starts from the goal the person types | Product | Decided | — |
+| ND-37 | Thirty days free, then Pro | Product | Decided | — |
 
 **What blocks the next phase:** Phases 0–9 are complete. Phase 10 (Premium Architecture) is unblocked and **IN PROGRESS** (M10.1 complete: ND-9 Decided A, ND-10 Decided A, ND-11 Decided A, OD-1c Decided B). M10.2 (Coach placement and honest state) is active.
 
@@ -1405,7 +1407,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Decided (A) |
+| Status | Superseded by ND-37 |
 | Category | Product |
 | Needed by | 10 |
 | Raised | 2026-09-23 — `docs/features/billing/04-phases.md` Phase 10 |
@@ -1493,7 +1495,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Decided |
+| Status | Superseded by ND-36 |
 | Category | Design |
 | Needed by | 3 (M3.5) |
 | Raised | 2026-09-23 — Phase 3 kickoff (W2) |
@@ -1518,7 +1520,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Decided |
+| Status | Superseded by ND-36 |
 | Category | Design |
 | Needed by | 3 (M3.5) |
 | Raised | 2026-09-23 — Phase 3 kickoff (W2) |
@@ -1916,7 +1918,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 ---
 
-### ND-36 — Missed work comes back: shorter when it doesn't fit, and after a gap
+### ND-38 — Missed work comes back: shorter when it doesn't fit, and after a gap
 
 | Field | Value |
 |---|---|
@@ -1926,18 +1928,18 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | Raised | 2026-11-04 — Mo: "make this whole missed session thing as best as possible, dont ask me for nothing" |
 | Decided | 2026-11-04 — measured with the scenario sweep (recovery on against off), built under Mo's standing ask |
 
-**Context.** The scenario sweep, now measuring how much of the main work gets done in the end, showed recovery adding almost nothing (about 90% of main steps done with it on and off). Two rules lost the work: a missed step moved only if it fitted whole on a later day after that day's lower-priority steps came off, and a day's main step is usually its biggest part, so it almost never fitted ("no room" on about 2,500 missed days); and after a gap of three or more missed days nothing moved at all (about 1,000 days).
+**Context.** The scenario sweep, now measuring how much of the main work gets done in the end, showed recovery adding almost nothing (about 90% of main steps done with it on and off). Two rules lost the work: a missed step moved only if it fitted whole on a later day after that day's lower-priority steps came off, and a day's main step is usually its biggest part, so it almost never fitted ("no room" on about 2,500 missed days); and after a gap of three or more missed days (missed sessions ND-11) nothing moved at all (about 1,000 days).
 
 **Decision.**
 * **Shorter when it doesn't fit.** When no later day this week takes the whole step, the first open day takes a shorter version of it in place of its lower-priority steps, if at least 10 minutes (20 for a physical step, whose moved version has a 5-minute warm-up and 5 easy minutes) and at least half of it fit. The step says "Shorter today: {n} minutes in all, so do the most important part." and the app shows that line first. A whole fit always wins.
 * **A day that is over doesn't block the search** (amends MR-10). When the first day that would take the step is done, closed or already taken, the next open day takes it (whole first, else shorter), instead of the step being dropped. It is still worked out the same way every time, a moved step is never moved again (its marker), and the most recent miss still wins a day: an older miss goes on to the next open day.
 * **After a gap, the most important step comes back.** On the first open day after a gap, the most recent gap day's highest-priority move step that is not hard and not of an in-order kind takes the place of steps that are neither more important nor hard, whole or shorter. One step per gap; the gentle return and the easy line on the first hard step back are unchanged.
 * **Nothing important is forgotten at the week's end.** Next week's writer is told the main steps of last week's days that were not done (a day done only through its 10-minute version counts as not done), not done elsewhere and not handed on (up to 5, most recent first, key sessions listed apart, never an old test step, none in a first week back after a break), and asked to bring back the ones that still matter early in the week, in place of less important steps, never making a day longer.
-* Unchanged: a day never gets longer than planned (ND-10), one moved step per day, the most recent miss wins a day, the safety limits, and in-order steps keep their own queue.
+* Unchanged: a day never gets longer than planned (missed sessions ND-10), one moved step per day, the most recent miss wins a day, the safety limits, and in-order steps keep their own queue.
 
 **Consequences.** In the full sweep (913 runs), people who miss often get 5 to 7 points more of their main steps done than with recovery off (before: 0 to 1), with no rule broken in any run. A day holding a moved step can't be swapped, as before, so a return day holding the gap's step isn't swapped. Code: `fitCarriedStep` in `lib/carryForward.ts`, the move and gap-return steps of `planRecovery` in `lib/recovery/carry.ts`, `SHORTER_LINE` in `frontend/src/lib/stepLines.ts`; measure: `npm run report:recovery` and the sweep's `work` (SWEEP_BASELINE=1 for recovery off).
 
-**Related.** ND-10 to ND-18 (missed sessions), MR-10 (amended), I-30, B-110.
+**Related.** missed sessions ND-10 to ND-18 (`docs/archive/missed-sessions`), MR-10 (amended), I-30, B-110.
 
 ---
 
@@ -2022,7 +2024,9 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-10-30 | ND-32 Decided by Mo: the Roadmap at a glance (progress card, week cells, this week, finish line); the Dashboard's map spread wide; greeting by first name; no weekly review by hand (weeks close on their own). |
 | 2026-10-30 | ND-33 Decided by Mo: the Dashboard with a goal ring, streak and number tiles, the map with a key and Coming up; the Roadmap with a progress card and the whole plan by phase, week details folded; no late-test card on Today. |
 | 2026-10-31 | ND-35 Decided by Mo: no weekly tests, targets, checkpoints or final test; next week follows sessions done, the feel taps and the notes. The ND-33 goal ring and Roadmap progress count the plan's weeks and days instead of a measured number, and Coming up has no weekly check. |
-| 2026-11-04 | ND-36 Under Mo's ask to make missed sessions the best: a missed step that can't fit whole moves shorter, and after a gap the most important missed step comes back on the first day back. |
+| 2026-11-04 | ND-36 Decided by Mo (stage 1 of 4): the landing page and Home ask for the goal first; onboarding asks one thing per page, routine first, turns a vague goal into a measurable one, and is open to visitors, who sign up from the summary. ND-13 and ND-14 marked Superseded. |
+| 2026-11-04 | ND-37 Decided by Mo (stage 2 of 4): every plan starts with 30 days free, no card; after them, without Pro, the plan is paused (kept and readable, not moved on). ND-10 and ND-23 marked Superseded. |
+| 2026-11-05 | ND-38 Under Mo's ask to make missed sessions the best: a missed step that can't fit whole moves shorter, a day that is over doesn't block the search (MR-10 amended), after a gap the most important missed step comes back on the first day back, and next week's writer hears the main steps never done. |
 
 ### ND-32 — The Roadmap at a glance, a name in the greeting, no weekly review by hand
 
@@ -2043,6 +2047,8 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 * **No weekly review by hand:** Today and the Dashboard no longer offer it. A week closes on its own after its last day; Today's bridge says "Next week opens after {day}."
 
 **Consequences.** `WeeklyReviewModal` and the parts only it used (`ReviewSummaryCard`, `ReviewReflectionStep`, `PhaseGateOutcomeCard`, `AdaptationMomentStep`, `lib/reviewDraft.ts`, `submitWeeklyReview`, `isWeekReviewDue`), `Staircase` and its styles are removed. The test entry (`ReviewTestResultStep`, `LightTestEntry`) stays, used by Today's week-close card and the late-test card. The backend review route stays (B-110). With `WEEK_CLOSE_ENABLED` off, weeks would no longer close at all; it must stay on.
+
+**Amended by ND-35 (2026-10-31).** No weekly tests: the test entry this decision kept was removed with them.
 
 **Related.** ND-24, ND-29, ND-31.
 
@@ -2065,6 +2071,8 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Consequences.** New: `ProgressRing` (ui), `practiceStreak` (`lib/dashboard.ts`), `comingUp` (`lib/plan.ts`). Removed: `LateTestCard`, `lib/lateTest.ts`, the old roadmap styles.
 
+**Amended by ND-35 (2026-10-31).** No weekly tests: the goal rings count the plan's days and weeks, the results line, checks and test entries are gone, and Coming up has no weekly check.
+
 **Related.** ND-29, ND-31, ND-32.
 
 ### PAY-1 — Achivii Pro pricing
@@ -2084,7 +2092,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Decided |
+| Status | Superseded by ND-37 |
 | Category | Product |
 | Needed by | — |
 | Raised | 2026-10-25 — B-46 part 2 (Upgrade Ana: free, then Pro, cancels in week 8) |
@@ -2143,3 +2151,55 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 **Consequences.** The preview's questions are onboarding's own choices (`PLAN_VARIANT_OPTIONS`, `DAILY_MINUTE_OPTIONS` in `lib/schedule.ts`); change them in one place. A custom goal (Pro) has no preview.
 
 **Related.** ND-26, ND-4, `frontend/src/components/marketing/PlanPreviewDialog.tsx`.
+
+---
+
+### ND-36 — Achivii starts from the goal the person types
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-29 — Mo: the site read as a freemium catalogue of 10 goals; the first thing should be "what do you want to achieve?" |
+| Decided | 2026-10-29 — Mo (all of the agent's suggestions accepted) |
+
+**Context.** The landing page led with the free pathways, and onboarding had a full page of schedule settings, then grouped question steps. People may type a goal that can't be reached or measured in 90 days ("get fit"). Mo's plan has four stages: (1) this flow; (2) a 30-day trial, then Pro; (3) the pathways become Pro skills added to the timeline; (4) a skill running alongside the main goal.
+
+**Decision (stage 1).**
+* The landing page (hero and closing section) and Home before a first goal ask one question: "What do you want to achieve?" Enter opens onboarding at once, with no account needed (`/onboarding` is open to visitors).
+* Onboarding asks one thing per page. The routine comes first, since it needs no AI call: days a week, which days, minutes per session, time of day, wake, sleep and busy hours, fixed commitments (commute, gym), an optional fixed date. Clarify reads the goal meanwhile.
+* Clarify judges whether the goal is measurable in 90 days. If not, it suggests 3 to 5 concrete goals (a pathway's title word for word where one fits); the person picks one or writes their own on a page placed after the daily-time question (or after the routine, if clarify answers later), and the chosen goal is clarified while the rest is answered. A chosen goal is never sent back to that page.
+* Clarify's questions follow, one per page, then a short summary (where they're going, the 90-day line, days, minutes, time of day) with "Start my journey".
+* A visitor signs up from the summary. The answers are kept in `localStorage['achivii_onboarding']` across sign-up, reloads and an email confirmation, and the plan is built as soon as they are signed in. They are cleared when the plan is built or a new goal is typed.
+* Until the trial (stage 2), a person's first plan is allowed whatever the goal; after that a new custom goal still needs Pro (ND-10).
+
+**Consequences.** Supersedes ND-13 and ND-14. The create request body is unchanged (the R-4 baseline still holds). The pathway library leaves Home and onboarding; the landing page's pathway rail and pricing stay until stages 2 and 3.
+
+**Related.** ND-10, ND-26, ND-27, `frontend/src/components/onboarding/`, `backend/src/lib/ai/clarify.ts`, `backend/src/lib/billing/goalAuthorization.ts`.
+
+---
+
+### ND-37 — Thirty days free, then Pro
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-29 — Mo: the roadmap comes with a 30-day trial; after that it needs Pro |
+| Decided | 2026-10-29 — Mo (the agent's suggestions accepted: no card, the plan locks read-only, nothing deleted, prices unchanged) |
+
+**Context.** Until now the 10 pathways were free and Pro was for a goal of your own (ND-10). With ND-36 everyone starts from the goal they type, so the free/Pro line moved from the kind of goal to time.
+
+**Decision (stage 2).**
+* A person's first plan starts a 30-day trial (`users.trialStartedAt`, set once, inside the create transaction; a later plan never restarts it). No card is asked for.
+* During the trial everything works, for any goal. Today mentions the trial only in its last week ("N days left", with Pro one tap away); Account shows "Free trial, N days left".
+* After the 30 days, without Pro, the plan is paused: kept and readable (Roadmap, Dashboard), but nothing moves it on. The routes that complete, change or write the plan answer 402 `TRIAL_ENDED`; closing a week says nothing is due; reconcile marks nothing missed; no reminder email is sent; a new plan is refused with 402 `TRIAL_ENDED`. Today shows "Your 30 free days are done" with Pro instead of the step. Going Pro picks the plan up where it stopped.
+* Pro stays $9 a month or $72 a year (PAY-1). The same applies when a Pro subscription ends: the plan pauses (ND-23's "runs to day 90" no longer holds).
+* The landing page says it: 30 days free, then Pro; the pathways are "guided", no longer "free".
+
+**Consequences.** Supersedes ND-10 and ND-23. Access is decided in one place (`backend/src/lib/billing/access.ts`); `GET /api/billing/entitlement` adds `access` (`pro`, `new`, `trial`, `locked`) and `trialEndsAt`. A billing read that fails never locks anyone out. Accounts that already had a plan start their 30 days when this ships (migration `20261104120000_user_trial_started`), so nobody is paused at once.
+
+**Related.** PAY-1, ND-9, ND-36, `backend/src/lib/billing/`, `frontend/src/components/today/TrialAccess.tsx`, `frontend/src/components/marketing/sections/Pricing.tsx`.
+

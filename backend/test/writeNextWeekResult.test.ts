@@ -82,7 +82,7 @@ describe('lastWeekOf', () => {
   });
 });
 
-describe('mainStepsNotDoneOf (ND-36)', () => {
+describe('mainStepsNotDoneOf (ND-38)', () => {
   const steps = (...items: Array<[string, number, Record<string, unknown>?]>) =>
     JSON.stringify(items.map(([title, priority, extra]) => ({ stepNumber: priority, title, durationMinutes: 10, instructions: '', priority, ...extra })));
   const at = (dayOfWeek: string, date: string, over: Record<string, unknown>) => day(dayOfWeek, { date, ...over });
@@ -130,7 +130,7 @@ describe('writeNextWeek tells the writer last week', () => {
     expect(input).not.toHaveProperty('test');
   });
 
-  it('ND-36: the main steps not done, except in a first week back after a break', async () => {
+  it('ND-38: the main steps not done, except in a first week back after a break', async () => {
     const missed = [day('Monday', { date: '2026-09-21', status: 'pending', detailedSteps: JSON.stringify([{ stepNumber: 1, title: 'Values study', durationMinutes: 20, instructions: '', priority: 1 }]) })];
     await writeNextWeek(goal, 1, missed, '19:30', null, []);
     expect(vi.mocked(generateWeekPlan).mock.calls.at(-1)![0].lastWeek!.mainStepsNotDone).toEqual(['Monday: Values study']);

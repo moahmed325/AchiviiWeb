@@ -2,6 +2,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../../lib/prisma.js';
 import { getAuthUser } from '../auth.js';
+import { refuseIfLocked } from '../../lib/billing/accessGuard.js';
 import { getUserTodayDateString, normalizeTimezone } from '../../lib/timezone.js';
 import { presentGoal } from './present.js';
 import { refuse } from './actions.js';
@@ -17,6 +18,8 @@ taskRoutes.post('/complete', async (req: Request, res: Response): Promise<void> 
       res.status(401).json({ error: 'Unauthorized.' });
       return;
     }
+    // ND-37: past the 30-day trial without Pro, nothing moves the plan on.
+    if (await refuseIfLocked(user, res)) return;
 
     const activeGoal = await prisma.goal.findFirst({
       where: { userId: user.id, status: 'active' },
@@ -129,6 +132,8 @@ taskRoutes.patch('/tasks/:taskId', async (req: Request, res: Response): Promise<
       res.status(401).json({ error: 'Unauthorized.' });
       return;
     }
+    // ND-37: past the 30-day trial without Pro, nothing moves the plan on.
+    if (await refuseIfLocked(user, res)) return;
 
     const { taskId } = req.params;
     const { status, notes, slotTime, usedMinimumVersion, feel } = req.body;

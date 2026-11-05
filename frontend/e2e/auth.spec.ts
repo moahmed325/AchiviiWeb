@@ -49,11 +49,13 @@ test.describe('entry points', () => {
     await mockApi(page);
     await page.goto('/');
 
-    await page.locator('#top').getByRole('link', { name: 'Choose your goal' }).click();
-    await expect(page).toHaveURL('/#goals');
+    // ND-36: Start leads to the question at the top; typing a goal there opens onboarding (onboarding.spec.ts).
+    await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Start' }).click();
+    await expect(page).toHaveURL('/#top');
 
-    await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Start free' }).click();
-    await expect(page).toHaveURL('/signup');
+    // ND-37: Pricing's Pro button is the landing page's one way straight to sign-up.
+    await page.locator('#pricing').getByRole('link', { name: 'Get Pro' }).click();
+    await expect(page).toHaveURL('/signup?premium=1');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Create your account');
 
     await page.goBack();
@@ -62,12 +64,12 @@ test.describe('entry points', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Welcome back');
 
     await page.goBack();
-    await page.getByRole('list', { name: 'Free goals' }).getByRole('button', { name: /Run a 10K Under 50 Minutes/ }).click();
+    await page.getByRole('list', { name: 'Guided goals' }).getByRole('button', { name: /Run a 10K Under 50 Minutes/ }).click();
     const preview = page.getByRole('dialog', { name: 'Run a 10K Under 50 Minutes' });
     await preview.getByRole('button', { name: 'Next' }).click();
     await preview.getByRole('button', { name: 'Show my plan' }).click();
     await expect(preview.getByText('60 sessions over 12 weeks, about 30 hours of practice.')).toBeVisible();
-    await preview.getByRole('link', { name: 'Save my plan, free' }).click();
+    await preview.getByRole('link', { name: 'Save my plan' }).click();
     await expect(page).toHaveURL('/signup?pathway=run10k');
     await expect(page.getByText('Your chosen journey').locator('visible=true')).toHaveCount(1);
     await expect(page.getByText('35 min a day').locator('visible=true')).toHaveCount(1);
@@ -86,11 +88,11 @@ test.describe('entry points', () => {
   test('back from an auth screen returns to the landing page', async ({ page }) => {
     await mockApi(page);
     await page.goto('/');
-    await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Start free' }).click();
-    await expect(page).toHaveURL('/signup');
+    await page.locator('#pricing').getByRole('link', { name: 'Get Pro' }).click();
+    await expect(page).toHaveURL('/signup?premium=1');
     await page.goBack();
     await expect(page).toHaveURL('/');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pick a goal. Get a plan for the next 90 days.');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('What do you want to achieve?');
   });
 
   test('reload keeps the auth screen and the chosen pathway', async ({ page }) => {
@@ -162,7 +164,7 @@ test.describe('after authentication', () => {
     await page.getByRole('navigation', { name: 'Primary' }).getByRole('button', { name: /^Account/ }).click();
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page).toHaveURL('/');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pick a goal. Get a plan for the next 90 days.');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('What do you want to achieve?');
   });
 });
 

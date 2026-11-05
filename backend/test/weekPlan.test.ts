@@ -251,7 +251,7 @@ describe('buildWeekPrompt', () => {
     expect(prompt).toContain('Pace this week: They did most of last week: move on to the next step, as the method says.');
   });
 
-  it('ND-36: names the main steps not done, to bring back the ones that still matter without making a day longer', () => {
+  it('ND-38: names the main steps not done, to bring back the ones that still matter without making a day longer', () => {
     const prompt = buildWeekPrompt({ ...input, weekNumber: 2, lastWeek: last({ mainStepsNotDone: ['Tuesday: Scales', 'Monday: Chords'] }) }, weekLayout('steady', input.weekStart));
     expect(prompt).toContain(
       'Main steps they did not get to (bring back the ones that still matter early this week, in place of less important steps, never making a day longer; drop what the method would move past):\n- Tuesday: Scales\n- Monday: Chords'
