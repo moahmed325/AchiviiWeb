@@ -36,7 +36,7 @@ interface OnboardingWizardProps {
   nextPlan?: NextPlanLaunch | null;
   /** B-106: the fixed date to fill in, from the plan a fresh or next plan follows. */
   initialFixedDate?: string;
-  /** ND-39: the routine of the plan a skill follows. */
+  /** ND-40: the routine of the plan a skill follows. */
   initialRoutine?: RoutineSettings | null;
   /** The app's health check couldn't reach Achivii when it loaded. */
   apiOffline?: boolean;

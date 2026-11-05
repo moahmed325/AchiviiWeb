@@ -22,7 +22,7 @@ const renderIt = () =>
     </MemoryRouter>,
   );
 
-describe('UpNextSkill (ND-39)', () => {
+describe('UpNextSkill (ND-40)', () => {
   beforeEach(() => {
     auth.upNextSkill = null;
     auth.set.mockReset().mockResolvedValue(undefined);

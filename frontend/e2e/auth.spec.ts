@@ -161,8 +161,10 @@ test.describe('after authentication', () => {
     await mockApi(page, { goal: GOAL });
     await signIn(page);
     await page.goto('/roadmap');
-    await page.getByRole('navigation', { name: 'Primary' }).getByRole('button', { name: /^Account/ }).click();
-    await page.getByRole('button', { name: 'Sign out' }).click();
+    // ND-39: Account is a page; Sign out is on it.
+    await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: /^Account/ }).click();
+    await expect(page).toHaveURL('/account');
+    await page.getByRole('main').getByRole('button', { name: 'Sign out' }).click();
     await expect(page).toHaveURL('/');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('What do you want to achieve?');
   });

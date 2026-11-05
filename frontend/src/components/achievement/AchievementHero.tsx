@@ -146,7 +146,7 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
             </div>
           </div>
 
-          {/* ND-39: the skill added to the timeline comes first, with this plan's routine carried over. */}
+          {/* ND-40: the skill added to the timeline comes first, with this plan's routine carried over. */}
           {upNext && (
             <div className="mt-8 rounded-card border border-achievement/30 bg-background/80 p-5">
               <p className="font-ui-mono text-micro uppercase tracking-wider text-achievement">Up next on your timeline</p>

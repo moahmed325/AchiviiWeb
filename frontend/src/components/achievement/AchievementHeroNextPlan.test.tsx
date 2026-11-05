@@ -79,7 +79,7 @@ describe('end screen', () => {
     expect(screen.getByRole('button', { name: 'Choose another skill' })).toBeInTheDocument();
   });
 
-  it('leads with the skill up next, carrying this plan’s routine into its onboarding (ND-39)', async () => {
+  it('leads with the skill up next, carrying this plan’s routine into its onboarding (ND-40)', async () => {
     pro.value = true;
     upNext.skill = 'guitar';
     const goal = goalWith(result());

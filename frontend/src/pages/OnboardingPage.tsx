@@ -56,7 +56,7 @@ export const OnboardingPage: React.FC = () => {
     nextPlan?: NextPlanLaunch;
     /** B-106: the old plan's fixed date, filled in for a fresh plan. */
     fixedDate?: string;
-    /** ND-39: the routine of the plan a skill follows. */
+    /** ND-40: the routine of the plan a skill follows. */
     routine?: RoutineSettings;
   } | null;
   const initialGoal = navState?.presetGoal || navState?.draftGoal;

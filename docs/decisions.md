@@ -152,7 +152,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-27 | Visitors see their plan before signing up | Product | Decided | — |
 | ND-36 | Achivii starts from the goal the person types | Product | Decided | — |
 | ND-37 | Thirty days free, then Pro | Product | Decided | — |
-| ND-39 | Guided skills on the timeline | Product | Decided | — |
+| ND-40 | Guided skills on the timeline | Product | Decided | — |
 
 **What blocks the next phase:** Phases 0–9 are complete. Phase 10 (Premium Architecture) is unblocked and **IN PROGRESS** (M10.1 complete: ND-9 Decided A, ND-10 Decided A, ND-11 Decided A, OD-1c Decided B). M10.2 (Coach placement and honest state) is active.
 
@@ -2028,7 +2028,8 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-11-04 | ND-36 Decided by Mo (stage 1 of 4): the landing page and Home ask for the goal first; onboarding asks one thing per page, routine first, turns a vague goal into a measurable one, and is open to visitors, who sign up from the summary. ND-13 and ND-14 marked Superseded. |
 | 2026-11-04 | ND-37 Decided by Mo (stage 2 of 4): every plan starts with 30 days free, no card; after them, without Pro, the plan is paused (kept and readable, not moved on). ND-10 and ND-23 marked Superseded. |
 | 2026-11-05 | ND-38 Under Mo's ask to make missed sessions the best: a missed step that can't fit whole moves shorter, a day that is over doesn't block the search (MR-10 amended), after a gap the most important missed step comes back on the first day back, and next week's writer hears the main steps never done. |
-| 2026-11-05 | ND-39 Decided by Mo (stage 3 of 4): the 10 guided plans are skills; with Pro, one is added to the timeline ("Up next") and offered first when the current plan ends, with its routine carried over. |
+| 2026-11-05 | ND-39 Decided by Mo: Account is a page (membership with Go Pro or Manage, the goal and its schedule, profile, preferences, sign out, start over set apart). |
+| 2026-11-05 | ND-40 Decided by Mo (stage 3 of 4): the 10 guided plans are skills; with Pro, one is added to the timeline ("Up next") and offered first when the current plan ends, with its routine carried over. |
 
 ### ND-32 — The Roadmap at a glance, a name in the greeting, no weekly review by hand
 
@@ -2205,9 +2206,27 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Related.** PAY-1, ND-9, ND-36, `backend/src/lib/billing/`, `frontend/src/components/today/TrialAccess.tsx`, `frontend/src/components/marketing/sections/Pricing.tsx`.
 
+### ND-39 — Account is a page
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-11-05 — Mo: "let's do the account page next" |
+| Decided | 2026-11-05 — Mo |
+
+**Context.** Account was a small panel over the rail (a sheet on phones) holding the email, the name field, the time zone, reminders, the goal, the plan's billing line, Edit my schedule, Reset and Sign out in one column, with the trial (ND-37) as a line of small text and no way to go Pro from it.
+
+**Decision.** Account is a page at `/account`, linked from the rail and the bottom bar: who you are; Membership (the trial with the days left and Go Pro, Pro with its renewal and Manage subscription, a trial that ended, or when the trial starts); Your goal with Edit my schedule; Profile; Preferences (time zone, reminders); Sign out; and Start over (Reset my plan) set apart. Onboarding's top bar keeps a small panel with the email and Sign out.
+
+**Consequences.** `AccountMenu` keeps only onboarding's panel and the time-zone and reminder settings; `useSignOut` moves to `hooks/`. The e2e mock answers `GET /api/billing/account`.
+
+**Related.** ND-28, ND-32, ND-37, B-108.
+
 ---
 
-### ND-39 — Guided skills on the timeline
+### ND-40 — Guided skills on the timeline
 
 | Field | Value |
 |---|---|

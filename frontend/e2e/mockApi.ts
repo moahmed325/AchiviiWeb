@@ -107,7 +107,7 @@ export interface MockOptions {
    * (ND-10) still reach the custom goal field; `free` shows the Pro gate instead.
    */
   plan?: 'free' | 'pro';
-  /** ND-39: the skill the signed-in user has up next on their timeline. */
+  /** ND-40: the skill the signed-in user has up next on their timeline. */
   upNextSkill?: string | null;
   /** ND-37: the trial as entitlement reports it: `new`, `trial` or `locked` (for a free plan; Pro is always `pro`). */
   access?: 'new' | 'trial' | 'locked';
@@ -168,7 +168,7 @@ export interface CreateRequest {
 
 export interface MockCalls {
   signup: number;
-  /** ND-39: every PUT /api/auth/up-next body's skill, in order. */
+  /** ND-40: every PUT /api/auth/up-next body's skill, in order. */
   upNext: (string | null)[];
   login: number;
   clarify: unknown[];
@@ -319,6 +319,10 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     }
     if (path === '/api/billing/entitlement') {
       return json(route, 200, { plan, entitled: plan === 'pro', access: plan === 'pro' ? 'pro' : access, trialEndsAt });
+    }
+    // ND-39: the Account page's membership card. No subscription details; a spec that needs them routes this itself.
+    if (path === '/api/billing/account') {
+      return json(route, 200, { plan, status: plan === 'pro' ? 'ACTIVE' : 'none', billingInterval: null, currentPeriodEnd: null, cancelAtPeriodEnd: false, manageUrl: null });
     }
     if (path === '/api/goal/active' && route.request().method() === 'DELETE') {
       calls.resets += 1;

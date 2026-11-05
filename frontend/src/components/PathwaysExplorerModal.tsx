@@ -36,7 +36,7 @@ const ExplorerContent: React.FC<ExplorerContentProps> = ({ hasGoal, currentId, i
   const isPro = access.state === 'pro';
   const upNext = user?.upNextSkill ?? null;
 
-  // ND-39: with a plan running, a skill is added to the timeline (Pro) and offered when the plan ends.
+  // ND-40: with a plan running, a skill is added to the timeline (Pro) and offered when the plan ends.
   const addToTimeline = async () => {
     if (!selected) return;
     setSaving(true);
@@ -122,7 +122,7 @@ const ExplorerContent: React.FC<ExplorerContentProps> = ({ hasGoal, currentId, i
   );
 };
 
-/** ND-39: the guided skills in a Dialog (a bottom sheet on mobile), opened from the navbar and the Roadmap. */
+/** ND-40: the guided skills in a Dialog (a bottom sheet on mobile), opened from the navbar and the Roadmap. */
 export const PathwaysExplorerModal: React.FC<PathwaysExplorerModalProps> = ({ isOpen, onClose, activeGoalTitle, initialPathwayId }) => {
   // Each opening starts fresh from `initialPathwayId`; the content stays mounted while closing so it can animate out.
   const [session, setSession] = useState(0);

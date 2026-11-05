@@ -6,7 +6,7 @@ import { PathwaysExplorerModal } from '../PathwaysExplorerModal';
 import { Button } from '../ui';
 
 /**
- * ND-39: after the Roadmap's finish line, the one skill added to the timeline ("Up next", with Remove), or a quiet
+ * ND-40: after the Roadmap's finish line, the one skill added to the timeline ("Up next", with Remove), or a quiet
  * way to add one. Adding needs Pro; the Skills dialog says so to anyone without it.
  */
 export const UpNextSkill: React.FC<{ goalTitle: string }> = ({ goalTitle }) => {
