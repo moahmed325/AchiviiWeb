@@ -5,8 +5,9 @@
 const CRISIS = [
   /\bkill(?:ing)?\s+my\s*self\b/i,
   /\bsuicid/i,
-  /\bend(?:ing)?\s+(?:my|it\s+all|my\s+life)\b/i,
-  /\b(?:want|wanna|going)\s+to\s+die\b/i,
+  /\bend(?:ing)?\s+(?:it\s+all|my\s+life|my\s+own\s+life)\b/i,
+  /\b(?:want|wanna)\s+(?:to\s+)?die\b/i,
+  /\bdon'?t\s+want\s+to\s+(?:live|be\s+alive|be\s+here)\b/i,
   /\bself[-\s]?harm/i,
   /\bhurt(?:ing)?\s+my\s*self\b/i,
   /\bcut(?:ting)?\s+my\s*self\b/i,

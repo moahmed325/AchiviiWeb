@@ -7,13 +7,13 @@ import { coachContext, type CoachGoal } from './context.js';
 
 describe('isCrisisMessage', () => {
   it('catches self-harm and suicide, however it is put', () => {
-    for (const text of ['I want to kill myself', 'thinking about suicide', 'I keep hurting myself', 'no reason to live anymore', 'self-harm again', 'I want to end my life'])
+    for (const text of ['I want to kill myself', 'thinking about suicide', 'I keep hurting myself', 'no reason to live anymore', 'self-harm again', 'I want to end my life', 'I just want to die', "I don't want to be alive"])
       expect(isCrisisMessage(text)).toBe(true);
     expect(CRISIS_REPLY).toMatch(/emergency number/);
   });
 
   it('leaves ordinary practice talk alone', () => {
-    for (const text of ['This run is killing me', 'My legs are dead after that', 'Can I end the session early?', 'I hurt my knee'])
+    for (const text of ['This run is killing me', 'My legs are dead after that', 'Can I end my session early?', "I'm ending my run at 3 km", "I'm going to die on these hill repeats", 'I hurt my knee'])
       expect(isCrisisMessage(text)).toBe(false);
   });
 });

@@ -72,13 +72,15 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllEnvs());
 
+const json = async (res: Response): Promise<any> => res.json();
+
 const send = (body: unknown) =>
   fetch(`${baseUrl}/api/coach/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' }, body: JSON.stringify(body) });
 
 describe('GET /api/coach', () => {
   it('off unless COACH_ENABLED is exactly "true": nothing is read', async () => {
     vi.stubEnv('COACH_ENABLED', 'yes');
-    const body = await (await fetch(`${baseUrl}/api/coach`)).json();
+    const body = await json(await fetch(`${baseUrl}/api/coach`));
     expect(body).toMatchObject({ enabled: false, messages: [] });
     expect(findMany).not.toHaveBeenCalled();
   });
@@ -89,7 +91,7 @@ describe('GET /api/coach', () => {
       { id: 'b', role: 'coach', content: 'Hi', created_at: new Date('2026-11-05T10:00:01Z') },
       { id: 'a', role: 'user', content: 'Hello', created_at: new Date('2026-11-05T10:00:00Z') },
     ]);
-    const body = await (await fetch(`${baseUrl}/api/coach`, { headers: { Authorization: 'Bearer t' } })).json();
+    const body = await json(await fetch(`${baseUrl}/api/coach`, { headers: { Authorization: 'Bearer t' } }));
     expect(body).toMatchObject({ enabled: true, hasGoal: true, access: 'ok', remainingToday: 26, dailyLimit: 30 });
     expect(body.messages.map((m: { id: string }) => m.id)).toEqual(['a', 'b']);
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { goalId: 'g1', userId: 'u1' } }));
@@ -97,7 +99,7 @@ describe('GET /api/coach', () => {
 
   it('a trial that ended reads as locked; 401 without a user', async () => {
     accessFor.mockResolvedValue({ state: 'locked' });
-    expect((await (await fetch(`${baseUrl}/api/coach`)).json()).access).toBe('locked');
+    expect((await json((await fetch(`${baseUrl}/api/coach`)))).access).toBe('locked');
     getAuthUser.mockResolvedValue(null);
     expect((await fetch(`${baseUrl}/api/coach`)).status).toBe(401);
   });
@@ -107,7 +109,7 @@ describe('POST /api/coach/messages', () => {
   it('saves the message and the reply together, with the plan as context', async () => {
     const res = await send({ text: '  What should I focus on?  ', firstName: 'Mo' });
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = await json(res);
     expect(body.messages.map((m: { role: string; content: string }) => [m.role, m.content])).toEqual([
       ['user', 'What should I focus on?'],
       ['coach', 'Start with today’s easy run.'],
@@ -124,35 +126,44 @@ describe('POST /api/coach/messages', () => {
     askCoach.mockResolvedValue(null);
     const res = await send({ text: 'Hi' });
     expect(res.status).toBe(503);
-    expect((await res.json()).reason).toBe('coach_unavailable');
+    expect((await json(res)).reason).toBe('coach_unavailable');
     expect(transaction).not.toHaveBeenCalled();
   });
 
   it('a message about self-harm gets the fixed caring reply and never reaches the model', async () => {
     const res = await send({ text: 'honestly I want to kill myself' });
     expect(res.status).toBe(200);
-    expect((await res.json()).messages[1].content).toMatch(/988/);
+    expect((await json(res)).messages[1].content).toMatch(/988/);
     expect(askCoach).not.toHaveBeenCalled();
   });
 
   it('refuses: switch off, empty, too long, no plan, trial over, daily limit', async () => {
     vi.stubEnv('COACH_ENABLED', '');
-    expect((await (await send({ text: 'Hi' })).json()).reason).toBe('coach_disabled');
+    expect((await json((await send({ text: 'Hi' })))).reason).toBe('coach_disabled');
     vi.stubEnv('COACH_ENABLED', 'true');
     expect((await send({ text: '   ' })).status).toBe(400);
-    expect((await (await send({ text: 'x'.repeat(1001) })).json()).reason).toBe('too_long');
+    expect((await json((await send({ text: 'x'.repeat(1001) })))).reason).toBe('too_long');
     goalFindFirst.mockResolvedValueOnce(null);
-    expect((await (await send({ text: 'Hi' })).json()).reason).toBe('no_active_goal');
+    expect((await json((await send({ text: 'Hi' })))).reason).toBe('no_active_goal');
     accessFor.mockResolvedValueOnce({ state: 'locked' });
     const locked = await send({ text: 'Hi' });
     expect(locked.status).toBe(402);
-    expect((await locked.json()).code).toBe('TRIAL_ENDED');
+    expect((await json(locked)).code).toBe('TRIAL_ENDED');
     count.mockResolvedValueOnce(30);
     const limited = await send({ text: 'Hi' });
     expect(limited.status).toBe(429);
-    expect((await limited.json()).reason).toBe('coach_daily_limit');
+    expect((await json(limited)).reason).toBe('coach_daily_limit');
     expect(askCoach).not.toHaveBeenCalled();
     expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it('help comes first: a crisis message gets its reply even over the daily limit or after the trial', async () => {
+    count.mockResolvedValue(30);
+    accessFor.mockResolvedValue({ state: 'locked' });
+    const res = await send({ text: 'I want to end my life' });
+    expect(res.status).toBe(200);
+    expect((await json(res)).messages[1].content).toMatch(/emergency number/);
+    expect(askCoach).not.toHaveBeenCalled();
   });
 
   it('a billing read that fails never locks anyone out', async () => {
