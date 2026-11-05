@@ -737,6 +737,64 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     });
   }
 
+  // ---- Gap return (2026-11-04): after an open gap (ND-11) nothing else moves, but the first open day back takes the
+  // gap's most important missed step, so the work that mattered most is not lost. One step for the whole gap (never
+  // again once one moved), the most recent gap day's highest-priority move step that is not hard (a hard step back
+  // keeps RULE-21's easy line) and not of an in-order kind (those keep their queue, RULE-20). It goes on an open day
+  // after the gap this week, whole or shorter, in place of lower-priority steps that are not hard: the day never gets
+  // longer.
+  const gapIds = input.gap?.taskIds ?? [];
+  if (gapIds.length > 0 && !gapIds.some((id) => handled.has(id) || carrySources.has(id))) {
+    const gapDays = ordered.filter((day) => inGap.has(day.taskId) && methodDays.has(day.taskId) && !heldIds.has(day.taskId));
+    for (const missed of [...gapDays].reverse()) {
+      const mover = stepsOf.get(missed.taskId)!.find((s) => {
+        if (s.recovery.action !== 'move' || s.queued || isHard(s.step)) return false;
+        return !profile!.kinds.find((item) => item.id === s.step.kind)?.inOrder;
+      });
+      if (!mover) continue;
+      const { carriedFrom: _ignored, ...content } = mover.step;
+      const marker: CarryMarker = { taskId: missed.taskId, date: missed.date, replaced: [] };
+      const carried: CarriedStep = { ...content, instructions: isPhysical(content) ? withWarmUpLine(content.instructions) : content.instructions, carriedFrom: marker };
+      const due = mover.step.dueDate;
+      const back = laterInWeek(missed).filter(
+        (day) => !isRestLike(day) && !day.isTestDay && (!due || day.date <= due) && !closedReason(day) && !reachedBy.has(day.taskId)
+      );
+      let placed: { receiving: DayClassification; fit: NonNullable<ReturnType<typeof fitCarriedStep>> } | null = null;
+      for (const minShorter of [Infinity, isPhysical(content) ? SHORTER_PHYSICAL_MIN_MINUTES : SHORTER_CARRY_MIN_MINUTES]) {
+        for (const day of back) {
+          // The day back keeps its hard steps: RULE-21's easy line goes on the first one.
+          const keep = (step: CarriedStep) => isProtected(step) || isHard(step);
+          const fit = fitCarriedStep({ steps: rowOf(day.taskId), durationMinutes: minutesNow(day.taskId) }, carried, keep, minShorter);
+          if (!fit) continue;
+          const step = fit.steps.find((item) => item.carriedFrom === marker)!;
+          if (!restGapHolds(new Map([[day.taskId, fit.steps]]), [{ taskId: day.taskId, step }])) continue;
+          placed = { receiving: day, fit };
+          break;
+        }
+        if (placed) break;
+      }
+      if (!placed) continue;
+      const { receiving, fit } = placed;
+      const marked = fit.steps.map((step) => (step.carriedFrom === marker ? { ...step, carriedFrom: { ...marker, replaced: fit.replaced } } : step));
+      const steps = keepRecords(rowOf(receiving.taskId), marked, marked.findIndex((step) => markerOf(step)?.taskId === missed.taskId));
+      accepted.set(receiving.taskId, { steps, durationMinutes: fit.durationMinutes });
+      claimed.add(receiving.taskId);
+      reachedBy.set(receiving.taskId, missed);
+      for (let i = drops.length - 1; i >= 0; i -= 1) if (drops[i].taskId === missed.taskId) drops.splice(i, 1);
+      methodCarries.push({
+        fromTaskId: missed.taskId,
+        fromDate: missed.date,
+        toTaskId: receiving.taskId,
+        toDate: receiving.date,
+        step: steps.find((step) => markerOf(step)?.taskId === missed.taskId)!,
+        replaced: fit.replaced,
+        steps,
+        durationMinutes: fit.durationMinutes,
+      });
+      break;
+    }
+  }
+
   const byFromDate = (a: string, b: string) => (a === b ? 0 : a < b ? -1 : 1);
   methodCarries.sort((a, b) => byFromDate(a.fromDate, b.fromDate));
   carries.push(...methodCarries);

@@ -487,7 +487,7 @@ describe('what stays as today with the new rules', () => {
     expect(plan.outcomes!.map((o) => o.outcome)).toEqual(['in_gap', 'in_gap', 'in_gap']);
   });
 
-  it('days of the open gap get in_gap and are in none of the new counts', () => {
+  it('days of the open gap get in_gap and are in none of the new counts; the most recent one\'s step comes back (2026-11-04)', () => {
     // A 3-day gap of tagged days whose top steps would be let go, continue and move.
     const input = week(
       {
@@ -500,10 +500,16 @@ describe('what stays as today with the new rules', () => {
     );
     expect(input.gap?.length).toBe(3);
     const plan = on(input);
-    expect(plan.outcomes).toEqual(
-      (['mon', 'tue', 'wed'] as Name[]).map((name, i) => ({ taskId: id(name), date: DATES[i], rules: 'method', outcome: 'in_gap', topStep: 'in_gap' }))
-    );
-    expect(plan.carries).toEqual([]);
+    expect(plan.outcomes).toEqual([
+      ...(['mon', 'tue'] as Name[]).map((name, i) => ({ taskId: id(name), date: DATES[i], rules: 'method', outcome: 'in_gap', topStep: 'in_gap' })),
+      { taskId: id('wed'), date: DATES[2], rules: 'method', outcome: 'moved', topStep: 'moved' },
+    ]);
+    // Gap return: one step for the whole gap, the most recent day's, onto the first open day back, shorter to fit.
+    expect(plan.carries.map((c) => [c.fromTaskId, c.toTaskId, c.step.durationMinutes])).toEqual([[id('wed'), id('fri'), 10]]);
+    expect(plan.drops.map((d) => [d.taskId, d.reason])).toEqual([
+      [id('mon'), 'in_gap'],
+      [id('tue'), 'in_gap'],
+    ]);
     expect(plan.continues).toEqual([]);
     const tasks = input.tasks.map((t) => ({ id: t.id, weekNumber: 1, isRestDay: t.isRestDay, isKeySession: false }));
     expect(weekCounts(1, { tasks, days: input.days, carry: plan })).toMatchObject({ letGo: 0, continued: 0, noRoom: 0, missed: 3 });
