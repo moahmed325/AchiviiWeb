@@ -136,6 +136,12 @@ export interface LastWeekSummary {
   feel: Record<Feel, number>;
   /** Their notes on last week's days, each with its day ("Tuesday: my knee hurt"). */
   notes: string[];
+  /**
+   * ND-36: the main steps of days not done whose work recovery could not bring back this week (not done elsewhere,
+   * not handed to next week), each with its day ("Tuesday: Hill repeats"); key sessions are listed apart. Present
+   * only when there are some.
+   */
+  mainStepsNotDone?: string[];
 }
 
 export type Pace = 'bigger_step' | 'move_on' | 'smaller_step' | 'repeat';
@@ -321,6 +327,12 @@ function lastWeekBlock(input: WeekCallInput): string {
     `How the done sessions felt: ${taps.length ? taps.join(', ') : 'not told'}.`,
   ];
   if (last.notes.length) lines.push('Their notes (take them into account, e.g. an injury, a busy day or something they enjoyed):', ...last.notes.map((note) => `- ${note}`));
+  if (last.mainStepsNotDone?.length) {
+    lines.push(
+      'Main steps they did not get to (bring back the ones that still matter early this week, in place of less important steps, never making a day longer; drop what the method would move past):',
+      ...last.mainStepsNotDone.map((step) => `- ${step}`)
+    );
+  }
   // A shorter plan's ready week (B-109) is lighter whatever the pace: its own line says so (`readyWeekLine`).
   const ready = planShape(input.totalWeeks).readyWeek === input.weekNumber;
   lines.push(`Pace this week: ${ready ? READY_PACE_LINE : PACE_LINE[paceOf(last)]}`);

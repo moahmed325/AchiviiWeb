@@ -253,7 +253,7 @@ export async function writeNextWeek(
   const brief = handOn ? handoffBrief(handOn.handoff) : [];
 
   const load = loadGoalInput(goal, measureTarget(stored, next), startingPointValue(goal));
-  const lastWeek = finishedWeek >= 1 && finishedTasks.length > 0 ? lastWeekOf(finishedTasks) : null;
+  const lastWeek = withoutHandedOn(finishedWeek >= 1 && finishedTasks.length > 0 ? lastWeekOf(finishedTasks) : null, brief);
   const days = await generateWeekPlan({
     finalGoal: stored.finalGoal,
     answers: stored.answers,
@@ -393,7 +393,49 @@ export function lastWeekOf(tasks: readonly DailyTask[]): LastWeekSummary {
       .map((task) => `${task.dayOfWeek}: ${task.title}`),
     feel,
     notes,
+    ...(() => {
+      const mainStepsNotDone = mainStepsNotDoneOf(tasks);
+      return mainStepsNotDone.length ? { mainStepsNotDone } : {};
+    })(),
   };
+}
+
+/** ND-36: a main step the handoff already tells the writer about (an in-order step it places) is not listed twice. */
+function withoutHandedOn(lastWeek: LastWeekSummary | null, brief: readonly string[]): LastWeekSummary | null {
+  if (!lastWeek?.mainStepsNotDone || brief.length === 0) return lastWeek;
+  const told = brief.join('\n');
+  const kept = lastWeek.mainStepsNotDone.filter((item) => !told.includes(`"${item.slice(item.indexOf(': ') + 2)}"`));
+  const { mainStepsNotDone: _all, ...rest } = lastWeek;
+  return kept.length ? { ...rest, mainStepsNotDone: kept } : rest;
+}
+
+/** The most main steps not done the week writer is told (ND-36). */
+export const MAIN_STEPS_NOT_DONE_MAX = 5;
+
+/**
+ * ND-36: each practice day not done (not a key session, which is listed apart) whose highest-priority step was not done
+ * on another day this week and was not handed to next week, as "Tuesday: title", most recent first, at most
+ * `MAIN_STEPS_NOT_DONE_MAX`.
+ */
+export function mainStepsNotDoneOf(tasks: readonly DailyTask[]): string[] {
+  const doneTitles = new Set<string>();
+  const handed = new Set<string>();
+  for (const task of tasks) {
+    for (const step of parseStoredSteps(task.detailedSteps)) {
+      if (task.status === 'completed') doneTitles.add(step.title);
+      for (const record of Array.isArray(step.toNextWeek) ? step.toNextWeek : []) handed.add(record.step?.title);
+    }
+  }
+  const out: string[] = [];
+  for (const task of [...tasks].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))) {
+    if (task.isRestDay || task.notOffered || task.isKeySession || task.status === 'completed') continue;
+    const steps = parseStoredSteps(task.detailedSteps);
+    const main = [...steps].sort((a, b) => (typeof a.priority === 'number' ? a.priority : 99) - (typeof b.priority === 'number' ? b.priority : 99))[0];
+    if (!main?.title || doneTitles.has(main.title) || handed.has(main.title)) continue;
+    out.push(`${task.dayOfWeek}: ${promptText(main.title, WRITER_NOTE_MAX_CHARS)}`);
+    if (out.length >= MAIN_STEPS_NOT_DONE_MAX) break;
+  }
+  return out;
 }
 
 /**

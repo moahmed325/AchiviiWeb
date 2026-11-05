@@ -129,7 +129,8 @@ const todaysInput = (recovery: unknown) => ({
   weekStart: new Date('2026-09-28T00:00:00Z'),
   highLoadGoal: false,
   recovery,
-  lastWeek: { done: 1, planned: 3, keySessionsSkipped: [], feel: NO_TAPS, notes: [] },
+  // ND-36: with no handoff, the lessons not done are named to the writer.
+  lastWeek: { done: 1, planned: 3, keySessionsSkipped: [], feel: NO_TAPS, notes: [], mainStepsNotDone: ['Wednesday: Lesson 3', 'Tuesday: Lesson 2'] },
   // Plan safety limits M2.2a (B-64): the goal id for the `[Safety]` lines; the prompt never reads it.
   goalId: 'g1',
 });
@@ -171,7 +172,9 @@ describe('writeNextWeek with the method switch on (M3.1d)', () => {
     const tasks = finished().map((t: { detailedSteps: string }) => ({ ...(t as object), steps: JSON.parse(t.detailedSteps) })) as never[];
     const brief = handoffBrief(weekHandoff({ tasks, profile: LANGUAGE }));
     expect(brief[0]).toContain('in this order: "Lesson 2", "Lesson 3". They are at "Lesson 2", 2 steps behind the plan.');
-    expect(call()).toStrictEqual({ ...todaysInput(LANGUAGE), whereTheyAre: brief });
+    // ND-36: the lessons the handoff passes on are not also listed as main steps not done.
+    const { mainStepsNotDone: _told, ...lastWeek } = todaysInput(LANGUAGE).lastWeek!;
+    expect(call()).toStrictEqual({ ...todaysInput(LANGUAGE), lastWeek, whereTheyAre: brief });
     expect(result.map((d) => d.detailedSteps[0].title)).toEqual(['Lesson 2', 'Day 2 notes', 'Lesson 3']);
     expect((result[0].detailedSteps[0] as CarriedStep).shiftedFrom).toMatchObject({ taskId: 't2', date: '2026-09-22' });
   });
