@@ -51,7 +51,7 @@ const AccountLink: React.FC = () => {
   );
 };
 
-/** Desktop (lg and up): a restrained left rail. Today, Roadmap, Pathways, then Account at the bottom (ND-7). */
+/** Desktop (lg and up): a restrained left rail. Today, Roadmap, Skills (ND-40), then Account at the bottom (ND-7). */
 export const AppRail: React.FC<AppNavigationProps> = ({ onOpenPathways, onOpenCoach }) => {
   const { dashboardActive, showDashboard, todayActive, roadmapActive, showRoadmap, offline, isCompleted } = useEntries();
 
@@ -90,7 +90,7 @@ export const AppRail: React.FC<AppNavigationProps> = ({ onOpenPathways, onOpenCo
           <li>
             <button type="button" onClick={onOpenPathways} className={railItem(false)}>
               <RailIcon icon={Compass} />
-              Pathways
+              Skills
             </button>
           </li>
           <li>
@@ -124,7 +124,7 @@ const BarIcon: React.FC<{ icon: LucideIcon; active?: boolean }> = ({ icon: Icon,
 const ActiveMark: React.FC = () => <span aria-hidden="true" className="absolute inset-x-3 sm:inset-x-6 top-0 h-0.5 rounded-full bg-accent" />;
 
 /**
- * Below lg: a bottom bar with Today, Roadmap (with a goal), Pathways and Account. Sticky rather than fixed, so it
+ * Below lg: a bottom bar with Today, Roadmap (with a goal), Skills and Account. Sticky rather than fixed, so it
  * takes its own height at the end of the page and never covers content. It sits above the bottom safe area, and
  * below every dialog, sheet and focus mode (z-40 under their z-50).
  */
@@ -174,7 +174,7 @@ export const AppBottomBar: React.FC<AppNavigationProps> = ({ onOpenPathways, onO
             <li className="min-w-0 flex-1">
               <button type="button" onClick={onOpenPathways} className={barItem(false)}>
                 <BarIcon icon={Compass} />
-                <span className="truncate max-w-[56px] sm:max-w-none text-center">Pathways</span>
+                <span className="truncate max-w-[56px] sm:max-w-none text-center">Skills</span>
               </button>
             </li>
             <li className="min-w-0 flex-1">

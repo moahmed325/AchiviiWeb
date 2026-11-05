@@ -20,6 +20,8 @@ model User {
   lastReminderAt   DateTime?
   // ND-37: the 30-day trial starts when the person's first plan is made; null until then.
   trialStartedAt   DateTime?
+  // ND-40: the one guided skill (a pathway id) a Pro person has added to their timeline, offered when the plan ends.
+  upNextSkill      String?
 
   goals         Goal[]
   subscriptions Subscription[]

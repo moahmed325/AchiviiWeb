@@ -62,7 +62,7 @@ Playwright runs with one worker on purpose (parallel workers stall the Vite dev 
 - Postgres is required everywhere, local included; there is no SQLite mode. The database must allow the pgvector extension, because the older migrations run `CREATE EXTENSION vector` (for the `research_cache` table, since dropped).
 - Always use `prisma migrate deploy`, never `prisma db push`. `db push` skips the migrations folder, which holds `CREATE EXTENSION vector` and the raw-SQL indexes, so the database drifts from the migration history.
 - For Supabase use the session pooler connection string; the direct host is IPv6-only.
-- Models: `User`, `Subscription`, `WebhookEvent`, `Goal`, `RoadmapWeek`, `DailyTask`, `WeeklyReview` (`backend/prisma/schema.prisma`). The unused `research_cache` table, four old `Goal` columns and the Stripe-era `User` columns were dropped on 2026-10-24 (B-8, B-14, B-16). `User.remindersEnabled` and `lastReminderAt` hold the reminder email setting (ND-28).
+- Models: `User`, `Subscription`, `WebhookEvent`, `Goal`, `RoadmapWeek`, `DailyTask`, `WeeklyReview` (`backend/prisma/schema.prisma`). The unused `research_cache` table, four old `Goal` columns and the Stripe-era `User` columns were dropped on 2026-10-24 (B-8, B-14, B-16). `User.remindersEnabled` and `lastReminderAt` hold the reminder email setting (ND-28); `trialStartedAt` the 30-day trial (ND-37); `upNextSkill` the guided skill added to the timeline (ND-40).
 
 ## Backend architecture
 

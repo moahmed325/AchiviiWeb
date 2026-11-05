@@ -50,7 +50,7 @@ const goal = {
 
 vi.mock('../hooks/useJourneyData', () => ({ useJourneyData: () => toJourneyData(goal, '2026-10-12') }));
 vi.mock('../context/GoalContext', () => ({ useGoal: () => ({ activeGoal: goal }) }));
-vi.mock('../context/AuthContext', () => ({ useUserTimezone: () => 'UTC' }));
+vi.mock('../context/AuthContext', () => ({ useUserTimezone: () => 'UTC', useAuthUser: () => null, useSetUpNextSkill: () => vi.fn(), useAuthToken: () => null }));
 
 import { RoadmapPage } from './RoadmapPage';
 

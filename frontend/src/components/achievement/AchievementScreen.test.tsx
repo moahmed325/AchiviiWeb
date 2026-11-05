@@ -119,7 +119,7 @@ describe('AchievementScreen Component (Visual Level 4 — M9.3)', () => {
 
     // Primary and secondary CTAs
     expect(screen.getByRole('button', { name: /Your results/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Choose another pathway/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Choose another skill/i })).toBeInTheDocument();
   });
 
   it('2. Switches to Results tab when [Your results] hero button is clicked', () => {
@@ -203,7 +203,7 @@ describe('AchievementScreen Component (Visual Level 4 — M9.3)', () => {
       </MemoryRouter>
     );
 
-    const beginBtn = screen.getByRole('button', { name: /Choose another pathway/i });
+    const beginBtn = screen.getByRole('button', { name: /Choose another skill/i });
     fireEvent.click(beginBtn);
 
     expect(handleBegin).toHaveBeenCalledTimes(1);
