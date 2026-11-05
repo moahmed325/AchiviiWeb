@@ -7,7 +7,12 @@ import { SHELL_GOAL_TITLE, STORED_OUTCOME, axeViolations, documentOverflow, shel
 
 const primary = (page: Page) => page.getByRole('navigation', { name: 'Primary' });
 const explorer = (page: Page) => page.getByRole('dialog', { name: 'Explore pathways' });
-const accountButton = (page: Page) => primary(page).getByRole('button', { name: /^Account/ });
+/** ND-39: Account is a page; the rail and the bar link to it. */
+const accountLink = (page: Page) => primary(page).getByRole('link', { name: /^Account/ });
+const openAccount = async (page: Page) => {
+  await accountLink(page).click();
+  await expect(page).toHaveURL('/account');
+};
 
 /** The Account panel loads the plan (`GET /api/billing/account`); answer it as a free user with no subscription. */
 const freePlan = (page: Page) =>
@@ -170,6 +175,8 @@ test.describe('layout and accessibility', () => {
     { url: '/', goal: false },
     { url: '/dashboard', goal: true },
     { url: '/roadmap', goal: true },
+    { url: '/account', goal: true },
+    { url: '/account', goal: false },
     { url: '/onboarding', goal: false },
   ];
 
@@ -263,8 +270,7 @@ test.describe('layout and accessibility', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await mockApi(page, { goal: shellGoal() });
     await signIn(page);
-    await page.goto('/roadmap');
-    await accountButton(page).click();
+    await page.goto('/account');
     const durations = await page.evaluate(() =>
       [...document.querySelectorAll('[data-shell] *, [data-shell]')].flatMap((el) => {
         const style = getComputedStyle(el);
@@ -311,53 +317,24 @@ test.describe('pathways, account and offline', () => {
     await expect(page.getByRole('banner')).toBeVisible();
   });
 
-  test('Account shows the goal the user chose, not the stored outcome', async ({ page }) => {
-    await mockApi(page, { goal: shellGoal() });
-    await signIn(page);
-    await page.goto('/roadmap');
-    await accountButton(page).click();
-    const panel = page.getByText('Signed in as').filter({ visible: true }).locator('xpath=../..');
-    await expect(panel).toContainText('e2e@example.com');
-    await expect(panel).toContainText(SHELL_GOAL_TITLE);
-    await expect(panel).not.toContainText(STORED_OUTCOME);
-  });
-
-  test('Account opens and closes from the keyboard, and Escape returns focus', async ({ page, isMobile }) => {
+  test('Account is a page: it shows the goal the user chose, not the stored outcome', async ({ page }) => {
     await mockApi(page, { goal: shellGoal() });
     await freePlan(page);
     await signIn(page);
     await page.goto('/roadmap');
-    const trigger = accountButton(page);
-    await trigger.focus();
-    await page.keyboard.press('Enter');
-    const signOut = page.getByRole('button', { name: 'Sign out' });
-    await expect(signOut).toBeVisible();
-    if (isMobile) {
-      await expect(page.getByRole('dialog', { name: 'Account' })).toBeVisible();
-    } else {
-      await expect(trigger).toHaveAttribute('aria-expanded', 'true');
-      await page.keyboard.press('Tab');
-      // ND-32: the first name comes first in the panel (Save stays disabled until it changes), then Edit my schedule (B-108).
-      await expect(page.getByRole('textbox', { name: 'Your first name' })).toBeFocused();
-      await page.keyboard.press('Tab');
-      await expect(page.getByRole('button', { name: 'Edit my schedule' })).toBeFocused();
-      await page.keyboard.press('Tab');
-      await expect(page.getByRole('button', { name: 'Reset 90-Day Plan' })).toBeFocused();
-      await page.keyboard.press('Tab');
-      await expect(signOut).toBeFocused();
-    }
-    await page.keyboard.press('Escape');
-    await expect(signOut).toBeHidden();
-    await expect(trigger).toBeFocused();
-    if (!isMobile) await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await openAccount(page);
+    await expect(accountLink(page)).toHaveAttribute('aria-current', 'page');
+    const main = page.locator('main#main');
+    await expect(main).toContainText('e2e@example.com');
+    await expect(main.getByRole('region', { name: 'Your goal' })).toContainText(SHELL_GOAL_TITLE);
+    await expect(main).not.toContainText(STORED_OUTCOME);
   });
 
-  test('keyboard only: the rail comes first, in order, and Account is reached and left by keyboard', async ({ page, isMobile }) => {
+  test('keyboard only: the rail comes first, in order, and Account opens from it', async ({ page, isMobile }) => {
     test.skip(isMobile, 'The rail is the desktop layout; the bottom bar follows the page in document order.');
     await mockApi(page, { goal: shellGoal() });
     await freePlan(page);
     await signIn(page);
-    // A page with a control in it, so leaving the Account panel by Tab lands in the page (ND-31: the Roadmap has none here).
     await page.goto('/dashboard');
     await expect(page.locator('main#main')).toBeVisible();
     const order: string[] = [];
@@ -372,36 +349,15 @@ test.describe('pathways, account and offline', () => {
     }
     expect(order).toEqual(['Skip to content', 'Achivii, home', 'Dashboard', 'Today', 'Roadmap', 'Pathways', 'Coach ✦', 'Account']);
     await page.keyboard.press('Enter');
-    await page.keyboard.press('Tab');
-    await expect(page.getByRole('textbox', { name: 'Your first name' })).toBeFocused();
-    await page.keyboard.press('Tab');
-    await expect(page.getByRole('button', { name: 'Edit my schedule' })).toBeFocused();
-    await page.keyboard.press('Tab');
-    await expect(page.getByRole('button', { name: 'Reset 90-Day Plan' })).toBeFocused();
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab');
-    // Leaving the panel by keyboard closes it.
-    await expect(accountButton(page)).toHaveAttribute('aria-expanded', 'false');
-    expect(await page.evaluate(() => Boolean(document.activeElement?.closest('main#main')))).toBe(true);
-  });
-
-  test('an outside click closes the desktop Account panel', async ({ page, isMobile }) => {
-    test.skip(isMobile, 'The mobile Account is a sheet with its own scrim.');
-    await mockApi(page, { goal: shellGoal() });
-    await signIn(page);
-    await page.goto('/roadmap');
-    await accountButton(page).click();
-    await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
-    await page.locator('main#main').click({ position: { x: 5, y: 5 } });
-    await expect(page.getByRole('button', { name: 'Sign out' })).toBeHidden();
+    await expect(page).toHaveURL('/account');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   });
 
   test('Reset: cancel sends nothing; confirm deletes once and opens onboarding', async ({ page }) => {
     const calls = await mockApi(page, { goal: shellGoal() });
     await signIn(page);
-    await page.goto('/roadmap');
-    await accountButton(page).click();
-    const reset = page.getByRole('button', { name: 'Reset 90-Day Plan' });
+    await page.goto('/account');
+    const reset = page.getByRole('button', { name: 'Reset my plan' });
     await reset.click();
     const confirm = page.getByRole('dialog', { name: 'Reset your 90-day plan?' });
     await expect(confirm).toContainText('deletes your current plan and all of its task progress');
@@ -409,7 +365,7 @@ test.describe('pathways, account and offline', () => {
     await expect(confirm).toBeHidden();
     await expect(reset).toBeFocused();
     expect(calls.resets).toBe(0);
-    await expect(page).toHaveURL('/roadmap');
+    await expect(page).toHaveURL('/account');
 
     await reset.click();
     await confirm.getByRole('button', { name: 'Reset plan' }).click();
@@ -421,13 +377,12 @@ test.describe('pathways, account and offline', () => {
   test('a failed reset says so and stays [network errors expected]', async ({ page }) => {
     const calls = await mockApi(page, { goal: shellGoal(), resetStatus: 500 });
     await signIn(page);
-    await page.goto('/roadmap');
-    await accountButton(page).click();
-    await page.getByRole('button', { name: 'Reset 90-Day Plan' }).click();
+    await page.goto('/account');
+    await page.getByRole('button', { name: 'Reset my plan' }).click();
     const confirm = page.getByRole('dialog', { name: 'Reset your 90-day plan?' });
     await confirm.getByRole('button', { name: 'Reset plan' }).click();
     await expect(confirm.getByRole('alert')).toHaveText("We couldn't reset your plan. Please try again.");
-    await expect(page).toHaveURL('/roadmap');
+    await expect(page).toHaveURL('/account');
     expect(calls.resets).toBe(1);
     expect(consoleErrors.filter((e) => !e.startsWith('Failed to reset goal'))).toEqual([]);
   });
@@ -436,8 +391,8 @@ test.describe('pathways, account and offline', () => {
     await mockApi(page, { goal: shellGoal() });
     await signIn(page);
     await page.goto('/roadmap');
-    await accountButton(page).click();
-    await page.getByRole('button', { name: 'Sign out' }).click();
+    await openAccount(page);
+    await page.getByRole('main').getByRole('button', { name: 'Sign out' }).click();
     await expect(page).toHaveURL('/');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('What do you want to achieve?');
   });
