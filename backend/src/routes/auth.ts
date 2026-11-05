@@ -3,7 +3,11 @@ import { prisma } from '../lib/prisma.js';
 import { verifySupabaseToken } from '../lib/supabaseAuth.js';
 import { isValidTimezone } from '../lib/timezone.js';
 import { remindersLive } from '../lib/reminders/email.js';
-import { UnauthorizedError, ValidationError } from '../lib/httpErrors.js';
+import { PolicyError, UnauthorizedError, ValidationError } from '../lib/httpErrors.js';
+import { CERTIFIED_PRESETS } from '../lib/ai/presets/index.js';
+import { accessFor } from '../lib/billing/access.js';
+
+export const SKILLS_REQUIRE_PRO = 'SKILLS_REQUIRE_PRO';
 
 export const authRouter = Router();
 
@@ -15,6 +19,8 @@ type AuthenticatedUser = {
   remindersEnabled: boolean;
   /** ND-37: when the 30-day trial started; read with the person so access checks need no second query. */
   trialStartedAt: Date | null;
+  /** ND-38: the skill added to the timeline, offered when the current plan ends; null for none. */
+  upNextSkill: string | null;
 };
 
 const authUserSelect = {
@@ -24,6 +30,7 @@ const authUserSelect = {
   created_at: true,
   remindersEnabled: true,
   trialStartedAt: true,
+  upNextSkill: true,
 } as const;
 
 /** The user as the app gets it: ND-28 adds whether reminder emails are being sent at all, so Account shows the
@@ -174,6 +181,26 @@ authRouter.put('/timezone', async (req: Request, res: Response): Promise<void> =
   }
   const updated = await prisma.user.update({ where: { id: user.id }, data: { timezone: zone }, select: authUserSelect });
   res.status(200).json({ user: presentUser(updated) });
+});
+
+// PUT /api/auth/up-next: ND-38, the skill a Pro person adds to their timeline (one at a time), or null to remove it.
+// Adding needs Pro; removing never does.
+authRouter.put('/up-next', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) throw new UnauthorizedError();
+    const skill = req.body?.skill;
+    if (skill !== null && (typeof skill !== 'string' || !CERTIFIED_PRESETS.some((preset) => preset.id === skill))) {
+      throw new ValidationError('skill must be one of the guided skills, or null.');
+    }
+    if (skill !== null && (await accessFor(user)).state !== 'pro') {
+      throw new PolicyError('Adding skills to your timeline is part of Achivii Pro.', SKILLS_REQUIRE_PRO, 403);
+    }
+    const updated = await prisma.user.update({ where: { id: user.id }, data: { upNextSkill: skill }, select: authUserSelect });
+    res.status(200).json({ user: presentUser(updated) });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // PUT /api/auth/reminders: ND-28, the missed-day reminder email on or off (Account). The email's own unsubscribe link

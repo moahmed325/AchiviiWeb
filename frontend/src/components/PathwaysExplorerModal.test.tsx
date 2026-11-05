@@ -1,27 +1,29 @@
 import { useState } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { fetchBillingEntitlement } from '../lib/api';
+import { useAccess } from '../hooks/useAccess';
 import { PathwaysExplorerModal } from './PathwaysExplorerModal';
 
-vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'test-user', email: 'test@example.com' }, token: 'test-token', loading: false, login: vi.fn(), signup: vi.fn(), logout: vi.fn() }) }));
-vi.mock('../lib/api', () => ({ fetchBillingEntitlement: vi.fn().mockResolvedValue({ entitled: true }), startProCheckout: vi.fn() }));
+const auth = vi.hoisted(() => ({ upNextSkill: null as string | null, setUpNextSkill: vi.fn() }));
+vi.mock('../context/AuthContext', () => ({
+  useAuthUser: () => ({ id: 'u1', email: 'test@example.com', upNextSkill: auth.upNextSkill }),
+  useSetUpNextSkill: () => auth.setUpNextSkill,
+  useAuthToken: () => 't',
+}));
+vi.mock('../hooks/useAccess', () => ({ useAccess: vi.fn() }));
+vi.mock('../lib/api', () => ({ startProCheckout: vi.fn() }));
 
+const access = vi.mocked(useAccess);
 const Onboarding = () => <pre data-testid="state">{JSON.stringify(useLocation().state)}</pre>;
 
 const Screen = ({ activeGoalTitle, initialPathwayId }: { activeGoalTitle?: string; initialPathwayId?: string }) => {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button onClick={() => setOpen(true)}>Explore Goals</button>
-      <PathwaysExplorerModal
-        isOpen={open}
-        onClose={() => setOpen(false)}
-        activeGoalTitle={activeGoalTitle}
-        initialPathwayId={initialPathwayId}
-      />
+      <button onClick={() => setOpen(true)}>Open skills</button>
+      <PathwaysExplorerModal isOpen={open} onClose={() => setOpen(false)} activeGoalTitle={activeGoalTitle} initialPathwayId={initialPathwayId} />
     </>
   );
 };
@@ -37,64 +39,74 @@ const renderScreen = (props: { activeGoalTitle?: string; initialPathwayId?: stri
   );
 
 const open = async () => {
-  await userEvent.click(screen.getByRole('button', { name: 'Explore Goals' }));
-  return screen.findByRole('dialog', { name: 'Explore pathways' });
+  await userEvent.click(screen.getByRole('button', { name: 'Open skills' }));
+  return screen.findByRole('dialog', { name: 'Skills' });
 };
 
+beforeEach(() => {
+  auth.upNextSkill = null;
+  auth.setUpNextSkill.mockReset().mockResolvedValue(undefined);
+  access.mockReturnValue({ state: 'pro', trialEndsAt: null, reload: vi.fn() });
+});
 afterEach(() => localStorage.clear());
 
-describe('PathwaysExplorerModal', () => {
-  it('switches from the current goal to another pathway with the switch launch state', async () => {
+describe('Skills (ND-38)', () => {
+  it('Pro with a plan running: adds the chosen skill to the timeline, never the current plan', async () => {
     renderScreen({ activeGoalTitle: 'Build & Ship a SaaS Web App' });
     const dialog = await open();
-    expect(dialog).toHaveAccessibleDescription('Pick a new goal. Your current plan stays as it is until you start the new one.');
-    expect(screen.getByRole('tab', { name: 'Business' })).toHaveAttribute('aria-selected', 'true');
+    expect(dialog).toHaveAccessibleDescription('Add one to your timeline. When your current plan ends, it’s ready to start.');
     expect(screen.getByRole('radio', { name: 'Build & Ship a SaaS Web App' })).toHaveAccessibleDescription(/^Current pathway/);
-    expect(screen.getByRole('button', { name: /Restart this pathway/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Your current plan' })).toBeDisabled();
 
     await userEvent.click(screen.getByRole('tab', { name: 'Fitness' }));
-    const switchButton = screen.getByRole('button', { name: /Switch to this pathway/ });
-    expect(switchButton).toBeDisabled();
     await userEvent.click(screen.getByRole('radio', { name: 'Run a 10K Under 50 Minutes' }));
-    await userEvent.click(switchButton);
-
-    expect(localStorage.getItem('achivii_draft_goal')).toBe('Run a 10K Under 50 Minutes');
-    expect(JSON.parse(screen.getByTestId('state').textContent!)).toEqual({
-      presetGoal: 'Run a 10K Under 50 Minutes',
-      isPreset: true,
-      switchGoal: true,
-    });
+    await userEvent.click(screen.getByRole('button', { name: 'Add to my timeline' }));
+    expect(auth.setUpNextSkill).toHaveBeenCalledWith('run10k');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.queryByTestId('state')).not.toBeInTheDocument();
   });
 
-  it('opens on the pathway it was opened from', async () => {
+  it('marks the skill already up next', async () => {
+    auth.upNextSkill = 'youtube';
     renderScreen({ activeGoalTitle: 'Build & Ship a SaaS Web App', initialPathwayId: 'youtube' });
     await open();
-    expect(screen.getByRole('tab', { name: 'Creative' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('radio', { name: 'Launch a YouTube Channel (12 Videos)' })).toBeChecked();
-    expect(screen.getByRole('button', { name: /Switch to this pathway/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Up next already' })).toBeDisabled();
   });
 
-  it('offers to start, not switch, when there is no goal', async () => {
+  it('without Pro, a plan running leads to Pro instead', async () => {
+    access.mockReturnValue({ state: 'trial', trialEndsAt: null, reload: vi.fn() });
+    renderScreen({ activeGoalTitle: 'Build & Ship a SaaS Web App' });
+    const dialog = await open();
+    expect(dialog).toHaveAccessibleDescription(/With Achivii Pro, add a skill to your timeline/);
+    await userEvent.click(screen.getByRole('button', { name: 'See Pro' }));
+    expect(screen.getByRole('button', { name: 'Continue to Pro' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Back to skills' }));
+    expect(screen.getByRole('tablist')).toBeInTheDocument();
+    expect(auth.setUpNextSkill).not.toHaveBeenCalled();
+  });
+
+  it('with no plan, starts the chosen skill as the plan', async () => {
     renderScreen();
     const dialog = await open();
-    expect(dialog).toHaveAccessibleDescription('Pick a goal to start your plan.');
-    expect(screen.getByRole('button', { name: /Start this pathway/ })).toBeInTheDocument();
-    expect(screen.queryByText(/Current pathway/)).not.toBeInTheDocument();
+    expect(dialog).toHaveAccessibleDescription('Pick one to start your plan.');
+    await userEvent.click(screen.getByRole('tab', { name: 'Fitness' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Run a 10K Under 50 Minutes' }));
+    await userEvent.click(screen.getByRole('button', { name: /Start this skill/ }));
+    expect(JSON.parse((await screen.findByTestId('state')).textContent!)).toMatchObject({ presetGoal: 'Run a 10K Under 50 Minutes' });
   });
 
   it('does not mark a custom goal that mentions a pathway as that pathway', async () => {
     renderScreen({ activeGoalTitle: 'Learn some Spanish for my trip' });
     await open();
     expect(screen.queryByText(/Current pathway/)).not.toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Career' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('closes on Escape and on Cancel, returning focus, and starts fresh each time', async () => {
     renderScreen({ activeGoalTitle: 'Build & Ship a SaaS Web App' });
-    const opener = screen.getByRole('button', { name: 'Explore Goals' });
+    const opener = screen.getByRole('button', { name: 'Open skills' });
     await open();
     await userEvent.click(screen.getByRole('tab', { name: 'Learning' }));
-    await userEvent.click(screen.getByRole('radio', { name: 'Speak Conversational Spanish' }));
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(() => expect(opener).toHaveFocus());
@@ -103,56 +115,6 @@ describe('PathwaysExplorerModal', () => {
     expect(screen.getByRole('tab', { name: 'Business' })).toHaveAttribute('aria-selected', 'true');
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(localStorage.getItem('achivii_draft_goal')).toBeNull();
-    expect(screen.queryByTestId('state')).not.toBeInTheDocument();
-  });
-
-  it('shows the Custom Journey option with premium styling and no paywall language', async () => {
-    renderScreen();
-    await open();
-    const custom = screen.getByRole('region', { name: 'Have something unique in mind?' });
-    expect(custom).toBeInTheDocument();
-    expect(custom).toHaveTextContent(/Custom Journey/i);
-    expect(custom).toHaveTextContent(/Build a guided 90-day journey/i);
-    expect(custom).not.toHaveTextContent(/locked|upgrade|subscribe|buy|price|\$|paywall/i);
-  });
-
-  it('Custom Journey (with goal) navigates to onboarding with switchGoal', async () => {
-    renderScreen({ activeGoalTitle: 'Build & Ship a SaaS Web App' });
-    await open();
-    const custom = screen.getByRole('region', { name: 'Have something unique in mind?' });
-    const button = screen.getByRole('button', { name: 'Create a custom journey' });
-    expect(custom).toContainElement(button);
-    await userEvent.click(button);
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(JSON.parse(screen.getByTestId('state').textContent!)).toEqual({
-      isPreset: false,
-      customGoal: true,
-      switchGoal: true,
-    });
-    expect(localStorage.getItem('achivii_draft_goal')).toBeNull();
-  });
-
-  it('Custom Journey (no goal) navigates to onboarding without switchGoal', async () => {
-    renderScreen();
-    await open();
-    const button = screen.getByRole('button', { name: 'Create a custom journey' });
-    await userEvent.click(button);
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(JSON.parse(screen.getByTestId('state').textContent!)).toEqual({
-      isPreset: false,
-      customGoal: true,
-    });
-    expect(localStorage.getItem('achivii_draft_goal')).toBeNull();
-  });
-
-  it('Custom Journey shows a free user the Pro gate instead of a way into onboarding', async () => {
-    vi.mocked(fetchBillingEntitlement).mockResolvedValueOnce({ plan: 'free', entitled: false });
-    renderScreen();
-    await open();
-    const custom = screen.getByRole('region', { name: 'Have something unique in mind?' });
-    expect(custom).toContainElement(await screen.findByRole('button', { name: 'Continue to Pro' }));
-    expect(screen.queryByRole('button', { name: 'Create a custom journey' })).not.toBeInTheDocument();
-    expect(screen.queryByTestId('state')).not.toBeInTheDocument();
+    expect(auth.setUpNextSkill).not.toHaveBeenCalled();
   });
 });

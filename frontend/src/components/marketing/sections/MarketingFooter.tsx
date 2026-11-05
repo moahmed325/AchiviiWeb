@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Wordmark } from '../Wordmark';
 
 const LINKS = [
-  { href: '#goals', label: 'Goals' },
+  { href: '#goals', label: 'Skills' },
   { href: '#how', label: 'How it works' },
   { href: '#pricing', label: 'Pricing' },
   { href: '#faq', label: 'FAQ' },

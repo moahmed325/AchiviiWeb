@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { ArrowRight, Compass, RotateCcw, Sparkles, TrendingUp } from 'lucide-react';
 import type { Goal, AchievementSummary, NextPlanMode } from '../../types';
-import { findPathwayByTitle } from '../../lib/certifiedPresets';
+import { findPathwayBySlug, findPathwayByTitle } from '../../lib/certifiedPresets';
+import { useAuthUser } from '../../context/AuthContext';
 import { journeyHeadline, journeyOutcome, needsLevel, nextPlanChoices } from '../../lib/nextPlan';
 import { useProEntitlement } from '../../hooks/useProEntitlement';
-import { usePathwayLaunch } from '../pathways/launch';
+import { storedRoutine, usePathwayLaunch } from '../pathways/launch';
 import { Button, cx } from '../ui';
 import { NextPlanLevelDialog } from './NextPlanLevelDialog';
 import { useNextPlanLaunch } from './useNextPlanLaunch';
@@ -40,6 +41,8 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
   // NP-6, NP-7: Pro sees the next plan; everyone can restart their pathway from the start or choose another.
   const choices = nextPlanChoices(result, isPro);
   const pathway = findPathwayByTitle(goal.rawGoal);
+  const user = useAuthUser();
+  const upNext = findPathwayBySlug(user?.upNextSkill);
 
   const choose = (mode: NextPlanMode) => {
     if (needsLevel(result)) setLevelFor(mode);
@@ -143,13 +146,30 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
             </div>
           </div>
 
+          {/* ND-38: the skill added to the timeline comes first, with this plan's routine carried over. */}
+          {upNext && (
+            <div className="mt-8 rounded-card border border-achievement/30 bg-background/80 p-5">
+              <p className="font-ui-mono text-micro uppercase tracking-wider text-achievement">Up next on your timeline</p>
+              <p className="mt-1 text-h3 font-medium text-text">{upNext.title}</p>
+              <Button
+                variant="gold"
+                size="lg"
+                onClick={() => startPathway(upNext, storedRoutine(goal))}
+                trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-4" />}
+                className="mt-4 w-full sm:w-auto"
+              >
+                Start {upNext.title} next
+              </Button>
+            </div>
+          )}
+
           {/* Next plan (NP-6, NP-7): Pro only. */}
           {choices.length > 0 && (
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               {choices.map((choice, index) => (
                 <Button
                   key={choice.mode}
-                  variant={index === 0 ? 'primary' : 'secondary'}
+                  variant={index === 0 && !upNext ? 'primary' : 'secondary'}
                   size="lg"
                   onClick={() => choose(choice.mode)}
                   leadingIcon={<TrendingUp aria-hidden="true" strokeWidth={1.5} className="size-4" />}
@@ -179,7 +199,7 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
               leadingIcon={<Compass aria-hidden="true" strokeWidth={1.5} className="size-4" />}
               className="w-full sm:w-auto"
             >
-              Choose another pathway
+              Choose another skill
             </Button>
             {pathway && (
               <Button

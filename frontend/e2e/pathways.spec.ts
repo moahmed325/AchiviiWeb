@@ -21,9 +21,9 @@ const GOAL = {
 };
 
 const draftGoal = (page: Page) => page.evaluate(() => localStorage.getItem('achivii_draft_goal'));
-const explorer = (page: Page) => page.getByRole('dialog', { name: 'Explore pathways' });
+const explorer = (page: Page) => page.getByRole('dialog', { name: 'Skills' });
 const strip = (page: Page) => page.getByRole('region', { name: 'Pathways', exact: true });
-const shellPathways = (page: Page) => page.getByRole('navigation', { name: 'Primary' }).getByRole('button', { name: 'Pathways' });
+const shellPathways = (page: Page) => page.getByRole('navigation', { name: 'Primary' }).getByRole('button', { name: 'Skills' });
 
 let consoleErrors: string[] = [];
 
@@ -131,7 +131,7 @@ test.describe('Home without a goal (ND-36)', () => {
 test.describe('pathway library with a goal', () => {
   // M5.3: the strip left Today; the shell's Pathways entry is how Today reaches the explorer. /dashboard is an overview
   // again (ND-19, superseding OD-3) and has no strip either.
-  test('Pathways from Today opens the explorer, and switching keeps the current goal until setup finishes', async ({ page }) => {
+  test('Skills from Today opens the explorer, and Pro adds a skill to the timeline (ND-38)', async ({ page }) => {
     const calls = await mockApi(page, { goal: GOAL, clarify: baseline.presetClarify });
     const deletes: string[] = [];
     page.on('request', (request) => {
@@ -154,27 +154,26 @@ test.describe('pathway library with a goal', () => {
     await expect(opener).toBeFocused();
     expect(await draftGoal(page)).toBeNull();
 
+    // ND-38: with a plan running, Pro adds the skill to the timeline; nothing starts, nothing is replaced.
     await opener.click();
     await dialog.getByRole('tab', { name: 'Fitness' }).click();
     await chooseOption(page, PRESET_GOAL);
-    await dialog.getByRole('button', { name: /Switch to this pathway/ }).click();
-    await expect(page).toHaveURL('/onboarding');
-    await expectStep(page, 'days');
-    expect(await draftGoal(page)).toBe(PRESET_GOAL);
-    await expect.poll(() => calls.clarify.length).toBeGreaterThan(0);
-    for (const body of calls.clarify) expect(body).toEqual({ rawGoal: PRESET_GOAL });
+    await dialog.getByRole('button', { name: 'Add to my timeline' }).click();
+    await expect(dialog).toBeHidden();
+    await expect.poll(() => calls.upNext).toEqual(['run10k']);
+    await expect(page).toHaveURL('/');
+    expect(calls.clarify).toEqual([]);
     expect(calls.create).toEqual([]);
     expect(deletes).toEqual([]);
 
-    await page.goBack();
-    await expect(page).toHaveURL('/');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(CURRENT);
-    await page.goForward();
-    await expect(page).toHaveURL('/onboarding');
-    await expectStep(page, 'days');
+    await page.goto('/roadmap');
+    await expect(page.getByRole('heading', { name: `Up next · ${PRESET_GOAL}` })).toBeVisible();
+    await page.getByRole('button', { name: `Remove ${PRESET_GOAL}` }).click();
+    await expect(page.getByRole('button', { name: 'Add a skill' })).toBeVisible();
+    expect(calls.upNext).toEqual(['run10k', null]);
   });
 
-  test('Pathways from Today opens on the current pathway, where the action restarts it', async ({ page }) => {
+  test('Skills from Today opens on the current plan, which can’t be added again', async ({ page }) => {
     await mockApi(page, { goal: GOAL });
     await signIn(page);
     await page.goto('/');
@@ -183,9 +182,9 @@ test.describe('pathway library with a goal', () => {
     const dialog = explorer(page);
     await expect(dialog.getByRole('tab', { name: 'Business' })).toHaveAttribute('aria-selected', 'true');
     await expect(dialog.getByRole('radio', { name: CURRENT })).toBeChecked();
-    await expect(dialog.getByRole('button', { name: /Restart this pathway/ })).toBeEnabled();
+    await expect(dialog.getByRole('button', { name: 'Your current plan' })).toBeDisabled();
     await dialog.getByRole('tab', { name: 'Creative' }).click();
-    await expect(dialog.getByRole('button', { name: /Switch to this pathway/ })).toBeDisabled();
+    await expect(dialog.getByRole('button', { name: 'Add to my timeline' })).toBeDisabled();
     await dialog.getByRole('button', { name: 'Cancel' }).click();
     await expect(dialog).toBeHidden();
     await expect(exploreAll).toBeFocused();
@@ -216,7 +215,7 @@ test.describe('pathway library with a goal', () => {
     await mockApi(page, { goal: GOAL });
     await signIn(page);
     await page.goto('/roadmap');
-    const opener = page.getByRole('navigation', { name: 'Primary' }).getByRole('button', { name: 'Pathways' });
+    const opener = page.getByRole('navigation', { name: 'Primary' }).getByRole('button', { name: 'Skills' });
     await opener.click();
     const dialog = explorer(page);
     await expect(dialog.getByRole('tab', { name: 'Business' })).toHaveAttribute('aria-selected', 'true');
@@ -229,7 +228,7 @@ test.describe('pathway library with a goal', () => {
     await mockApi(page, { goal: GOAL });
     await signIn(page);
     await page.goto('/');
-    const opener = page.getByRole('navigation', { name: 'Primary' }).getByRole('button', { name: 'Pathways' });
+    const opener = page.getByRole('navigation', { name: 'Primary' }).getByRole('button', { name: 'Skills' });
     await opener.click();
     const dialog = explorer(page);
     await expect(dialog.getByRole('tab', { name: 'Business' })).toHaveAttribute('aria-selected', 'true');

@@ -1,12 +1,11 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { API, mockApi, signIn } from './mockApi';
-import { PRESET_GOAL, baseline, chooseOption, expectStep } from './onboardingFlow';
 import { SHELL_GOAL_TITLE, STORED_OUTCOME, axeViolations, documentOverflow, shellGoal, settled } from './shellFixtures';
 
 /** M5.2: the ND-7 shell. A rail on desktop, a bottom bar on mobile, a minimal top bar on onboarding. */
 
 const primary = (page: Page) => page.getByRole('navigation', { name: 'Primary' });
-const explorer = (page: Page) => page.getByRole('dialog', { name: 'Explore pathways' });
+const explorer = (page: Page) => page.getByRole('dialog', { name: 'Skills' });
 const accountButton = (page: Page) => primary(page).getByRole('button', { name: /^Account/ });
 
 /** The Account panel loads the plan (`GET /api/billing/account`); answer it as a free user with no subscription. */
@@ -226,7 +225,7 @@ test.describe('layout and accessibility', () => {
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
       const bar = (await page.locator('[data-shell="bottom-bar"]').boundingBox())!;
       expect(Math.abs(bar.y + bar.height - 844)).toBeLessThanOrEqual(1);
-      await primary(page).getByRole('button', { name: 'Pathways' }).click();
+      await primary(page).getByRole('button', { name: 'Skills' }).click();
       await expect(explorer(page)).toBeVisible();
       await page.keyboard.press('Escape');
     }
@@ -276,39 +275,27 @@ test.describe('layout and accessibility', () => {
 });
 
 test.describe('pathways, account and offline', () => {
-  test('Pathways opens the explorer, and closing it returns focus', async ({ page }) => {
+  test('Skills opens the explorer, and closing it returns focus', async ({ page }) => {
     await mockApi(page, { goal: shellGoal() });
     await signIn(page);
     await page.goto('/roadmap');
-    const opener = primary(page).getByRole('button', { name: 'Pathways' });
+    const opener = primary(page).getByRole('button', { name: 'Skills' });
     await opener.click();
     await expect(explorer(page).getByRole('tab', { name: 'Business' })).toHaveAttribute('aria-selected', 'true');
-    await expect(explorer(page).getByRole('button', { name: /Restart this pathway/ })).toBeEnabled();
+    await expect(explorer(page).getByRole('button', { name: 'Your current plan' })).toBeDisabled();
     await page.keyboard.press('Escape');
     await expect(explorer(page)).toBeHidden();
     await expect(opener).toBeFocused();
   });
 
-  test('a pathway chosen from the shell starts switch goal with no create and no DELETE (R-3, R-15)', async ({ page }) => {
-    const calls = await mockApi(page, { goal: shellGoal(), clarify: baseline.presetClarify });
-    const deletes: string[] = [];
-    page.on('request', (request) => {
-      if (request.method() === 'DELETE') deletes.push(request.url());
-    });
+  test('without Pro, Skills leads to Pro instead of adding to the timeline (ND-38)', async ({ page }) => {
+    const calls = await mockApi(page, { goal: shellGoal(), plan: 'free', access: 'trial' });
     await signIn(page);
     await page.goto('/roadmap');
-    await primary(page).getByRole('button', { name: 'Pathways' }).click();
-    await explorer(page).getByRole('tab', { name: 'Fitness' }).click();
-    await chooseOption(page, PRESET_GOAL);
-    await explorer(page).getByRole('button', { name: /Switch to this pathway/ }).click();
-    await expect(page).toHaveURL('/onboarding');
-    await expectStep(page, 'days');
-    await expect.poll(() => calls.clarify.length).toBeGreaterThan(0);
-    for (const body of calls.clarify) expect(body).toEqual({ rawGoal: PRESET_GOAL });
-    expect(calls.create).toEqual([]);
-    expect(deletes).toEqual([]);
-    await expect(primary(page)).toHaveCount(0);
-    await expect(page.getByRole('banner')).toBeVisible();
+    await primary(page).getByRole('button', { name: 'Skills' }).click();
+    await explorer(page).getByRole('button', { name: 'See Pro' }).click();
+    await expect(explorer(page).getByRole('button', { name: 'Continue to Pro' })).toBeVisible();
+    expect(calls.upNext).toEqual([]);
   });
 
   test('Account shows the goal the user chose, not the stored outcome', async ({ page }) => {

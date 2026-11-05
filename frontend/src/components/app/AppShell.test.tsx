@@ -119,7 +119,7 @@ describe('entries', () => {
       const names = Array.from(nav.querySelectorAll('a, button'))
         .filter((el) => !el.closest('[hidden]'))
         .map((el) => el.textContent?.replace('mo@example.com', '').trim());
-      expect(names).toEqual([home, 'Today', 'Roadmap', 'Pathways', 'Coach ✦', 'Account']);
+      expect(names).toEqual([home, 'Today', 'Roadmap', 'Skills', 'Coach ✦', 'Account']);
       expect(within(nav).getByRole('link', { name: home })).toHaveAttribute('href', '/dashboard');
       expect(within(nav).getByRole('link', { name: home })).not.toHaveAttribute('aria-current');
       expect(within(nav).getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
@@ -153,7 +153,7 @@ describe('entries', () => {
     expect(screen.queryByRole('link', { name: 'Home' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Roadmap' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Progress' })).toBeNull();
-    expect(rail().getByRole('button', { name: 'Pathways' })).toBeInTheDocument();
+    expect(rail().getByRole('button', { name: 'Skills' })).toBeInTheDocument();
   });
 
   it('marks Roadmap as the current page on /roadmap and on /progress (it redirects there, ND-31), and Today on /', async () => {

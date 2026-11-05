@@ -11,6 +11,8 @@ import { computeAchievementSummary } from '../../lib/achievement';
 
 const pro = vi.hoisted(() => ({ value: false }));
 vi.mock('../../hooks/useProEntitlement', () => ({ useProEntitlement: () => pro.value }));
+const upNext = vi.hoisted(() => ({ skill: null as string | null }));
+vi.mock('../../context/AuthContext', () => ({ useAuthUser: () => ({ id: 'u1', email: 'a@b.c', upNextSkill: upNext.skill }) }));
 
 const result = (over: Partial<JourneyResult> = {}): JourneyResult => ({
   kind: 'number',
@@ -58,6 +60,7 @@ const renderHero = (goal: Goal) =>
 
 beforeEach(() => {
   pro.value = false;
+  upNext.skill = null;
   localStorage.clear();
 });
 
@@ -73,7 +76,22 @@ describe('end screen', () => {
     renderHero(goalWith(result()));
     expect(screen.queryByRole('button', { name: /Keep going|Go further/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/Pro/)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Choose another pathway' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Choose another skill' })).toBeInTheDocument();
+  });
+
+  it('leads with the skill up next, carrying this plan’s routine into its onboarding (ND-38)', async () => {
+    pro.value = true;
+    upNext.skill = 'guitar';
+    const goal = goalWith(result());
+    (goal as unknown as { routine: string }).routine = JSON.stringify({ wakeTime: '06:30', sleepTime: '22:30', busyHours: '08:00 - 16:00', preferredSlot: 'morning', dailyMinutes: 45, planVariant: 'minimal', commitments: [] });
+    renderHero(goal);
+    expect(screen.getByText('Up next on your timeline')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /Keep going|Go further|Start Play/ }).map((b) => b.textContent)[0]).toBe('Start Play 5 Songs on Acoustic Guitar next');
+    await userEvent.click(screen.getByRole('button', { name: 'Start Play 5 Songs on Acoustic Guitar next' }));
+    expect(seenRoute()).toMatchObject({
+      pathname: '/onboarding',
+      state: { presetGoal: 'Play 5 Songs on Acoustic Guitar', routine: { dailyMinutes: 45, planVariant: 'minimal', wakeTime: '06:30', preferredSlot: 'morning' } },
+    });
   });
 
   it('free on a pathway: restart it from the start', () => {

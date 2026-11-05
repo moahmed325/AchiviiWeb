@@ -119,6 +119,8 @@ export async function saveV2Goal(input: {
   /** B-109: the plan's weeks (`planLengthFor`); missing is 12. */
   totalWeeks?: number;
   isPreset: boolean;
+  /** ND-38: the pathway this plan follows; when it was the person's up-next skill, that slot is emptied. */
+  presetId?: string;
   /** Method-aware recovery (M1.3a): saved under `recovery` when it passed the checks. */
   recovery?: RecoveryProfile | null;
   /** Next plan (NP-8): the plan this one follows, saved under `previousPlan`. */
@@ -156,6 +158,9 @@ export async function saveV2Goal(input: {
     await tx.dailyTask.createMany({ data: dailyTaskRows(goal.id, 1, input.week1) });
     // ND-37: the first plan starts the 30-day trial; a later plan never restarts it.
     await tx.user.updateMany({ where: { id: input.userId, trialStartedAt: null }, data: { trialStartedAt: new Date() } });
+    if (input.presetId) {
+      await tx.user.updateMany({ where: { id: input.userId, upNextSkill: input.presetId }, data: { upNextSkill: null } });
+    }
     return goal.id;
   });
 }
@@ -406,6 +411,7 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
         fixedDate: fixed.date,
         ...lengthInput,
         isPreset: Boolean(preset),
+        presetId: preset?.id,
         recovery,
         previousPlan: nextPlan ? nextPlan.previousPlan : null,
       });

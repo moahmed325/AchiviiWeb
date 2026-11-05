@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { User } from '../types';
-import { fetchCurrentUser, updateReminders, updateTimezone } from '../lib/api';
+import { fetchCurrentUser, updateReminders, updateUpNextSkill, updateTimezone } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { ACCOUNT_LOAD_FAILED, fromSupabaseAuthError } from '../lib/authFlow';
 import { cleanFirstName, firstNameFrom } from '../lib/firstName';
@@ -36,6 +36,8 @@ interface AuthContextType {
   setTimezone: (timezone: string) => Promise<void>;
   /** ND-28: the missed-day reminder email on or off. */
   setReminders: (enabled: boolean) => Promise<void>;
+  /** ND-38: the skill added to the timeline (Pro), or null to remove it. */
+  setUpNextSkill: (skill: string | null) => Promise<void>;
   /** Saves the name the Dashboard greets by; an empty one removes it. */
   setFirstName: (firstName: string) => Promise<void>;
   /** B-15: emails a reset link that opens /reset-password signed in for recovery. */
@@ -175,6 +177,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(await updateReminders(token, enabled));
   };
 
+  const setUpNextSkill = async (skill: string | null) => {
+    if (!token) throw new Error('Sign in first.');
+    setUser(await updateUpNextSkill(token, skill));
+  };
+
   const setFirstName = async (value: string) => {
     if (!supabase) throw new Error('Supabase Auth is not configured.');
     const { data, error } = await supabase.auth.updateUser({ data: { first_name: cleanFirstName(value) } });
@@ -192,7 +199,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, firstName, token, loading, login, signup, signInWithGoogle, logout, setTimezone, setReminders, setFirstName, requestPasswordReset, updatePassword }}>
+    <AuthContext.Provider value={{ user, firstName, token, loading, login, signup, signInWithGoogle, logout, setTimezone, setReminders, setUpNextSkill, setFirstName, requestPasswordReset, updatePassword }}>
       {children}
     </AuthContext.Provider>
   );
@@ -211,6 +218,17 @@ export function useAuth(): AuthContextType {
  */
 export function useUserTimezone(): string | undefined {
   return useContext(AuthContext)?.user?.timezone || undefined;
+}
+
+/** ND-38: the signed-in user, or null; never throws outside an AuthProvider. */
+export function useAuthUser(): User | null {
+  return useContext(AuthContext)?.user ?? null;
+}
+
+/** ND-38: sets the skill added to the timeline; never throws outside an AuthProvider (it then refuses). */
+export function useSetUpNextSkill(): (skill: string | null) => Promise<void> {
+  const context = useContext(AuthContext);
+  return context?.setUpNextSkill ?? (async () => Promise.reject(new Error('Sign in first.')));
 }
 
 /** The access token, or null. Like useUserTimezone it never throws outside an AuthProvider (next plan's Pro check). */

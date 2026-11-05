@@ -107,6 +107,8 @@ export interface MockOptions {
    * (ND-10) still reach the custom goal field; `free` shows the Pro gate instead.
    */
   plan?: 'free' | 'pro';
+  /** ND-38: the skill the signed-in user has up next on their timeline. */
+  upNextSkill?: string | null;
   /** ND-37: the trial as entitlement reports it: `new`, `trial` or `locked` (for a free plan; Pro is always `pro`). */
   access?: 'new' | 'trial' | 'locked';
   /** With `access`: when the trial ends (ISO). */
@@ -166,6 +168,8 @@ export interface CreateRequest {
 
 export interface MockCalls {
   signup: number;
+  /** ND-38: every PUT /api/auth/up-next body's skill, in order. */
+  upNext: (string | null)[];
   login: number;
   clarify: unknown[];
   create: CreateRequest[];
@@ -200,7 +204,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Stands in for the backend and Supabase Auth without touching any real service or database. */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<MockCalls> {
-  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [], planActions: [], closeWeek: [], closeChoices: [], closeLineSeen: [], dailyTime: [], reconcile: 0 };
+  const calls: MockCalls = { upNext: [], signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [], planActions: [], closeWeek: [], closeChoices: [], closeLineSeen: [], dailyTime: [], reconcile: 0 };
   const {
     goal = null,
     signupStatus = 201,
@@ -224,6 +228,7 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     reconcile = { applies: false, reason: 'not_plan_v2' },
     plan = 'pro',
     access = 'trial',
+    upNextSkill = null,
     trialEndsAt = null,
     createProRequired = false,
     markMissed = CARRY_DISABLED,
@@ -231,6 +236,7 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     carryNow = CARRY_DISABLED,
     closeWeek,
   } = options;
+  let currentUpNext: string | null = upNextSkill;
   let weekClosed = false;
   // The goal as the "server" holds it: task writes change this copy, never the caller's fixture.
   let saved = goal ? (structuredClone(goal) as Record<string, unknown> & { dailyTasks?: unknown[] }) : null;
@@ -303,7 +309,14 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
       return json(route, 200, { status: 'ok', timestamp: '', service: 'achivii-api' });
     }
 
-    if (path === '/api/auth/me') return json(route, 200, { user: USER });
+    if (path === '/api/auth/me') return json(route, 200, { user: { ...USER, upNextSkill: currentUpNext } });
+    if (path === '/api/auth/up-next' && route.request().method() === 'PUT') {
+      const { skill } = route.request().postDataJSON() as { skill: string | null };
+      calls.upNext.push(skill);
+      if (skill !== null && plan !== 'pro') return json(route, 403, { error: 'Adding skills to your timeline is part of Achivii Pro.', reason: 'SKILLS_REQUIRE_PRO' });
+      currentUpNext = skill;
+      return json(route, 200, { user: { ...USER, upNextSkill: currentUpNext } });
+    }
     if (path === '/api/billing/entitlement') {
       return json(route, 200, { plan, entitled: plan === 'pro', access: plan === 'pro' ? 'pro' : access, trialEndsAt });
     }

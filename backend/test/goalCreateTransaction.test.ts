@@ -136,6 +136,21 @@ describe('goal create saves in one transaction (B-100)', () => {
     expect(tx.user.updateMany).toHaveBeenCalledWith({ where: { id: 'u1', trialStartedAt: null }, data: { trialStartedAt: expect.any(Date) } });
   });
 
+  it('a pathway plan empties the up-next slot when it held that skill, in the same transaction (ND-38)', async () => {
+    await fetch(`${baseUrl}/api/goal/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
+      body: JSON.stringify({
+        rawGoal: 'Run a 10K Under 50 Minutes',
+        clarifiedOutcome: 'Run a 10K Under 50 Minutes',
+        answers: {},
+        answerList: [],
+        routine: { dailyMinutes: 30, planVariant: 'steady' },
+      }),
+    });
+    expect(tx.user.updateMany).toHaveBeenCalledWith({ where: { id: 'u1', upNextSkill: 'run10k' }, data: { upNextSkill: null } });
+  });
+
   it('a failed write fails the transaction: no goal is read back and the person gets the honest error', async () => {
     db.tasksCreateMany.mockRejectedValue(new Error('connection lost'));
     const { status } = await create();

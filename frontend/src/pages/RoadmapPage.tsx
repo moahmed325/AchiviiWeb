@@ -4,6 +4,7 @@ import { Check, ChevronDown, Compass, Trophy } from 'lucide-react';
 import { useGoal } from '../context/GoalContext';
 import { useUserTimezone } from '../context/AuthContext';
 import { useJourneyData } from '../hooks/useJourneyData';
+import { UpNextSkill } from '../components/pathways/UpNextSkill';
 import { Badge, Button, ProgressBar, ProgressRing, cx } from '../components/ui';
 import { finishDate, weekRows, type WeekRow } from '../lib/plan';
 import { planWeeks } from '../lib/planLength';
@@ -89,6 +90,8 @@ const RoadmapContent: React.FC<{ journey: JourneyData; goal: Goal }> = ({ journe
               </div>
             </div>
           </li>
+          {/* ND-38: the skill added to the timeline, after the finish line. */}
+          {goal.status === 'active' && <UpNextSkill goalTitle={goal.rawGoal} />}
         </ol>
       </section>
 

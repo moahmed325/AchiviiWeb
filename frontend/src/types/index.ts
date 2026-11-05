@@ -7,6 +7,8 @@ export interface User {
   remindersEnabled?: boolean;
   /** ND-28: whether reminder emails are being sent at all (the server's switch and settings); the setting shows only then. */
   remindersAvailable?: boolean;
+  /** ND-38: the guided skill (a pathway id) added to the timeline, offered when the current plan ends. */
+  upNextSkill?: string | null;
 }
 
 export interface AuthResponse {

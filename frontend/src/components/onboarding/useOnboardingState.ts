@@ -64,6 +64,8 @@ export interface OnboardingStateOptions {
   nextPlan?: NextPlanLaunch | null;
   /** B-106: the fixed date to fill in (`YYYY-MM-DD`), from the plan a fresh or next plan follows; kept only while ahead. */
   initialFixedDate?: string;
+  /** ND-38: the routine of the plan a skill follows, filled in so its pages only need confirming. */
+  initialRoutine?: RoutineSettings | null;
 }
 
 const readDraft = (initialGoal?: string) => {
@@ -97,6 +99,7 @@ export function useOnboardingState({
   currentGoalId,
   nextPlan = null,
   initialFixedDate = '',
+  initialRoutine = null,
 }: OnboardingStateOptions) {
   const [initial] = useState(() => {
     const draft = readDraft(initialGoal);
@@ -135,6 +138,7 @@ export function useOnboardingState({
   // A pathway chosen in the landing page's plan preview starts with the daily time and days a week picked there.
   const [routine, setRoutine] = useState<RoutineSettings>(() => {
     if (snapshot) return snapshot.routine;
+    if (initialRoutine) return initialRoutine;
     const previewed = initial.draft && !nextPlan ? previewScheduleFor(initial.draft) : null;
     return {
       wakeTime: '07:00',

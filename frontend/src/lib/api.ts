@@ -153,6 +153,17 @@ export async function updateReminders(token: string, enabled: boolean): Promise<
   return data.user;
 }
 
+/** ND-38: adds a guided skill to the timeline (Pro), or removes it with null. */
+export async function updateUpNextSkill(token: string, skill: string | null): Promise<User> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/up-next`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ skill }),
+  });
+  const data = await readJson<{ user: User }>(response, 'Failed to change your next skill');
+  return data.user;
+}
+
 export async function clarifyGoal(rawGoal: string): Promise<import('../types').GoalClarification> {
   const response = await fetch(`${API_BASE_URL}/api/goal/clarify`, {
     method: 'POST',

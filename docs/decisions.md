@@ -152,6 +152,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-27 | Visitors see their plan before signing up | Product | Decided | — |
 | ND-36 | Achivii starts from the goal the person types | Product | Decided | — |
 | ND-37 | Thirty days free, then Pro | Product | Decided | — |
+| ND-38 | Guided skills on the timeline | Product | Decided | — |
 
 **What blocks the next phase:** Phases 0–9 are complete. Phase 10 (Premium Architecture) is unblocked and **IN PROGRESS** (M10.1 complete: ND-9 Decided A, ND-10 Decided A, ND-11 Decided A, OD-1c Decided B). M10.2 (Coach placement and honest state) is active.
 
@@ -2000,6 +2001,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-10-31 | ND-35 Decided by Mo: no weekly tests, targets, checkpoints or final test; next week follows sessions done, the feel taps and the notes. The ND-33 goal ring and Roadmap progress count the plan's weeks and days instead of a measured number, and Coming up has no weekly check. |
 | 2026-11-04 | ND-36 Decided by Mo (stage 1 of 4): the landing page and Home ask for the goal first; onboarding asks one thing per page, routine first, turns a vague goal into a measurable one, and is open to visitors, who sign up from the summary. ND-13 and ND-14 marked Superseded. |
 | 2026-11-04 | ND-37 Decided by Mo (stage 2 of 4): every plan starts with 30 days free, no card; after them, without Pro, the plan is paused (kept and readable, not moved on). ND-10 and ND-23 marked Superseded. |
+| 2026-11-05 | ND-38 Decided by Mo (stage 3 of 4): the 10 guided plans are skills; with Pro, one is added to the timeline ("Up next") and offered first when the current plan ends, with its routine carried over. |
 
 ### ND-32 — The Roadmap at a glance, a name in the greeting, no weekly review by hand
 
@@ -2171,4 +2173,27 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 **Consequences.** Supersedes ND-10 and ND-23. Access is decided in one place (`backend/src/lib/billing/access.ts`); `GET /api/billing/entitlement` adds `access` (`pro`, `new`, `trial`, `locked`) and `trialEndsAt`. A billing read that fails never locks anyone out. Accounts that already had a plan start their 30 days when this ships (migration `20261104120000_user_trial_started`), so nobody is paused at once.
 
 **Related.** PAY-1, ND-9, ND-36, `backend/src/lib/billing/`, `frontend/src/components/today/TrialAccess.tsx`, `frontend/src/components/marketing/sections/Pricing.tsx`.
+
+---
+
+### ND-38 — Guided skills on the timeline
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-29 — Mo: the free goals become skills a Pro person can acquire and add to their current timeline |
+| Decided | 2026-11-05 — Mo (offered first, one at a time, still startable as a first plan, Skills menu and Roadmap) |
+
+**Decision (stage 3).**
+* The 10 guided plans are called skills (the app's menu, its dialog, the landing page). Anyone can still start one as their first plan, inside the 30-day trial (ND-37).
+* With a plan running, a Pro person adds one skill to their timeline (`users.upNextSkill`, one at a time; adding another replaces it). Without Pro the Skills dialog offers Pro instead. The server refuses to add without Pro (403 `SKILLS_REQUIRE_PRO`, `PUT /api/auth/up-next`); removing always works.
+* The Roadmap shows it after the finish line ("Up next", with Remove), or a way to add one.
+* When the plan ends, the end screen leads with "Start {skill} next": onboarding opens on the skill with the finished plan's routine filled in, so the routine pages only need confirming. Making that skill's plan empties the slot.
+* Switching to another pathway mid-plan from the dialog is gone; a new plan starts after this one, or from Account's reset.
+
+**Consequences.** Running a skill alongside the main goal is stage 4.
+
+**Related.** ND-36, ND-37, `frontend/src/components/PathwaysExplorerModal.tsx`, `frontend/src/components/pathways/UpNextSkill.tsx`, `backend/src/routes/auth.ts`.
 
