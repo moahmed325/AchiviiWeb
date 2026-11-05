@@ -1916,6 +1916,30 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 ---
 
+### ND-36 — Missed work comes back: shorter when it doesn't fit, and after a gap
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-11-04 — Mo: "make this whole missed session thing as best as possible, dont ask me for nothing" |
+| Decided | 2026-11-04 — measured with the scenario sweep (recovery on against off), built under Mo's standing ask |
+
+**Context.** The scenario sweep, now measuring how much of the main work gets done in the end, showed recovery adding almost nothing (about 90% of main steps done with it on and off). Two rules lost the work: a missed step moved only if it fitted whole on a later day after that day's lower-priority steps came off, and a day's main step is usually its biggest part, so it almost never fitted ("no room" on about 2,500 missed days); and after a gap of three or more missed days nothing moved at all (about 1,000 days).
+
+**Decision.**
+* **Shorter when it doesn't fit.** When no later day this week takes the whole step, the first open day takes a shorter version of it in place of its lower-priority steps, if at least 10 minutes (20 for a physical step, whose moved version has a 5-minute warm-up and 5 easy minutes) and at least half of it fit. The step says "Shorter today: do the most important part in {n} minutes." and the app shows that line first. A whole fit always wins.
+* **After a gap, the most important step comes back.** On the first open day after a gap, the most recent gap day's highest-priority move step that is not hard and not of an in-order kind takes the place of steps that are neither more important nor hard, whole or shorter. One step per gap; the gentle return and the easy line on the first hard step back are unchanged.
+* Unchanged: a day never gets longer than planned (ND-10), one moved step per day, the most recent miss wins a day, the safety limits, and in-order steps keep their own queue.
+
+**Consequences.** In the full sweep (913 runs), people who miss often get 5 to 7 points more of their main steps done than with recovery off (before: 0 to 1), with no rule broken in any run. A day holding a moved step can't be swapped, as before, so a return day holding the gap's step isn't swapped. Code: `fitCarriedStep` in `lib/carryForward.ts`, the move and gap-return steps of `planRecovery` in `lib/recovery/carry.ts`, `SHORTER_LINE` in `frontend/src/lib/stepLines.ts`; measure: `npm run report:recovery` and the sweep's `work` (SWEEP_BASELINE=1 for recovery off).
+
+**Related.** ND-10 to ND-18 (missed sessions), I-30, B-110.
+
+---
+
+
 ### ND-31 — A calmer app: no glow, one Roadmap page, a plain Pathways dialog
 
 | Field | Value |
@@ -1996,6 +2020,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-10-30 | ND-32 Decided by Mo: the Roadmap at a glance (progress card, week cells, this week, finish line); the Dashboard's map spread wide; greeting by first name; no weekly review by hand (weeks close on their own). |
 | 2026-10-30 | ND-33 Decided by Mo: the Dashboard with a goal ring, streak and number tiles, the map with a key and Coming up; the Roadmap with a progress card and the whole plan by phase, week details folded; no late-test card on Today. |
 | 2026-10-31 | ND-35 Decided by Mo: no weekly tests, targets, checkpoints or final test; next week follows sessions done, the feel taps and the notes. The ND-33 goal ring and Roadmap progress count the plan's weeks and days instead of a measured number, and Coming up has no weekly check. |
+| 2026-11-04 | ND-36 Under Mo's ask to make missed sessions the best: a missed step that can't fit whole moves shorter, and after a gap the most important missed step comes back on the first day back. |
 
 ### ND-32 — The Roadmap at a glance, a name in the greeting, no weekly review by hand
 
