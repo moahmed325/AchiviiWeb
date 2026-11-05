@@ -72,7 +72,7 @@ describe('the Roadmap (ND-33: progress at a glance, the whole plan with its deta
     expect(screen.getByText(/^Week 6 of 12 · Acceleration · finishes /)).toBeInTheDocument();
   });
 
-  it('shows progress: a ring for the weeks done and plain counts, with no goal number or checks (ND-35)', () => {
+  it('shows progress: a ring for the weeks done, practice days by week and plain counts, with no goal number or checks (ND-35)', () => {
     renderPage();
     const progress = screen.getByRole('region', { name: 'Your progress' });
     expect(within(progress).getByRole('progressbar', { name: 'Progress toward your goal' })).toHaveAttribute('aria-valuetext', '17% of the plan done');
@@ -80,7 +80,10 @@ describe('the Roadmap (ND-33: progress at a glance, the whole plan with its deta
     expect(within(progress).getByText('Sessions').nextElementSibling).toHaveTextContent('3');
     expect(within(progress).getByText('Practice days').nextElementSibling).toHaveTextContent('3 / 4');
     expect(within(progress).queryByText('Checks met')).not.toBeInTheDocument();
-    expect(within(progress).queryByRole('img')).not.toBeInTheDocument();
+    // A bar per week for its practice days done; weeks ahead are not read out.
+    expect(within(progress).getByRole('img', { name: /^Practice days done by week: / })).toHaveAccessibleName(
+      'Practice days done by week: week 1 2 of 2, week 2 none, week 3 paused, week 4 paused, week 5 paused, week 6 1 of 2.',
+    );
   });
 
   it('shows every phase and every week\'s title; this week is open, the rest are folded', async () => {
