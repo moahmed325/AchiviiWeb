@@ -6,6 +6,7 @@ import { goalRouter } from './routes/goal.js';
 import { billingRouter } from './routes/billing.js';
 import { webhookRouter } from './routes/webhook.js';
 import { remindersRouter, unsubscribeRouter } from './routes/reminders.js';
+import { coachRouter } from './routes/coach.js';
 import { requestContext } from './lib/requestContext.js';
 import { errorHandler } from './lib/httpErrors.js';
 
@@ -61,6 +62,7 @@ export function createApp(): express.Express {
   app.use('/api/goal', goalRouter);
   app.use('/api/billing', billingRouter);
   app.use('/api/reminders', remindersRouter);
+  app.use('/api/coach', coachRouter);
 
   // B-105: last: typed errors and anything unhandled, answered in one place.
   app.use(errorHandler);

@@ -93,7 +93,7 @@ const RoadmapContent: React.FC<{ journey: JourneyData; goal: Goal }> = ({ journe
           </li>
           {/* ND-40: the skill added to the timeline, after the finish line. */}
           {goal.status === 'active' && <UpNextSkill goalTitle={goal.rawGoal} />}
-          {/* ND-41: the skill running alongside, with a way to stop it. */}
+          {/* ND-42: the skill running alongside, with a way to stop it. */}
           {goal.alongsideGoal && <AlongsideSkill goal={goal.alongsideGoal} />}
         </ol>
       </section>

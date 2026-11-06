@@ -15,9 +15,9 @@ interface PathwaysExplorerModalProps {
   activeGoalTitle?: string;
   /** Selected, with its direction shown, when the explorer opens. */
   initialPathwayId?: string;
-  /** ND-41: the skill already running alongside the main plan, if any. */
+  /** ND-42: the skill already running alongside the main plan, if any. */
   alongsideTitle?: string;
-  /** ND-41: the main plan's routine, the starting point for a skill run alongside it. */
+  /** ND-42: the main plan's routine, the starting point for a skill run alongside it. */
   mainRoutine?: RoutineSettings | null;
 }
 
@@ -76,7 +76,7 @@ const ExplorerContent: React.FC<ExplorerContentProps> = ({ hasGoal, currentId, i
     </Button>
   ) : (
     <>
-      {/* ND-41: or start it now, with its own time, beside the main plan (one skill at a time). */}
+      {/* ND-42: or start it now, with its own time, beside the main plan (one skill at a time). */}
       <Button
         variant="secondary"
         disabled={!selected || selected.id === currentId || Boolean(alongsideTitle)}

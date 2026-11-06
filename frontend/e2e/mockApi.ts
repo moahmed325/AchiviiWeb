@@ -107,7 +107,7 @@ export interface MockOptions {
    * (ND-10) still reach the custom goal field; `free` shows the Pro gate instead.
    */
   plan?: 'free' | 'pro';
-  /** ND-41: the guided skill running alongside the main plan, sent as `alongsideGoal`. */
+  /** ND-42: the guided skill running alongside the main plan, sent as `alongsideGoal`. */
   alongsideGoal?: Record<string, unknown> | null;
   /** ND-40: the skill the signed-in user has up next on their timeline. */
   upNextSkill?: string | null;
@@ -170,7 +170,7 @@ export interface CreateRequest {
 
 export interface MockCalls {
   signup: number;
-  /** ND-41: resets of the skill alongside (DELETE /api/goal/active with the plan header). */
+  /** ND-42: resets of the skill alongside (DELETE /api/goal/active with the plan header). */
   alongsideResets: number;
   /** ND-40: every PUT /api/auth/up-next body's skill, in order. */
   upNext: (string | null)[];
@@ -242,7 +242,7 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     closeWeek,
   } = options;
   let currentUpNext: string | null = upNextSkill;
-  // ND-41: the skill alongside as the "server" holds it; a reset with the plan header removes it.
+  // ND-42: the skill alongside as the "server" holds it; a reset with the plan header removes it.
   let alongside: Record<string, unknown> | null = alongsideGoal ? structuredClone(alongsideGoal) : null;
   let weekClosed = false;
   // The goal as the "server" holds it: task writes change this copy, never the caller's fixture.
@@ -327,6 +327,10 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     if (path === '/api/billing/entitlement') {
       return json(route, 200, { plan, entitled: plan === 'pro', access: plan === 'pro' ? 'pro' : access, trialEndsAt });
     }
+    // ND-41: Coach, off by default (as in production until COACH_ENABLED). A spec that needs it on routes these itself.
+    if (path === '/api/coach') {
+      return json(route, 200, { enabled: false, hasGoal: Boolean(goal), access: 'ok', messages: [], remainingToday: 30, dailyLimit: 30 });
+    }
     // ND-39: the Account page's membership card. No subscription details; a spec that needs them routes this itself.
     if (path === '/api/billing/account') {
       return json(route, 200, { plan, status: plan === 'pro' ? 'ACTIVE' : 'none', billingInterval: null, currentPeriodEnd: null, cancelAtPeriodEnd: false, manageUrl: null });
@@ -339,7 +343,7 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     if (path === '/api/goal/active' && route.request().method() === 'DELETE') {
       calls.resets += 1;
       if (resetStatus >= 400) return json(route, resetStatus, { error: 'Failed to reset goal' });
-      // As the server: the plan is gone, and a skill alongside becomes the main plan (ND-41).
+      // As the server: the plan is gone, and a skill alongside becomes the main plan (ND-42).
       saved = alongside ? { ...alongside, status: 'active' } : null;
       alongside = null;
       return json(route, 200, { success: true });
@@ -408,7 +412,7 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
       const body = route.request().postDataJSON() as TaskUpdate['body'];
       calls.taskUpdates.push({ taskId: taskMatch[1], body });
       if (taskUpdateStatus) return json(route, taskUpdateStatus, { error: 'Failed to update task.' });
-      // ND-41: a task of the main plan or of the skill alongside it.
+      // ND-42: a task of the main plan or of the skill alongside it.
       const tasks = [...((saved?.dailyTasks ?? []) as Array<Record<string, unknown>>), ...((alongside?.dailyTasks ?? []) as Array<Record<string, unknown>>)];
       const task = tasks.find((t) => t.id === taskMatch[1]);
       if (!task) return json(route, 404, { error: 'Task not found.' });

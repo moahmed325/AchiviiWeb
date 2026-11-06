@@ -64,7 +64,7 @@ export interface OnboardingStateOptions {
   nextPlan?: NextPlanLaunch | null;
   /** B-106: the fixed date to fill in (`YYYY-MM-DD`), from the plan a fresh or next plan follows; kept only while ahead. */
   initialFixedDate?: string;
-  /** ND-41: a guided skill run alongside the main plan; never kept across sign-up (only signed-in Pro starts one). */
+  /** ND-42: a guided skill run alongside the main plan; never kept across sign-up (only signed-in Pro starts one). */
   alongside?: boolean;
   /** ND-40: the routine of the plan a skill follows, filled in so its pages only need confirming. */
   initialRoutine?: RoutineSettings | null;
@@ -474,7 +474,7 @@ export function useOnboardingState({
     if (prior === null || !token) return null;
     try {
       const active = await fetchActiveGoal(token);
-      // ND-41: a skill alongside is found beside the main plan, not as it.
+      // ND-42: a skill alongside is found beside the main plan, not as it.
       if (alongside) return active?.alongsideGoal && active.alongsideGoal.rawGoal.trim() === rawGoal.trim() ? active.alongsideGoal : null;
       return active && active.id !== prior && active.rawGoal.trim() === rawGoal.trim() ? active : null;
     } catch {

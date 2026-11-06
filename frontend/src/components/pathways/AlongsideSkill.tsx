@@ -8,7 +8,7 @@ import { planWeeks } from '../../lib/planLength';
 import { Button, Dialog, DialogClose, DialogContent } from '../ui';
 
 /**
- * ND-41: on the Roadmap, the skill running alongside the main plan: where it is, and a way to stop it (asked first;
+ * ND-42: on the Roadmap, the skill running alongside the main plan: where it is, and a way to stop it (asked first;
  * the main plan is untouched).
  */
 export const AlongsideSkill: React.FC<{ goal: Goal }> = ({ goal }) => {

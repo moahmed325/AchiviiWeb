@@ -36,7 +36,7 @@ export async function runReminders(now: Date = new Date(), spacingMs = SEND_SPAC
       lastReminderAt: true,
       trialStartedAt: true,
       goals: {
-        // ND-41: the main plan and the skill alongside it; a day counts as missed only when both are.
+        // ND-42: the main plan and the skill alongside it; a day counts as missed only when both are.
         where: { status: { in: RUNNING_STATUSES } },
         select: {
           id: true,

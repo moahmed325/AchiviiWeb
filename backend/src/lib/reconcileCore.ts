@@ -75,7 +75,7 @@ export function carryEnabled(): boolean {
 /** Method-aware recovery's switch (M3.1a); its own module since M3.1d, re-exported here for its callers. */
 export { methodRecoveryEnabled };
 
-/** ND-41: the main plan unless `role` names the skill running alongside it. */
+/** ND-42: the main plan unless `role` names the skill running alongside it. */
 export function loadReconcileGoal(userId: string, role: PlanRole = 'main'): Promise<ReconcileGoal | null> {
   const where = { userId, status: statusOf(role) };
   if (methodRecoveryEnabled()) {

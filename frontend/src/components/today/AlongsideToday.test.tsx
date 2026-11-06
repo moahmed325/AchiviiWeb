@@ -30,7 +30,7 @@ vi.mock('../../context/GoalContext', () => ({
   useGoal: () => ({ activeGoal: { id: 'main', alongsideGoal: skill([task()]) }, updateActiveGoal: ctx.update, refreshGoal: ctx.refresh }),
 }));
 
-describe('AlongsideToday (ND-41)', () => {
+describe('AlongsideToday (ND-42)', () => {
   beforeEach(() => {
     ctx.update.mockReset();
     vi.mocked(updateDailyTask).mockReset();
@@ -59,7 +59,7 @@ describe('AlongsideToday (ND-41)', () => {
     expect(screen.getByText(/Nothing for this skill today/)).toBeInTheDocument();
   });
 
-  it('once its last week is over, finishes the skill (ND-41)', async () => {
+  it('once its last week is over, finishes the skill (ND-42)', async () => {
     const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
     const ended = { ...skill([task({ date: yesterday })]), currentWeek: 12 } as Goal;
     render(<AlongsideToday goal={ended} />);

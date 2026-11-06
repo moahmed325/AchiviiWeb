@@ -109,7 +109,7 @@ export async function actionUser(req: Request, res: Response) {
 
 /** 404 (not a task of the user's active goal), then not_plan_v2 and carry_disabled. Null when answered. */
 export async function actionGoal(res: Response, user: { id: string }, taskIds: string[]) {
-  // ND-41: the task's own plan, the main one or the skill running alongside it.
+  // ND-42: the task's own plan, the main one or the skill running alongside it.
   let goal = await loadReconcileGoal(user.id);
   if (!taskIds.every((id) => goal?.dailyTasks.some((task) => task.id === id))) {
     const alongside = await loadReconcileGoal(user.id, 'alongside');

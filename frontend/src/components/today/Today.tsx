@@ -919,7 +919,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         />
       )}
 
-      {/* ND-41: the skill running alongside, stacked under the day's own step. */}
+      {/* ND-42: the skill running alongside, stacked under the day's own step. */}
       {goal.alongsideGoal && <AlongsideToday goal={goal.alongsideGoal} />}
     </main>
   );

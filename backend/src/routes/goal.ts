@@ -11,7 +11,7 @@ import { scheduleRoutes } from './goal/schedule.js';
 import { isLocked } from '../lib/billing/accessGuard.js';
 import { ALONGSIDE_STATUS, planOf, statusOf } from '../lib/plans.js';
 
-/** ND-41: with no main plan left (finished, reset or replaced), the skill running alongside takes its place. */
+/** ND-42: with no main plan left (finished, reset or replaced), the skill running alongside takes its place. */
 async function promoteAlongsideIfAlone(userId: string): Promise<void> {
   const main = await prisma.goal.findFirst({ where: { userId, status: 'active' }, select: { id: true } });
   if (main) return;
@@ -53,7 +53,7 @@ goalRouter.get('/active', async (req: Request, res: Response): Promise<void> => 
       }
     });
 
-    // ND-41: the skill running alongside, if any, comes with whichever plan is shown (read after it).
+    // ND-42: the skill running alongside, if any, comes with whichever plan is shown (read after it).
     const loadAlongside = () =>
       prisma.goal.findFirst({
         where: { userId: user.id, status: ALONGSIDE_STATUS },
@@ -93,7 +93,7 @@ goalRouter.get('/active', async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    // ND-41: no plan ever finished and none running as main: the skill alongside takes the main place.
+    // ND-42: no plan ever finished and none running as main: the skill alongside takes the main place.
     if (alongside) {
       await promoteAlongsideIfAlone(user.id);
       res.json({ activeGoal: presentGoal({ ...alongside, status: 'active' } as unknown as Record<string, unknown>), alongsideGoal: null });
@@ -130,7 +130,7 @@ goalRouter.post('/reconcile', async (req: Request, res: Response): Promise<void>
     }
     // M2.2 carry-forward and M2.3 signals, shared with the M2.4 actions (lib/reconcileCore.ts). Idempotent
     // (04-phases.md 3.4): a handled day is never planned again, and each write is a compare-and-set (ND-13).
-    // ND-41: the main plan, or the skill alongside it when the request says so.
+    // ND-42: the main plan, or the skill alongside it when the request says so.
     const goal = await loadReconcileGoal(user.id, planOf(req));
     res.json(await runReconcile(goal, user, new Date()));
   } catch (err: any) {
@@ -150,7 +150,7 @@ goalRouter.delete('/active', async (req: Request, res: Response): Promise<void> 
       res.status(401).json({ error: 'Unauthorized.' });
       return;
     }
-    // ND-41: resets the main plan, or the skill alongside it when the request says so. A reset main plan leaves the
+    // ND-42: resets the main plan, or the skill alongside it when the request says so. A reset main plan leaves the
     // skill alongside as the main plan.
     const role = planOf(req);
     await prisma.goal.deleteMany({
@@ -166,7 +166,7 @@ goalRouter.delete('/active', async (req: Request, res: Response): Promise<void> 
 });
 
 /**
- * POST /api/goal/alongside/promote (ND-41)
+ * POST /api/goal/alongside/promote (ND-42)
  * Once the main plan has finished, the skill running alongside becomes the main plan. 409 while a main plan runs.
  */
 goalRouter.post('/alongside/promote', async (req: Request, res: Response): Promise<void> => {

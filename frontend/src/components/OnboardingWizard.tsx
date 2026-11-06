@@ -38,7 +38,7 @@ interface OnboardingWizardProps {
   initialFixedDate?: string;
   /** ND-40: the routine of the plan a skill follows. */
   initialRoutine?: RoutineSettings | null;
-  /** ND-41: a guided skill run alongside the main plan. */
+  /** ND-42: a guided skill run alongside the main plan. */
   alongside?: boolean;
   /** The app's health check couldn't reach Achivii when it loaded. */
   apiOffline?: boolean;

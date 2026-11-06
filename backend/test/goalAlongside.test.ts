@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vites
 import express from 'express';
 import type { Server } from 'node:http';
 
-// ND-41: one guided skill can run alongside the main plan (Pro). It is saved as `alongside` and leaves the main plan
+// ND-42: one guided skill can run alongside the main plan (Pro). It is saved as `alongside` and leaves the main plan
 // as it is; requests about it carry the plan header; it becomes the main plan only when the main one is reset, or by
 // choice once the main plan has finished.
 
@@ -126,7 +126,7 @@ const createAlongside = (over: Record<string, unknown> = {}) =>
     }),
   });
 
-describe('a skill alongside the main plan (ND-41)', () => {
+describe('a skill alongside the main plan (ND-42)', () => {
   it('reads the plan from the header: the main plan unless it names the alongside one', () => {
     expect(planOf({ headers: {} })).toBe('main');
     expect(planOf({ headers: { 'x-achivii-plan': 'alongside' } })).toBe('alongside');

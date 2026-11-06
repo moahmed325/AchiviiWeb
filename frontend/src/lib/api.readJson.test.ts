@@ -46,7 +46,7 @@ describe('success return values are unchanged', () => {
     vi.unstubAllGlobals();
   });
 
-  it('fetchActiveGoal returns activeGoal, with the skill alongside it (ND-41), including null', async () => {
+  it('fetchActiveGoal returns activeGoal, with the skill alongside it (ND-42), including null', async () => {
     reply(json({ activeGoal: { id: 'goal-1' } }, 200));
     await expect(fetchActiveGoal('token-1')).resolves.toEqual({ id: 'goal-1', alongsideGoal: null });
     reply(json({ activeGoal: { id: 'goal-1' }, alongsideGoal: { id: 'skill-1' } }, 200));

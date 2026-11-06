@@ -66,7 +66,7 @@ describe('Skills (ND-40)', () => {
     expect(screen.queryByTestId('state')).not.toBeInTheDocument();
   });
 
-  it('Pro with a plan running can start a skill alongside it, with the main plan’s routine (ND-41)', async () => {
+  it('Pro with a plan running can start a skill alongside it, with the main plan’s routine (ND-42)', async () => {
     render(
       <MemoryRouter>
         <Routes>

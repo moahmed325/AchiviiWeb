@@ -59,6 +59,7 @@ const renderAt = (url: string) =>
               <Route path="/roadmap" element={<main id="main">Roadmap page</main>} />
               <Route path="/onboarding" element={<main id="main">Onboarding page</main>} />
               <Route path="/account" element={<AccountPage />} />
+              <Route path="/coach" element={<main id="main">Coach page</main>} />
             </Routes>
           </AppShell>
         </MemoryRouter>
@@ -107,7 +108,8 @@ describe('shellMode and shellEntries', () => {
     expect(shellEntries('/', true).todayActive).toBe(true);
     expect(shellEntries('/dashboard', true).todayActive).toBe(false);
     expect(shellEntries('/dashboard', true).dashboardActive).toBe(true);
-    expect(shellEntries('/roadmap', true)).toEqual({ dashboardActive: false, showDashboard: true, todayActive: false, roadmapActive: true, showRoadmap: true, accountActive: false });
+    expect(shellEntries('/roadmap', true)).toEqual({ dashboardActive: false, showDashboard: true, todayActive: false, roadmapActive: true, showRoadmap: true, accountActive: false, coachActive: false });
+    expect(shellEntries('/coach', true).coachActive).toBe(true);
     expect(shellEntries('/account', true).accountActive).toBe(true);
     expect(shellEntries('/progress', true).roadmapActive).toBe(true);
   });
@@ -135,18 +137,14 @@ describe('entries', () => {
     expect(screen.queryByText(/Achivii ©/)).toBeNull();
   });
 
-  it('opens an honest Coach coming-soon sheet from the shell', async () => {
+  it('ND-41: Coach is a page; the rail and the bar link to it and mark it', async () => {
     signedIn(GOAL);
-    const user = userEvent.setup();
-    renderAt('/');
+    renderAt('/coach');
     await shellReady();
-    await rail().findByRole('button', { name: /Coach/ });
-    await user.click(rail().getByRole('button', { name: /Coach/ }));
-    const dialog = await screen.findByRole('dialog', { name: 'Achivii Coach' });
-    expect(dialog).toHaveTextContent('In development');
-    expect(dialog).toHaveTextContent(/1-on-1 companion/);
-    await user.click(screen.getByRole('button', { name: 'Back to Practice' }));
-    expect(screen.queryByRole('dialog', { name: 'Achivii Coach' })).toBeNull();
+    const link = rail().getByRole('link', { name: /^Coach/ });
+    expect(link).toHaveAttribute('href', '/coach');
+    expect(link).toHaveAttribute('aria-current', 'page');
+    expect(bottomBar().getByRole('link', { name: /^Coach/ })).toHaveAttribute('aria-current', 'page');
   });
 
   it('without a goal: no Dashboard, Roadmap or Progress entry', async () => {
@@ -184,20 +182,6 @@ describe('entries', () => {
     await screen.findByText('Today page');
     await userEvent.tab();
     expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveFocus();
-  });
-
-  it('clicking Coach ✦ opens the CoachModal', async () => {
-    signedIn(GOAL);
-    const user = userEvent.setup();
-    renderAt('/');
-    await shellReady();
-    await rail().findByRole('link', { name: 'Roadmap' });
-    await user.click(rail().getByRole('button', { name: /Coach/ }));
-    const dialog = await screen.findByRole('dialog', { name: 'Achivii Coach' });
-    expect(dialog).toHaveTextContent('In development');
-    expect(dialog).toHaveTextContent(/1-on-1 companion/);
-    await user.click(screen.getByRole('button', { name: 'Back to Practice' }));
-    expect(screen.queryByRole('dialog', { name: 'Achivii Coach' })).toBeNull();
   });
 });
 

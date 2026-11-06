@@ -97,7 +97,7 @@ describe('end screen', () => {
     });
   });
 
-  it('offers to make the skill that ran alongside the main plan (ND-41)', async () => {
+  it('offers to make the skill that ran alongside the main plan (ND-42)', async () => {
     promote.call.mockResolvedValue(undefined);
     const goal = goalWith(result());
     (goal as unknown as { alongsideGoal: unknown }).alongsideGoal = { id: 's1', rawGoal: 'Speak Conversational Spanish' };

@@ -9,7 +9,7 @@ import { isRestLike, isToday, parseSteps, todayKey } from '../../lib/today';
 import { Button } from '../ui';
 
 /**
- * ND-41: the guided skill running alongside the main plan, under Today's own step. Its own time, its own step; done
+ * ND-42: the guided skill running alongside the main plan, under Today's own step. Its own time, its own step; done
  * here with one tap (no focus session), and the plan carries on from it as it does for the main plan.
  */
 export const AlongsideToday: React.FC<{ goal: Goal }> = ({ goal }) => {

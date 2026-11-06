@@ -164,6 +164,40 @@ export async function updateUpNextSkill(token: string, skill: string | null): Pr
   return data.user;
 }
 
+/** ND-41: one message in the Coach conversation. */
+export interface CoachMessage {
+  id: string;
+  role: 'user' | 'coach';
+  content: string;
+  createdAt: string;
+}
+
+export interface CoachState {
+  /** False until `COACH_ENABLED` is on (Render): the page shows "coming soon". */
+  enabled: boolean;
+  hasGoal: boolean;
+  /** `locked`: the trial is over without Pro; the conversation reads, nothing sends. */
+  access: 'ok' | 'locked';
+  messages: CoachMessage[];
+  remainingToday: number;
+  dailyLimit: number;
+}
+
+export async function fetchCoach(token: string): Promise<CoachState> {
+  const response = await fetch(`${API_BASE_URL}/api/coach`, { headers: { Accept: 'application/json', Authorization: `Bearer ${token}` } });
+  return readJson<CoachState>(response, "Couldn't load Coach");
+}
+
+/** Sends one message; the answer holds it and the coach's reply, saved together. */
+export async function sendCoachMessage(token: string, text: string, firstName?: string | null): Promise<{ messages: CoachMessage[]; remainingToday: number }> {
+  const response = await fetch(`${API_BASE_URL}/api/coach/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ text, ...(firstName ? { firstName } : {}) }),
+  });
+  return readJson(response, "Coach couldn't answer just now. Please try again.");
+}
+
 export async function clarifyGoal(rawGoal: string): Promise<import('../types').GoalClarification> {
   const response = await fetch(`${API_BASE_URL}/api/goal/clarify`, {
     method: 'POST',
@@ -242,13 +276,13 @@ export async function createGoalPlan(
   return result;
 }
 
-/** ND-41: which plan a request is about: the main plan, or the skill running alongside it. */
+/** ND-42: which plan a request is about: the main plan, or the skill running alongside it. */
 export type PlanRole = 'main' | 'alongside';
 
 /** The header the server reads for the plan; nothing for the main plan, so its requests are as before. */
 const planHeader = (plan: PlanRole = 'main'): Record<string, string> => (plan === 'alongside' ? { 'X-Achivii-Plan': 'alongside' } : {});
 
-/** ND-41: once the main plan has finished, the skill running alongside becomes the main plan. */
+/** ND-42: once the main plan has finished, the skill running alongside becomes the main plan. */
 export async function promoteAlongside(token: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/api/goal/alongside/promote`, {
     method: 'POST',
@@ -270,7 +304,7 @@ export async function fetchActiveGoal(token: string): Promise<import('../types')
     'Failed to fetch active goal',
   );
 
-  // ND-41: the skill running alongside, if any, travels with the plan shown.
+  // ND-42: the skill running alongside, if any, travels with the plan shown.
   return data.activeGoal ? { ...data.activeGoal, alongsideGoal: data.alongsideGoal ?? null } : null;
 }
 

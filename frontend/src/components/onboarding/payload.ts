@@ -24,7 +24,7 @@ export interface PayloadInput extends AnswerState {
   fixedDate?: string;
   /** Next plan: added last, only when set, so every other body stays as the R-4 baseline pins it. */
   nextPlan?: NextPlanRequest;
-  /** ND-41: a guided skill run alongside the main plan; added last, only when set. */
+  /** ND-42: a guided skill run alongside the main plan; added last, only when set. */
   alongside?: boolean;
 }
 

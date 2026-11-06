@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, Clock, Compass, Eye, EyeOff, Flag, RotateCw, X } from 'lucide-react';
+import { ArrowRight, ArrowUp, Clock, Compass, Eye, EyeOff, Flag, RotateCw, X } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -157,6 +157,7 @@ const UiPreviewPage: React.FC = () => {
             <div className="flex items-center gap-3">
               <IconButton label="Close" icon={<X aria-hidden="true" strokeWidth={1.5} className="size-5" />} />
               <IconButton variant="secondary" label="Open schedule" icon={<Clock aria-hidden="true" strokeWidth={1.5} className="size-5" />} />
+              <IconButton variant="gold" label="Send" icon={<ArrowUp aria-hidden="true" strokeWidth={2} className="size-5" />} />
               <IconButton label="Refreshing" loading icon={<RotateCw aria-hidden="true" strokeWidth={1.5} className="size-5" />} />
               <IconButton label="Disabled action" disabled icon={<Clock aria-hidden="true" strokeWidth={1.5} className="size-5" />} />
             </div>
@@ -209,6 +210,9 @@ const UiPreviewPage: React.FC = () => {
             </Field>
             <Field label="Notes with a limit (showCount, maxLength 100)" className="sm:col-span-2">
               <Textarea rows={3} value={countedNote} onChange={(e) => setCountedNote(e.target.value)} maxLength={100} showCount />
+            </Field>
+            <Field label="Compact (a message box)">
+              <Textarea size="compact" rows={1} placeholder="Ask your coach anything…" />
             </Field>
           </div>
         </Block>

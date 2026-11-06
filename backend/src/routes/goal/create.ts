@@ -107,7 +107,7 @@ export function readFixedDate(value: unknown, start: Date): { date: Date | null 
 }
 
 /**
- * ND-41: why a skill can't start alongside the main plan, or null. Pro only (not in the trial), a guided skill, a main
+ * ND-42: why a skill can't start alongside the main plan, or null. Pro only (not in the trial), a guided skill, a main
  * plan running and none alongside yet, and both plans' daily minutes within the daily limit together.
  */
 export async function alongsideRefusal(
@@ -154,7 +154,7 @@ export async function saveV2Goal(input: {
   /** B-109: the plan's weeks (`planLengthFor`); missing is 12. */
   totalWeeks?: number;
   isPreset: boolean;
-  /** ND-41: saved as the skill running alongside the main plan, which is left as it is. */
+  /** ND-42: saved as the skill running alongside the main plan, which is left as it is. */
   alongside?: boolean;
   /** ND-40: the pathway this plan follows; when it was the person's up-next skill, that slot is emptied. */
   presetId?: string;
@@ -167,7 +167,7 @@ export async function saveV2Goal(input: {
   const stored = storedRoadmap(roadmap, input.answerList, input.recovery);
   // One transaction (B-100): a failed write must not archive the person's current goal and leave a half-saved new one.
   return prisma.$transaction(async (tx) => {
-    // ND-41: a skill alongside leaves the main plan running; any other new plan replaces it.
+    // ND-42: a skill alongside leaves the main plan running; any other new plan replaces it.
     if (!input.alongside) {
       await tx.goal.updateMany({ where: { userId: input.userId, status: 'active' }, data: { status: 'archived' } });
     }
@@ -317,7 +317,7 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
       res.status(400).json({ error: 'Choose how many days a week you can practise.' });
       return;
     }
-    // ND-41: a skill run alongside the main plan: Pro, a guided skill, a main plan running, none alongside yet, and
+    // ND-42: a skill run alongside the main plan: Pro, a guided skill, a main plan running, none alongside yet, and
     // the two plans' daily time together within the daily limit.
     const alongside = req.body?.alongside === true;
     if (alongside) {

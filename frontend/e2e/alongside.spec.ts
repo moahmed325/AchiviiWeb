@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { mockApi, signIn } from './mockApi';
 import { shellGoal } from './shellFixtures';
 
-// ND-41: one guided skill can run alongside the main plan (Pro). Today stacks its step under the main one; the
+// ND-42: one guided skill can run alongside the main plan (Pro). Today stacks its step under the main one; the
 // Roadmap shows it with a way to stop it.
 
 const SKILL = 'Play 5 Songs on Acoustic Guitar';

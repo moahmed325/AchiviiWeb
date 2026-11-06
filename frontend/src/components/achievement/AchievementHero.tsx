@@ -161,7 +161,7 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
             </div>
           </div>
 
-          {/* ND-41: the skill that ran alongside this plan carries on as the main plan, by choice. */}
+          {/* ND-42: the skill that ran alongside this plan carries on as the main plan, by choice. */}
           {goal.alongsideGoal && (
             <div className="mt-8 rounded-card border border-achievement/30 bg-background/80 p-5">
               <p className="font-ui-mono text-micro uppercase tracking-wider text-achievement">Still running alongside</p>

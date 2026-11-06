@@ -67,7 +67,7 @@ const GoalContext = createContext<GoalContextType | undefined>(undefined);
 const closeFailedOnServer = (err: unknown) => err instanceof ApiError && err.status >= 500;
 
 /**
- * ND-41: the skill running alongside the main plan: close its finished week (unless it waits for a choice, which
+ * ND-42: the skill running alongside the main plan: close its finished week (unless it waits for a choice, which
  * stays for when it is the main plan), then reconcile it. True when anything ran, so the plans are fetched again.
  */
 const catchUpAlongside = async (t: string): Promise<boolean> => {
@@ -143,7 +143,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     try {
       let goal = await fetchActiveGoal(t);
-      // ND-41: a skill running alongside closes its own finished week and reconciles too, quietly; then the plans
+      // ND-42: a skill running alongside closes its own finished week and reconciles too, quietly; then the plans
       // are fetched again so both show it. A failure here never stops the main plan from loading.
       if (reconcile && goal?.alongsideGoal && (await catchUpAlongside(t))) goal = await fetchActiveGoal(t);
       setActiveGoal(goal);
@@ -377,7 +377,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!token) return false;
     try {
       await apiResetGoal(token);
-      // ND-41: a skill running alongside becomes the main plan on the server; load it rather than assume none.
+      // ND-42: a skill running alongside becomes the main plan on the server; load it rather than assume none.
       setActiveGoal(null);
       try {
         setActiveGoal(await fetchActiveGoal(token));
@@ -396,7 +396,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
     async (payload?: GoalCompletionPayload): Promise<Goal> => {
       if (!token) throw new Error('Not authenticated');
       const goal = await apiCompleteGoal(token, payload);
-      // ND-41: the server's completed goal comes without the skill alongside; keep it, so the end screen can offer it.
+      // ND-42: the server's completed goal comes without the skill alongside; keep it, so the end screen can offer it.
       setActiveGoal((prev) => ({ ...goal, alongsideGoal: goal.alongsideGoal ?? prev?.alongsideGoal ?? null }));
       return goal;
     },
@@ -432,7 +432,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-/** ND-41: reloads the plans, or does nothing outside a GoalProvider (screens shown on their own in tests). */
+/** ND-42: reloads the plans, or does nothing outside a GoalProvider (screens shown on their own in tests). */
 export function useRefreshGoal(): () => Promise<void> {
   return useContext(GoalContext)?.refreshGoal ?? (async () => {});
 }

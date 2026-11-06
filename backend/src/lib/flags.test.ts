@@ -19,6 +19,7 @@ describe('feature switches (B-99 (4))', () => {
     const line = flagSummary();
     expect(line).toContain('METHOD_RECOVERY_ENABLED=on');
     expect(line).toContain('WEEK_CLOSE_ENABLED=off');
-    expect(line.split(' ')).toHaveLength(5);
+    expect(line.split(' ')).toHaveLength(6);
+    expect(line).toContain('COACH_ENABLED=');
   });
 });

@@ -1,7 +1,7 @@
 import type { Request } from 'express';
 
 /**
- * ND-41: a person has one main plan (status `active`) and, with Pro, at most one skill running alongside it (status
+ * ND-42: a person has one main plan (status `active`) and, with Pro, at most one skill running alongside it (status
  * `alongside`). The main plan's queries are unchanged; a request about the alongside plan says so in this header.
  */
 export const PLAN_HEADER = 'x-achivii-plan';
