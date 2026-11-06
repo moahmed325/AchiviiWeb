@@ -64,6 +64,8 @@ export interface OnboardingStateOptions {
   nextPlan?: NextPlanLaunch | null;
   /** B-106: the fixed date to fill in (`YYYY-MM-DD`), from the plan a fresh or next plan follows; kept only while ahead. */
   initialFixedDate?: string;
+  /** ND-41: a guided skill run alongside the main plan; never kept across sign-up (only signed-in Pro starts one). */
+  alongside?: boolean;
   /** ND-40: the routine of the plan a skill follows, filled in so its pages only need confirming. */
   initialRoutine?: RoutineSettings | null;
 }
@@ -98,12 +100,13 @@ export function useOnboardingState({
   initialGoal,
   currentGoalId,
   nextPlan = null,
+  alongside = false,
   initialFixedDate = '',
   initialRoutine = null,
 }: OnboardingStateOptions) {
   const [initial] = useState(() => {
     const draft = readDraft(initialGoal);
-    const snapshot = restorable(draft, nextPlan);
+    const snapshot = alongside ? null : restorable(draft, nextPlan);
     return { draft: snapshot?.typedGoal ?? draft, snapshot };
   });
   const { snapshot } = initial;
@@ -225,7 +228,7 @@ export function useOnboardingState({
 
   // Kept in this browser as the person goes, so a reload or the sign-up returns them to the same place (ND-36).
   useEffect(() => {
-    if (nextPlan || !typedGoal || !page || page === 'goal') return;
+    if (nextPlan || alongside || !typedGoal || !page || page === 'goal') return;
     writeSnapshot({
       v: 1,
       typedGoal,
@@ -242,7 +245,7 @@ export function useOnboardingState({
       focusOptions,
       page,
     });
-  }, [nextPlan, typedGoal, rawGoal, editedOutcome, clarification, answers, customAnswers, skipCounts, routine, fixedDate, focusAfter, focusChosen, focusOptions, page]);
+  }, [nextPlan, alongside, typedGoal, rawGoal, editedOutcome, clarification, answers, customAnswers, skipCounts, routine, fixedDate, focusAfter, focusChosen, focusOptions, page]);
 
   // History entries keep React Router's own state (`usr`, `key`, `idx`), so the launch state that lets
   // ProtectedRoute admit a switch-goal visit survives a reload (ND-16).
@@ -530,7 +533,7 @@ export function useOnboardingState({
 
       try {
         const response: CreateGoalResponse = await createGoalPlan(
-          buildCreatePayload({ rawGoal, editedOutcome, clarification, routine, fixedDate, answers, customAnswers, nextPlan: nextPlan?.request }),
+          buildCreatePayload({ rawGoal, editedOutcome, clarification, routine, fixedDate, answers, customAnswers, nextPlan: nextPlan?.request, alongside }),
           token,
           (event) => {
             setPlanSteps((prev) => [...prev.filter((s) => s.id !== event.id), event]);

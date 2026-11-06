@@ -5,6 +5,7 @@ import { useGoal } from '../context/GoalContext';
 import { useUserTimezone } from '../context/AuthContext';
 import { useJourneyData } from '../hooks/useJourneyData';
 import { UpNextSkill } from '../components/pathways/UpNextSkill';
+import { AlongsideSkill } from '../components/pathways/AlongsideSkill';
 import { Badge, Button, ProgressBar, ProgressRing, cx } from '../components/ui';
 import { finishDate, weekRows, type WeekRow } from '../lib/plan';
 import { planWeeks } from '../lib/planLength';
@@ -92,6 +93,8 @@ const RoadmapContent: React.FC<{ journey: JourneyData; goal: Goal }> = ({ journe
           </li>
           {/* ND-40: the skill added to the timeline, after the finish line. */}
           {goal.status === 'active' && <UpNextSkill goalTitle={goal.rawGoal} />}
+          {/* ND-41: the skill running alongside, with a way to stop it. */}
+          {goal.alongsideGoal && <AlongsideSkill goal={goal.alongsideGoal} />}
         </ol>
       </section>
 

@@ -42,7 +42,13 @@ export const OnboardingPage: React.FC = () => {
     );
   }
 
-  const handleGoalCreated = (goal: Goal) => {
+  const handleGoalCreated = async (goal: Goal) => {
+    // ND-41: a skill alongside joins the main plan, which stays the one shown; both are fetched again.
+    if (navState?.alongside) {
+      await refreshGoal();
+      navigate('/');
+      return;
+    }
     setActiveGoal(goal);
     navigate('/');
   };
@@ -58,6 +64,8 @@ export const OnboardingPage: React.FC = () => {
     fixedDate?: string;
     /** ND-40: the routine of the plan a skill follows. */
     routine?: RoutineSettings;
+    /** ND-41: the skill runs alongside the main plan. */
+    alongside?: boolean;
   } | null;
   const initialGoal = navState?.presetGoal || navState?.draftGoal;
   const nextPlan = navState?.nextPlan ?? null;
@@ -108,6 +116,7 @@ export const OnboardingPage: React.FC = () => {
         nextPlan={nextPlan}
         initialFixedDate={navState?.fixedDate ?? nextPlan?.fixedDate}
         initialRoutine={navState?.routine}
+        alongside={navState?.alongside === true}
         apiOffline={apiStatus === 'offline'}
       />
     </div>

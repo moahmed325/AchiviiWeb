@@ -39,6 +39,7 @@ import { markCloseLineSeen } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTaskActions } from './useTaskActions';
 import { TrialNotice } from './TrialAccess';
+import { AlongsideToday } from './AlongsideToday';
 import { SwapOfferAnswers, TodayPlanActions } from './PlanActions';
 import { useAutoSwap } from './useAutoSwap';
 import { StepInstructions } from './StepInstructions';
@@ -918,6 +919,8 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         />
       )}
 
+      {/* ND-41: the skill running alongside, stacked under the day's own step. */}
+      {goal.alongsideGoal && <AlongsideToday goal={goal.alongsideGoal} />}
     </main>
   );
 };

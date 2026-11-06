@@ -66,6 +66,45 @@ describe('Skills (ND-40)', () => {
     expect(screen.queryByTestId('state')).not.toBeInTheDocument();
   });
 
+  it('Pro with a plan running can start a skill alongside it, with the main plan’s routine (ND-41)', async () => {
+    render(
+      <MemoryRouter>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <PathwaysExplorerModal
+                isOpen
+                onClose={() => {}}
+                activeGoalTitle="Build & Ship a SaaS Web App"
+                mainRoutine={{ wakeTime: '07:00', sleepTime: '23:00', busyHours: '', preferredSlot: 'morning', dailyMinutes: 45, planVariant: 'steady', commitments: [] }}
+              />
+            }
+          />
+          <Route path="/onboarding" element={<Onboarding />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await userEvent.click(await screen.findByRole('tab', { name: 'Creative' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Play 5 Songs on Acoustic Guitar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Run it alongside' }));
+    expect(JSON.parse((await screen.findByTestId('state')).textContent!)).toMatchObject({
+      presetGoal: 'Play 5 Songs on Acoustic Guitar',
+      alongside: true,
+      routine: { dailyMinutes: 45, planVariant: 'steady' },
+    });
+  });
+
+  it('one skill at a time: with one alongside, another can’t start', async () => {
+    render(
+      <MemoryRouter>
+        <PathwaysExplorerModal isOpen onClose={() => {}} activeGoalTitle="Build & Ship a SaaS Web App" alongsideTitle="Speak Conversational Spanish" />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('Running alongside your plan: Speak Conversational Spanish. One skill at a time.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Run it alongside' })).toBeDisabled();
+  });
+
   it('marks the skill already up next', async () => {
     auth.upNextSkill = 'youtube';
     renderScreen({ activeGoalTitle: 'Build & Ship a SaaS Web App', initialPathwayId: 'youtube' });

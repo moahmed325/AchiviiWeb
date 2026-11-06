@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { ArrowRight, Compass, RotateCcw, Sparkles, TrendingUp } from 'lucide-react';
 import type { Goal, AchievementSummary, NextPlanMode } from '../../types';
 import { findPathwayBySlug, findPathwayByTitle } from '../../lib/certifiedPresets';
-import { useAuthUser } from '../../context/AuthContext';
+import { useAuthToken, useAuthUser } from '../../context/AuthContext';
+import { useRefreshGoal } from '../../context/GoalContext';
+import { promoteAlongside } from '../../lib/api';
 import { journeyHeadline, journeyOutcome, needsLevel, nextPlanChoices } from '../../lib/nextPlan';
 import { useProEntitlement } from '../../hooks/useProEntitlement';
 import { storedRoutine, usePathwayLaunch } from '../pathways/launch';
@@ -43,6 +45,19 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
   const pathway = findPathwayByTitle(goal.rawGoal);
   const user = useAuthUser();
   const upNext = findPathwayBySlug(user?.upNextSkill);
+  const token = useAuthToken();
+  const refreshGoal = useRefreshGoal();
+  const [promoting, setPromoting] = useState(false);
+  const continueWithAlongside = async () => {
+    if (!token) return;
+    setPromoting(true);
+    try {
+      await promoteAlongside(token);
+      await refreshGoal();
+    } finally {
+      setPromoting(false);
+    }
+  };
 
   const choose = (mode: NextPlanMode) => {
     if (needsLevel(result)) setLevelFor(mode);
@@ -145,6 +160,24 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
               </p>
             </div>
           </div>
+
+          {/* ND-41: the skill that ran alongside this plan carries on as the main plan, by choice. */}
+          {goal.alongsideGoal && (
+            <div className="mt-8 rounded-card border border-achievement/30 bg-background/80 p-5">
+              <p className="font-ui-mono text-micro uppercase tracking-wider text-achievement">Still running alongside</p>
+              <p className="mt-1 text-h3 font-medium text-text">{goal.alongsideGoal.rawGoal}</p>
+              <Button
+                variant="gold"
+                size="lg"
+                loading={promoting}
+                onClick={() => void continueWithAlongside()}
+                trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-4" />}
+                className="mt-4 w-full sm:w-auto"
+              >
+                Make it my main plan
+              </Button>
+            </div>
+          )}
 
           {/* ND-40: the skill added to the timeline comes first, with this plan's routine carried over. */}
           {upNext && (

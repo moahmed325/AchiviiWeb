@@ -12,7 +12,10 @@ import { computeAchievementSummary } from '../../lib/achievement';
 const pro = vi.hoisted(() => ({ value: false }));
 vi.mock('../../hooks/useProEntitlement', () => ({ useProEntitlement: () => pro.value }));
 const upNext = vi.hoisted(() => ({ skill: null as string | null }));
-vi.mock('../../context/AuthContext', () => ({ useAuthUser: () => ({ id: 'u1', email: 'a@b.c', upNextSkill: upNext.skill }) }));
+vi.mock('../../context/AuthContext', () => ({ useAuthUser: () => ({ id: 'u1', email: 'a@b.c', upNextSkill: upNext.skill }), useAuthToken: () => 't' }));
+const promote = vi.hoisted(() => ({ refresh: vi.fn(), call: vi.fn() }));
+vi.mock('../../context/GoalContext', () => ({ useRefreshGoal: () => promote.refresh }));
+vi.mock('../../lib/api', () => ({ promoteAlongside: promote.call }));
 
 const result = (over: Partial<JourneyResult> = {}): JourneyResult => ({
   kind: 'number',
@@ -92,6 +95,17 @@ describe('end screen', () => {
       pathname: '/onboarding',
       state: { presetGoal: 'Play 5 Songs on Acoustic Guitar', routine: { dailyMinutes: 45, planVariant: 'minimal', wakeTime: '06:30', preferredSlot: 'morning' } },
     });
+  });
+
+  it('offers to make the skill that ran alongside the main plan (ND-41)', async () => {
+    promote.call.mockResolvedValue(undefined);
+    const goal = goalWith(result());
+    (goal as unknown as { alongsideGoal: unknown }).alongsideGoal = { id: 's1', rawGoal: 'Speak Conversational Spanish' };
+    renderHero(goal);
+    expect(screen.getByText('Still running alongside')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Make it my main plan/ }));
+    expect(promote.call).toHaveBeenCalledWith('t');
+    expect(promote.refresh).toHaveBeenCalled();
   });
 
   it('free on a pathway: restart it from the start', () => {

@@ -107,6 +107,8 @@ export interface MockOptions {
    * (ND-10) still reach the custom goal field; `free` shows the Pro gate instead.
    */
   plan?: 'free' | 'pro';
+  /** ND-41: the guided skill running alongside the main plan, sent as `alongsideGoal`. */
+  alongsideGoal?: Record<string, unknown> | null;
   /** ND-40: the skill the signed-in user has up next on their timeline. */
   upNextSkill?: string | null;
   /** ND-37: the trial as entitlement reports it: `new`, `trial` or `locked` (for a free plan; Pro is always `pro`). */
@@ -168,6 +170,8 @@ export interface CreateRequest {
 
 export interface MockCalls {
   signup: number;
+  /** ND-41: resets of the skill alongside (DELETE /api/goal/active with the plan header). */
+  alongsideResets: number;
   /** ND-40: every PUT /api/auth/up-next body's skill, in order. */
   upNext: (string | null)[];
   login: number;
@@ -204,7 +208,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Stands in for the backend and Supabase Auth without touching any real service or database. */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<MockCalls> {
-  const calls: MockCalls = { upNext: [], signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [], planActions: [], closeWeek: [], closeChoices: [], closeLineSeen: [], dailyTime: [], reconcile: 0 };
+  const calls: MockCalls = { alongsideResets: 0, upNext: [], signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [], planActions: [], closeWeek: [], closeChoices: [], closeLineSeen: [], dailyTime: [], reconcile: 0 };
   const {
     goal = null,
     signupStatus = 201,
@@ -229,6 +233,7 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     plan = 'pro',
     access = 'trial',
     upNextSkill = null,
+    alongsideGoal = null,
     trialEndsAt = null,
     createProRequired = false,
     markMissed = CARRY_DISABLED,
@@ -237,6 +242,8 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     closeWeek,
   } = options;
   let currentUpNext: string | null = upNextSkill;
+  // ND-41: the skill alongside as the "server" holds it; a reset with the plan header removes it.
+  let alongside: Record<string, unknown> | null = alongsideGoal ? structuredClone(alongsideGoal) : null;
   let weekClosed = false;
   // The goal as the "server" holds it: task writes change this copy, never the caller's fixture.
   let saved = goal ? (structuredClone(goal) as Record<string, unknown> & { dailyTasks?: unknown[] }) : null;
@@ -324,6 +331,11 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     if (path === '/api/billing/account') {
       return json(route, 200, { plan, status: plan === 'pro' ? 'ACTIVE' : 'none', billingInterval: null, currentPeriodEnd: null, cancelAtPeriodEnd: false, manageUrl: null });
     }
+    if (path === '/api/goal/active' && route.request().method() === 'DELETE' && route.request().headers()['x-achivii-plan'] === 'alongside') {
+      calls.alongsideResets += 1;
+      alongside = null;
+      return json(route, 200, { success: true });
+    }
     if (path === '/api/goal/active' && route.request().method() === 'DELETE') {
       calls.resets += 1;
       if (resetStatus >= 400) return json(route, resetStatus, { error: 'Failed to reset goal' });
@@ -332,7 +344,7 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     if (path === '/api/goal/active') {
       calls.active += 1;
       if (activeStatus) return json(route, activeStatus, { error: 'Failed to fetch active goal' });
-      return json(route, 200, { activeGoal: goalAfterCreate && calls.create.length > 0 ? goalAfterCreate : saved });
+      return json(route, 200, { activeGoal: goalAfterCreate && calls.create.length > 0 ? goalAfterCreate : saved, alongsideGoal: alongside });
     }
 
     if (path === '/api/goal/reconcile' && route.request().method() === 'POST') {
@@ -393,7 +405,8 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
       const body = route.request().postDataJSON() as TaskUpdate['body'];
       calls.taskUpdates.push({ taskId: taskMatch[1], body });
       if (taskUpdateStatus) return json(route, taskUpdateStatus, { error: 'Failed to update task.' });
-      const tasks = (saved?.dailyTasks ?? []) as Array<Record<string, unknown>>;
+      // ND-41: a task of the main plan or of the skill alongside it.
+      const tasks = [...((saved?.dailyTasks ?? []) as Array<Record<string, unknown>>), ...((alongside?.dailyTasks ?? []) as Array<Record<string, unknown>>)];
       const task = tasks.find((t) => t.id === taskMatch[1]);
       if (!task) return json(route, 404, { error: 'Task not found.' });
       // As backend/src/routes/goal.ts PATCH /tasks/:taskId: status when given, completedAt with it, notes when present.

@@ -242,6 +242,21 @@ export async function createGoalPlan(
   return result;
 }
 
+/** ND-41: which plan a request is about: the main plan, or the skill running alongside it. */
+export type PlanRole = 'main' | 'alongside';
+
+/** The header the server reads for the plan; nothing for the main plan, so its requests are as before. */
+const planHeader = (plan: PlanRole = 'main'): Record<string, string> => (plan === 'alongside' ? { 'X-Achivii-Plan': 'alongside' } : {});
+
+/** ND-41: once the main plan has finished, the skill running alongside becomes the main plan. */
+export async function promoteAlongside(token: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/goal/alongside/promote`, {
+    method: 'POST',
+    headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+  });
+  await readJson(response, 'Failed to make the skill your main plan');
+}
+
 export async function fetchActiveGoal(token: string): Promise<import('../types').Goal | null> {
   const response = await fetch(`${API_BASE_URL}/api/goal/active`, {
     headers: {
@@ -250,21 +265,26 @@ export async function fetchActiveGoal(token: string): Promise<import('../types')
     },
   });
 
-  const data = await readJson<{ activeGoal: import('../types').Goal | null }>(response, 'Failed to fetch active goal');
+  const data = await readJson<{ activeGoal: import('../types').Goal | null; alongsideGoal?: import('../types').Goal | null }>(
+    response,
+    'Failed to fetch active goal',
+  );
 
-  return data.activeGoal;
+  // ND-41: the skill running alongside, if any, travels with the plan shown.
+  return data.activeGoal ? { ...data.activeGoal, alongsideGoal: data.alongsideGoal ?? null } : null;
 }
 
 /**
  * Missed sessions (ND-6): reconciles the active goal. Called once when the app loads, before the goal is fetched.
  * In P1 it only reports how each day is classified; nothing on screen uses it yet.
  */
-export async function reconcileGoal(token: string): Promise<import('../types').ReconcileResult> {
+export async function reconcileGoal(token: string, plan: PlanRole = 'main'): Promise<import('../types').ReconcileResult> {
   const response = await fetch(`${API_BASE_URL}/api/goal/reconcile`, {
     method: 'POST',
     headers: {
       'Accept': 'application/json',
       'Authorization': `Bearer ${token}`,
+      ...planHeader(plan),
       // It can run before /api/auth/me on the first load, so it carries the zone too.
       ...clientTimezoneHeader(),
     },
@@ -346,11 +366,12 @@ export async function updateDailyTask(
   return data.task;
 }
 
-export async function resetActiveGoal(token: string): Promise<boolean> {
+export async function resetActiveGoal(token: string, plan: PlanRole = 'main'): Promise<boolean> {
   const response = await fetch(`${API_BASE_URL}/api/goal/active`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
+      ...planHeader(plan),
     },
   });
 
@@ -387,7 +408,8 @@ export async function completeGoal(
 export async function closeWeek(
   token: string,
   mode?: 'check',
-  choice?: import('../types').PastLimitChoice
+  choice?: import('../types').PastLimitChoice,
+  plan: PlanRole = 'main'
 ): Promise<import('../types').CloseWeekAnswer> {
   const response = await fetch(`${API_BASE_URL}/api/goal/close-week`, {
     method: 'POST',
@@ -395,6 +417,7 @@ export async function closeWeek(
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'Authorization': `Bearer ${token}`,
+      ...planHeader(plan),
       ...clientTimezoneHeader(),
     },
     body: JSON.stringify(mode ? { mode } : choice ? { choice } : {}),

@@ -5,6 +5,7 @@ import { useGoal } from '../../context/GoalContext';
 import { SkipLink } from '../ui';
 import { CoachModal } from '../coach/CoachModal';
 import { PathwaysExplorerModal } from '../PathwaysExplorerModal';
+import { storedRoutine } from '../pathways/launch';
 import { AppBottomBar, AppRail, AppTopBar } from './AppNavigation';
 import { shellMode } from './shellEntries';
 
@@ -77,7 +78,10 @@ export const AppShell: React.FC<AppShellProps> = ({ children, previewPath }) => 
         {children}
       </div>
       <AppBottomBar onOpenPathways={openPathways} onOpenCoach={openCoach} />
-      <PathwaysExplorerModal isOpen={pathwaysOpen} onClose={() => setPathwaysOpen(false)} activeGoalTitle={activeGoal?.status === 'active' ? activeGoal.rawGoal : undefined} />
+      <PathwaysExplorerModal isOpen={pathwaysOpen} onClose={() => setPathwaysOpen(false)} activeGoalTitle={activeGoal?.status === 'active' ? activeGoal.rawGoal : undefined}
+        alongsideTitle={activeGoal?.alongsideGoal?.rawGoal}
+        mainRoutine={activeGoal ? storedRoutine(activeGoal) : null}
+      />
       <CoachModal isOpen={coachOpen} onClose={() => setCoachOpen(false)} />
     </div>
   );

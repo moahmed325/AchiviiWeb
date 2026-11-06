@@ -24,6 +24,8 @@ export interface PayloadInput extends AnswerState {
   fixedDate?: string;
   /** Next plan: added last, only when set, so every other body stays as the R-4 baseline pins it. */
   nextPlan?: NextPlanRequest;
+  /** ND-41: a guided skill run alongside the main plan; added last, only when set. */
+  alongside?: boolean;
 }
 
 /** The `POST /api/goal/create` body. Field order and values are pinned by the R-4 baseline (`e2e/fixtures/onboarding`). */
@@ -45,5 +47,6 @@ export function buildCreatePayload(input: PayloadInput): CreateGoalPayload {
     routine,
     ...(input.fixedDate ? { fixedDate: input.fixedDate } : {}),
     ...(input.nextPlan ? { nextPlan: input.nextPlan } : {}),
+    ...(input.alongside ? { alongside: true as const } : {}),
   };
 }

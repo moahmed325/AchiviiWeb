@@ -7,6 +7,7 @@ import { useGoal } from '../context/GoalContext';
 
 vi.mock('../context/GoalContext', () => ({
   useGoal: vi.fn(),
+  useRefreshGoal: () => vi.fn(),
 }));
 
 const mockCompletedGoal: Goal = {

@@ -153,6 +153,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-36 | Achivii starts from the goal the person types | Product | Decided | — |
 | ND-37 | Thirty days free, then Pro | Product | Decided | — |
 | ND-40 | Guided skills on the timeline | Product | Decided | — |
+| ND-41 | A skill alongside the main plan | Product | Decided | — |
 
 **What blocks the next phase:** Phases 0–9 are complete. Phase 10 (Premium Architecture) is unblocked and **IN PROGRESS** (M10.1 complete: ND-9 Decided A, ND-10 Decided A, ND-11 Decided A, OD-1c Decided B). M10.2 (Coach placement and honest state) is active.
 
@@ -2030,6 +2031,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-11-05 | ND-38 Under Mo's ask to make missed sessions the best: a missed step that can't fit whole moves shorter, a day that is over doesn't block the search (MR-10 amended), after a gap the most important missed step comes back on the first day back, and next week's writer hears the main steps never done. |
 | 2026-11-05 | ND-39 Decided by Mo: Account is a page (membership with Go Pro or Manage, the goal and its schedule, profile, preferences, sign out, start over set apart). |
 | 2026-11-05 | ND-40 Decided by Mo (stage 3 of 4): the 10 guided plans are skills; with Pro, one is added to the timeline ("Up next") and offered first when the current plan ends, with its routine carried over. |
+| 2026-11-06 | ND-41 Decided by Mo (stage 4 of 4): with Pro, one guided skill runs alongside the main plan, with its own time; Today stacks its step under the main one. |
 
 ### ND-32 — The Roadmap at a glance, a name in the greeting, no weekly review by hand
 
@@ -2246,3 +2248,27 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 **Consequences.** Running a skill alongside the main goal is stage 4.
 
 **Related.** ND-36, ND-37, `frontend/src/components/PathwaysExplorerModal.tsx`, `frontend/src/components/pathways/UpNextSkill.tsx`, `backend/src/routes/auth.ts`.
+
+---
+
+### ND-41 — A skill alongside the main plan
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-29 — Mo: stage 4, a skill running alongside the main goal |
+| Decided | 2026-11-06 — Mo (its own time, one at a time, from Skills with Pro, both steps stacked on Today) |
+
+**Decision.**
+* With Pro and a main plan running, one guided skill can run alongside it ("Run it alongside" in Skills). It gets its own daily time and days (onboarding opens on the skill with the main plan's routine filled in); together the two plans stay within the daily limit (`DAILY_MINUTES_MAX`).
+* It is stored as its own goal with status `alongside`; the main plan stays `active` and every main-plan query is unchanged. Requests about the skill carry `X-Achivii-Plan: alongside` (reconcile, close-week, schedule, daily time, completion, reset); task routes act on the task's own plan. On load the app closes the skill's finished week and reconciles it too, quietly.
+* Today stacks the skill's step under the main one, marked done with one tap. The Roadmap shows "Alongside · {skill}" with "Stop this skill" (asked first; the main plan is untouched). Reminders count a day missed only when nothing on either plan was done.
+* When the main plan is reset, the skill becomes the main plan. When the main plan finishes, the end screen offers "Make it my main plan"; a new main plan otherwise starts beside it.
+* The trial pause (ND-37) covers both plans.
+
+**Consequences.** Focus mode, swaps and the missed-day notice are the main plan's only for now; the skill's step is done from its card.
+
+**Related.** ND-37, ND-40, `backend/src/lib/plans.ts`, `frontend/src/components/today/AlongsideToday.tsx`, `frontend/src/components/pathways/AlongsideSkill.tsx`.
+

@@ -437,6 +437,8 @@ export interface Goal {
   journeyResult?: JourneyResult | null;
   /** Next plan (NP-8): the plan this one follows; null or missing for a first plan. */
   previousPlan?: PreviousPlan | null;
+  /** ND-41: the guided skill running alongside this plan (on the main plan only), or null. */
+  alongsideGoal?: Goal | null;
 }
 
 /** Next plan: how a new plan continues an earlier one. */
@@ -498,6 +500,8 @@ export interface CreateGoalPayload {
   fixedDate?: string;
   /** Next plan: only when this plan continues an earlier one. */
   nextPlan?: NextPlanRequest;
+  /** ND-41: a guided skill run alongside the main plan; only when set. */
+  alongside?: true;
 }
 
 export interface CreateGoalResponse {

@@ -38,6 +38,8 @@ interface OnboardingWizardProps {
   initialFixedDate?: string;
   /** ND-40: the routine of the plan a skill follows. */
   initialRoutine?: RoutineSettings | null;
+  /** ND-41: a guided skill run alongside the main plan. */
+  alongside?: boolean;
   /** The app's health check couldn't reach Achivii when it loaded. */
   apiOffline?: boolean;
 }
@@ -55,9 +57,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   nextPlan = null,
   initialFixedDate,
   initialRoutine,
+  alongside = false,
   apiOffline = false
 }) => {
-  const onboarding = useOnboardingState({ token, onGoalCreated, onSignUp, initialGoal, currentGoalId, nextPlan, initialFixedDate, initialRoutine });
+  const onboarding = useOnboardingState({ token, onGoalCreated, onSignUp, initialGoal, currentGoalId, nextPlan, initialFixedDate, initialRoutine, alongside });
   const {
     pages,
     screen,

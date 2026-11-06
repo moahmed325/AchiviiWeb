@@ -66,6 +66,22 @@ const GoalContext = createContext<GoalContextType | undefined>(undefined);
  */
 const closeFailedOnServer = (err: unknown) => err instanceof ApiError && err.status >= 500;
 
+/**
+ * ND-41: the skill running alongside the main plan: close its finished week (unless it waits for a choice, which
+ * stays for when it is the main plan), then reconcile it. True when anything ran, so the plans are fetched again.
+ */
+const catchUpAlongside = async (t: string): Promise<boolean> => {
+  try {
+    const answer = await closeWeek(t, 'check', undefined, 'alongside');
+    if (answer.due && answer.closedBy === undefined && !answer.choice) await closeWeek(t, undefined, undefined, 'alongside');
+    await reconcileGoal(t, 'alongside');
+    return true;
+  } catch (err) {
+    console.warn('Failed to catch up the skill alongside:', err);
+    return false;
+  }
+};
+
 export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token, user } = useAuth();
   const timezone = user?.timezone;
@@ -126,7 +142,10 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setReconciliation(null);
     }
     try {
-      const goal = await fetchActiveGoal(t);
+      let goal = await fetchActiveGoal(t);
+      // ND-41: a skill running alongside closes its own finished week and reconciles too, quietly; then the plans
+      // are fetched again so both show it. A failure here never stops the main plan from loading.
+      if (reconcile && goal?.alongsideGoal && (await catchUpAlongside(t))) goal = await fetchActiveGoal(t);
       setActiveGoal(goal);
       setGoalLoadFailed(false);
       return goal;
@@ -405,6 +424,11 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </GoalContext.Provider>
   );
 };
+
+/** ND-41: reloads the plans, or does nothing outside a GoalProvider (screens shown on their own in tests). */
+export function useRefreshGoal(): () => Promise<void> {
+  return useContext(GoalContext)?.refreshGoal ?? (async () => {});
+}
 
 export const useGoal = (): GoalContextType => {
   const context = useContext(GoalContext);

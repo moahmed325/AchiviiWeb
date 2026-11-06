@@ -3,6 +3,7 @@ import { ArrowRight, Plus } from 'lucide-react';
 import { Button, Dialog, DialogClose, DialogContent } from './ui';
 import { ProCheckout } from './billing';
 import { findPathwayByTitle } from '../lib/certifiedPresets';
+import type { RoutineSettings } from '../types';
 import { useAuthUser, useSetUpNextSkill } from '../context/AuthContext';
 import { useAccess } from '../hooks/useAccess';
 import { PathwayLibrary, usePathwayLaunch, usePathwaySelection } from './pathways';
@@ -14,18 +15,24 @@ interface PathwaysExplorerModalProps {
   activeGoalTitle?: string;
   /** Selected, with its direction shown, when the explorer opens. */
   initialPathwayId?: string;
+  /** ND-41: the skill already running alongside the main plan, if any. */
+  alongsideTitle?: string;
+  /** ND-41: the main plan's routine, the starting point for a skill run alongside it. */
+  mainRoutine?: RoutineSettings | null;
 }
 
 interface ExplorerContentProps {
+  alongsideTitle?: string;
+  mainRoutine?: RoutineSettings | null;
   hasGoal: boolean;
   currentId?: string;
   initialPathwayId?: string;
   onClose: () => void;
 }
 
-const ExplorerContent: React.FC<ExplorerContentProps> = ({ hasGoal, currentId, initialPathwayId, onClose }) => {
+const ExplorerContent: React.FC<ExplorerContentProps> = ({ hasGoal, currentId, initialPathwayId, onClose, alongsideTitle, mainRoutine }) => {
   const selection = usePathwaySelection({ initialId: initialPathwayId, currentId, startOnFirstDirection: true });
-  const { startPathway } = usePathwayLaunch();
+  const { startPathway, startAlongside } = usePathwayLaunch();
   const user = useAuthUser();
   const setUpNextSkill = useSetUpNextSkill();
   const access = useAccess();
@@ -68,15 +75,29 @@ const ExplorerContent: React.FC<ExplorerContentProps> = ({ hasGoal, currentId, i
       See Pro
     </Button>
   ) : (
-    <Button
-      variant="gold"
-      loading={saving}
-      disabled={!selected || selected.id === currentId || selected.id === upNext}
-      onClick={() => void addToTimeline()}
-      leadingIcon={<Plus aria-hidden="true" strokeWidth={1.5} className="size-4" />}
-    >
-      {selected && selected.id === currentId ? 'Your current plan' : selected && selected.id === upNext ? 'Up next already' : 'Add to my timeline'}
-    </Button>
+    <>
+      {/* ND-41: or start it now, with its own time, beside the main plan (one skill at a time). */}
+      <Button
+        variant="secondary"
+        disabled={!selected || selected.id === currentId || Boolean(alongsideTitle)}
+        onClick={() => {
+          if (!selected) return;
+          onClose();
+          startAlongside(selected, mainRoutine);
+        }}
+      >
+        Run it alongside
+      </Button>
+      <Button
+        variant="gold"
+        loading={saving}
+        disabled={!selected || selected.id === currentId || selected.id === upNext}
+        onClick={() => void addToTimeline()}
+        leadingIcon={<Plus aria-hidden="true" strokeWidth={1.5} className="size-4" />}
+      >
+        {selected && selected.id === currentId ? 'Your current plan' : selected && selected.id === upNext ? 'Up next already' : 'Add to my timeline'}
+      </Button>
+    </>
   );
 
   return (
@@ -111,6 +132,9 @@ const ExplorerContent: React.FC<ExplorerContentProps> = ({ hasGoal, currentId, i
       ) : (
         <>
           <PathwayLibrary navigation="tabs" selection={selection} currentId={currentId} />
+          {isPro && hasGoal && alongsideTitle && (
+            <p className="mt-4 text-small text-text-secondary">Running alongside your plan: {alongsideTitle}. One skill at a time.</p>
+          )}
           {error && (
             <p role="alert" className="mt-4 text-small text-danger">
               {error}
@@ -123,7 +147,7 @@ const ExplorerContent: React.FC<ExplorerContentProps> = ({ hasGoal, currentId, i
 };
 
 /** ND-40: the guided skills in a Dialog (a bottom sheet on mobile), opened from the navbar and the Roadmap. */
-export const PathwaysExplorerModal: React.FC<PathwaysExplorerModalProps> = ({ isOpen, onClose, activeGoalTitle, initialPathwayId }) => {
+export const PathwaysExplorerModal: React.FC<PathwaysExplorerModalProps> = ({ isOpen, onClose, activeGoalTitle, initialPathwayId, alongsideTitle, mainRoutine }) => {
   // Each opening starts fresh from `initialPathwayId`; the content stays mounted while closing so it can animate out.
   const [session, setSession] = useState(0);
   const [wasOpen, setWasOpen] = useState(isOpen);
@@ -140,6 +164,8 @@ export const PathwaysExplorerModal: React.FC<PathwaysExplorerModalProps> = ({ is
         currentId={findPathwayByTitle(activeGoalTitle)?.id}
         initialPathwayId={initialPathwayId}
         onClose={onClose}
+        alongsideTitle={alongsideTitle}
+        mainRoutine={mainRoutine}
       />
     </Dialog>
   );
