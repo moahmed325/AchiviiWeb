@@ -4,7 +4,7 @@ import { Wordmark } from './Wordmark';
 import { useScrolledPast } from './hooks';
 
 const LINKS = [
-  { href: '#goals', label: 'Goals' },
+  { href: '#goals', label: 'Skills' },
   { href: '#how', label: 'How it works' },
   { href: '#pricing', label: 'Pricing' },
   { href: '#faq', label: 'FAQ' },

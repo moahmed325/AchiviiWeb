@@ -26,7 +26,7 @@ function dayState(task: DailyTask, today: string): string {
 const FEEL_WORDS: Record<string, string> = { too_easy: 'felt too easy', just_right: 'felt just right', too_hard: 'felt too hard' };
 
 /**
- * ND-40: everything the coach knows, as plain text: the goal (the words the person chose), the method and its rules,
+ * ND-41: everything the coach knows, as plain text: the goal (the words the person chose), the method and its rules,
  * the phase and this week's focus, the schedule, each day of this week with how it went (feel taps and notes), and
  * the plan's totals. Read only from stored state; the coach never sees another person's data or anything else.
  */

@@ -1,12 +1,11 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { API, mockApi, signIn } from './mockApi';
-import { PRESET_GOAL, baseline, chooseOption, expectStep } from './onboardingFlow';
 import { SHELL_GOAL_TITLE, STORED_OUTCOME, axeViolations, documentOverflow, shellGoal, settled } from './shellFixtures';
 
 /** M5.2: the ND-7 shell. A rail on desktop, a bottom bar on mobile, a minimal top bar on onboarding. */
 
 const primary = (page: Page) => page.getByRole('navigation', { name: 'Primary' });
-const explorer = (page: Page) => page.getByRole('dialog', { name: 'Explore pathways' });
+const explorer = (page: Page) => page.getByRole('dialog', { name: 'Skills' });
 /** ND-39: Account is a page; the rail and the bar link to it. */
 const accountLink = (page: Page) => primary(page).getByRole('link', { name: /^Account/ });
 const openAccount = async (page: Page) => {
@@ -59,7 +58,7 @@ const entryNames = async (page: Page) =>
     .evaluateAll((items) => items.map((item) => (item.textContent ?? '').replace(/\s+/g, ' ').trim()));
 
 test.describe('entries', () => {
-  test('with a goal: Dashboard (Home on mobile), Today, Roadmap, Pathways, Coach and Account (ND-31), and nothing else', async ({
+  test('with a goal: Dashboard (Home on mobile), Today, Roadmap, Skills, Coach and Account (ND-31), and nothing else', async ({
     page,
     isMobile,
   }) => {
@@ -71,7 +70,7 @@ test.describe('entries', () => {
 
     const names = await entryNames(page);
     const home = isMobile ? 'Home' : 'Dashboard';
-    expect(names.map((name) => name.replace(/e2e@example\.com$/, ''))).toEqual([home, 'Today', 'Roadmap', 'Pathways', 'Coach ✦', 'Account']);
+    expect(names.map((name) => name.replace(/e2e@example\.com$/, ''))).toEqual([home, 'Today', 'Roadmap', 'Skills', 'Coach ✦', 'Account']);
     await expect(primary(page).getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
     await expect(primary(page).getByRole('link', { name: home })).not.toHaveAttribute('aria-current');
     await expect(primary(page).getByRole('link', { name: 'Roadmap' })).not.toHaveAttribute('aria-current');
@@ -96,7 +95,7 @@ test.describe('entries', () => {
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1, name: 'What do you want to achieve?' })).toBeVisible();
     const names = await entryNames(page);
-    expect(names.map((name) => name.replace(/e2e@example\.com$/, ''))).toEqual(['Today', 'Pathways', 'Coach ✦', 'Account']);
+    expect(names.map((name) => name.replace(/e2e@example\.com$/, ''))).toEqual(['Today', 'Skills', 'Coach ✦', 'Account']);
   });
 
   test('a goal that failed to load: the shell still renders, and Roadmap is hidden', async ({ page }) => {
@@ -233,7 +232,7 @@ test.describe('layout and accessibility', () => {
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
       const bar = (await page.locator('[data-shell="bottom-bar"]').boundingBox())!;
       expect(Math.abs(bar.y + bar.height - 844)).toBeLessThanOrEqual(1);
-      await primary(page).getByRole('button', { name: 'Pathways' }).click();
+      await primary(page).getByRole('button', { name: 'Skills' }).click();
       await expect(explorer(page)).toBeVisible();
       await page.keyboard.press('Escape');
     }
@@ -282,39 +281,27 @@ test.describe('layout and accessibility', () => {
 });
 
 test.describe('pathways, account and offline', () => {
-  test('Pathways opens the explorer, and closing it returns focus', async ({ page }) => {
+  test('Skills opens the explorer, and closing it returns focus', async ({ page }) => {
     await mockApi(page, { goal: shellGoal() });
     await signIn(page);
     await page.goto('/roadmap');
-    const opener = primary(page).getByRole('button', { name: 'Pathways' });
+    const opener = primary(page).getByRole('button', { name: 'Skills' });
     await opener.click();
     await expect(explorer(page).getByRole('tab', { name: 'Business' })).toHaveAttribute('aria-selected', 'true');
-    await expect(explorer(page).getByRole('button', { name: /Restart this pathway/ })).toBeEnabled();
+    await expect(explorer(page).getByRole('button', { name: 'Your current plan' })).toBeDisabled();
     await page.keyboard.press('Escape');
     await expect(explorer(page)).toBeHidden();
     await expect(opener).toBeFocused();
   });
 
-  test('a pathway chosen from the shell starts switch goal with no create and no DELETE (R-3, R-15)', async ({ page }) => {
-    const calls = await mockApi(page, { goal: shellGoal(), clarify: baseline.presetClarify });
-    const deletes: string[] = [];
-    page.on('request', (request) => {
-      if (request.method() === 'DELETE') deletes.push(request.url());
-    });
+  test('without Pro, Skills leads to Pro instead of adding to the timeline (ND-40)', async ({ page }) => {
+    const calls = await mockApi(page, { goal: shellGoal(), plan: 'free', access: 'trial' });
     await signIn(page);
     await page.goto('/roadmap');
-    await primary(page).getByRole('button', { name: 'Pathways' }).click();
-    await explorer(page).getByRole('tab', { name: 'Fitness' }).click();
-    await chooseOption(page, PRESET_GOAL);
-    await explorer(page).getByRole('button', { name: /Switch to this pathway/ }).click();
-    await expect(page).toHaveURL('/onboarding');
-    await expectStep(page, 'days');
-    await expect.poll(() => calls.clarify.length).toBeGreaterThan(0);
-    for (const body of calls.clarify) expect(body).toEqual({ rawGoal: PRESET_GOAL });
-    expect(calls.create).toEqual([]);
-    expect(deletes).toEqual([]);
-    await expect(primary(page)).toHaveCount(0);
-    await expect(page.getByRole('banner')).toBeVisible();
+    await primary(page).getByRole('button', { name: 'Skills' }).click();
+    await explorer(page).getByRole('button', { name: 'See Pro' }).click();
+    await expect(explorer(page).getByRole('button', { name: 'Continue to Pro' })).toBeVisible();
+    expect(calls.upNext).toEqual([]);
   });
 
   test('Account is a page: it shows the goal the user chose, not the stored outcome', async ({ page }) => {
@@ -347,7 +334,7 @@ test.describe('pathways, account and offline', () => {
         }),
       );
     }
-    expect(order).toEqual(['Skip to content', 'Achivii, home', 'Dashboard', 'Today', 'Roadmap', 'Pathways', 'Coach ✦', 'Account']);
+    expect(order).toEqual(['Skip to content', 'Achivii, home', 'Dashboard', 'Today', 'Roadmap', 'Skills', 'Coach ✦', 'Account']);
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL('/account');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();

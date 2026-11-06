@@ -97,7 +97,7 @@ export interface IconButtonProps extends Omit<React.ComponentProps<'button'>, 'c
   /** Accessible name. Required: an icon alone has no text. */
   label: string;
   icon: React.ReactNode;
-  /** `gold`: the one action of a small form (Coach's Send, ND-40). */
+  /** `gold`: the one action of a small form (Coach's Send, ND-41). */
   variant?: 'quiet' | 'secondary' | 'gold';
   /** Replaces the icon with a spinner and blocks clicks; keeps focus like Button. */
   loading?: boolean;

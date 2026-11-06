@@ -110,7 +110,7 @@ export const App: React.FC = () => {
                 }
               />
 
-              {/* ND-40: Coach is a page; without a plan it says so. */}
+              {/* ND-41: Coach is a page; without a plan it says so. */}
               <Route
                 path="/coach"
                 element={

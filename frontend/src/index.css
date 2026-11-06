@@ -589,7 +589,7 @@ html:has(.marketing) {
     border: 1px dashed color-mix(in oklab, var(--color-danger) 35%, transparent);
   }
 
-  /* ND-40: Coach. The coach's mark, the two kinds of bubble, the typing dots and the starters. Flat colour, no glow. */
+  /* ND-41: Coach. The coach's mark, the two kinds of bubble, the typing dots and the starters. Flat colour, no glow. */
   .coach-mark {
     display: inline-flex;
     width: 2rem;

@@ -12,7 +12,7 @@ import { CRISIS_REPLY, isCrisisMessage } from '../lib/coach/crisis.js';
 import { COACH_DAILY_MESSAGES, COACH_HISTORY_MESSAGES, COACH_MESSAGE_MAX, COACH_PAGE_MESSAGES } from '../lib/coach/limits.js';
 
 /**
- * ND-40: Achivii Coach.
+ * ND-41: Achivii Coach.
  * - `GET /api/coach`: whether Coach is on, whether the person can use it now, the conversation for the active plan and
  *   how many messages are left today.
  * - `POST /api/coach/messages` `{ text, firstName? }`: one message and the coach's reply, saved together; nothing is

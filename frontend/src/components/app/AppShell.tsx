@@ -74,7 +74,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children, previewPath }) => 
         {children}
       </div>
       <AppBottomBar onOpenPathways={openPathways} />
-      <PathwaysExplorerModal isOpen={pathwaysOpen} onClose={() => setPathwaysOpen(false)} activeGoalTitle={activeGoal?.rawGoal} />
+      <PathwaysExplorerModal isOpen={pathwaysOpen} onClose={() => setPathwaysOpen(false)} activeGoalTitle={activeGoal?.status === 'active' ? activeGoal.rawGoal : undefined} />
     </div>
   );
 };

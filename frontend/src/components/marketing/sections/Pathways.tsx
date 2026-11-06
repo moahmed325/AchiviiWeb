@@ -55,12 +55,13 @@ const OwnGoal: React.FC = () => (
 
 export const Pathways: React.FC = () => (
   <Section id="goals" labelledBy="goals-title">
-    <Eyebrow>Goals</Eyebrow>
+    <Eyebrow>Skills</Eyebrow>
     <h2 id="goals-title" className={`mt-4 ${HEADING}`}>
       What do you want to get good at?
     </h2>
     <p className="mt-4 max-w-[36rem] text-body-lg text-text-secondary">
-      {CERTIFIED_PATHWAYS.length} guided 90-day plans. See where each one starts, and where it takes you.
+      {CERTIFIED_PATHWAYS.length} guided skills, each a 90-day plan. Start one as your first plan, or with Pro add the
+      next one to your timeline.
     </p>
 
     <GoalRail />

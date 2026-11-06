@@ -3,7 +3,7 @@ import { CRISIS_REPLY, isCrisisMessage } from './crisis.js';
 import { coachPrompt, COACH_SYSTEM } from './reply.js';
 import { coachContext, type CoachGoal } from './context.js';
 
-// ND-40: the coach's safety net, its prompt and what it knows about the plan.
+// ND-41: the coach's safety net, its prompt and what it knows about the plan.
 
 describe('isCrisisMessage', () => {
   it('catches self-harm and suicide, however it is put', () => {

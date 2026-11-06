@@ -23,7 +23,7 @@ beforeEach(() => {
   api.sendCoachMessage.mockReset();
 });
 
-describe('Coach (ND-40)', () => {
+describe('Coach (ND-41)', () => {
   it('says it knows the plan, greets by name and offers ways to start', async () => {
     renderPage();
     expect(screen.getByRole('heading', { level: 1, name: /Coach/ })).toBeInTheDocument();

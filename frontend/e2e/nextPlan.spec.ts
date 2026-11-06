@@ -63,7 +63,7 @@ test('free: no next plan and no Pro line on the end screen', async ({ page }) =>
   await page.goto('/');
 
   await expect(page.getByText('You finished 11 of 12 weeks: 52 of 60 sessions.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Choose another pathway' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Choose another skill' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Keep going|Go further/ })).toHaveCount(0);
   await expect(page.getByText(/\bPro\b/)).toHaveCount(0);
 });

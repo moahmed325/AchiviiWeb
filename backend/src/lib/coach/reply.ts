@@ -7,7 +7,7 @@ export interface CoachTurn {
 }
 
 /**
- * ND-40: who the coach is and what it never does. It knows the person's plan (the context block) and talks about
+ * ND-41: who the coach is and what it never does. It knows the person's plan (the context block) and talks about
  * that; it never changes the plan (the app does that), never diagnoses, and sends anything medical to a professional.
  */
 export const COACH_SYSTEM = `You are Achivii Coach, a warm, direct practice coach inside the Achivii app. Achivii turns a goal into a

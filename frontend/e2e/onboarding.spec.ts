@@ -276,39 +276,6 @@ test.describe('onboarding history and reload (R-18)', () => {
 });
 
 test.describe('onboarding entry and failure', () => {
-  test('switching goal from inside the app opens onboarding without touching the current goal', async ({ page, isMobile }) => {
-    test.skip(isMobile, 'The pathway explorer entry is checked on desktop.');
-    const calls = await mockApi(page, { goal: GOAL, clarify: baseline.presetClarify });
-    const deletes: string[] = [];
-    page.on('request', (request) => {
-      if (request.method() === 'DELETE') deletes.push(request.url());
-    });
-    await signIn(page);
-    await page.goto('/');
-    // M5.3: Today no longer has "Explore Goals (10)"; the shell's Pathways entry opens the same explorer.
-    await page.getByRole('navigation', { name: 'Primary' }).getByRole('button', { name: 'Pathways' }).locator('visible=true').first().click();
-    const explorer = page.getByRole('dialog', { name: 'Explore pathways' });
-    await explorer.getByRole('tab', { name: 'Fitness' }).click();
-    await chooseOption(page, PRESET_GOAL);
-    await explorer.getByRole('button', { name: /Switch to this pathway/ }).click();
-
-    await expect(page).toHaveURL('/onboarding');
-    await expectStep(page, 'days');
-    const draft = await page.evaluate(() => localStorage.getItem('achivii_draft_goal'));
-    expect(draft).toBe(PRESET_GOAL);
-    await expect.poll(() => calls.clarify.length).toBeGreaterThan(0);
-    for (const body of calls.clarify) expect(body).toEqual({ rawGoal: PRESET_GOAL });
-    await expect(page.getByText(draft!).locator('visible=true').first()).toBeVisible();
-    expect(deletes).toEqual([]);
-    expect(calls.create).toEqual([]);
-
-    // ND-16: the switch-goal launch state survives a reload instead of bouncing to /dashboard.
-    await page.reload();
-    await expect(page).toHaveURL('/onboarding');
-    await expectStep(page, 'days');
-    expect(deletes).toEqual([]);
-  });
-
   test('a clarify failure shows on the questions page with a retry [network errors expected]', async ({ page }) => {
     await mockApi(page, { clarifyOffline: true });
     await signIn(page);

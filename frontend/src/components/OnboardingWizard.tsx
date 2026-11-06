@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { CommitmentItem, Goal } from '../types';
+import type { CommitmentItem, Goal, RoutineSettings } from '../types';
 import type { NextPlanLaunch } from '../lib/nextPlan';
 import { findPathwayByTitle } from '../lib/certifiedPresets';
 import { suggestedMinutes } from '../lib/planPreview';
@@ -36,6 +36,8 @@ interface OnboardingWizardProps {
   nextPlan?: NextPlanLaunch | null;
   /** B-106: the fixed date to fill in, from the plan a fresh or next plan follows. */
   initialFixedDate?: string;
+  /** ND-40: the routine of the plan a skill follows. */
+  initialRoutine?: RoutineSettings | null;
   /** The app's health check couldn't reach Achivii when it loaded. */
   apiOffline?: boolean;
 }
@@ -52,9 +54,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   currentGoalId,
   nextPlan = null,
   initialFixedDate,
+  initialRoutine,
   apiOffline = false
 }) => {
-  const onboarding = useOnboardingState({ token, onGoalCreated, onSignUp, initialGoal, currentGoalId, nextPlan, initialFixedDate });
+  const onboarding = useOnboardingState({ token, onGoalCreated, onSignUp, initialGoal, currentGoalId, nextPlan, initialFixedDate, initialRoutine });
   const {
     pages,
     screen,

@@ -1,5 +1,5 @@
 /**
- * ND-40: a message that speaks of self-harm or suicide never goes to the model. The coach answers with one fixed,
+ * ND-41: a message that speaks of self-harm or suicide never goes to the model. The coach answers with one fixed,
  * caring reply that points to real help. Matching is deliberately broad: a false match costs one gentle reply.
  */
 const CRISIS = [

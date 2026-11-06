@@ -20,7 +20,7 @@ const SUGGESTIONS = [
 ];
 
 /**
- * ND-40: Achivii Coach. A conversation with a coach that knows the person's plan (the server gives it the goal, the
+ * ND-41: Achivii Coach. A conversation with a coach that knows the person's plan (the server gives it the goal, the
  * method, this week and how it went). It talks; it never changes the plan. The trial or Pro is needed to send; a trial
  * that ended keeps the conversation readable. Off until `COACH_ENABLED`: then an honest "coming soon".
  */

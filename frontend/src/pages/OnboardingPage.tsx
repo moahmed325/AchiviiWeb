@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useGoal } from '../context/GoalContext';
 import { OnboardingWizard } from '../components/OnboardingWizard';
 import { Button, Surface } from '../components/ui';
-import { Goal } from '../types';
+import { Goal, type RoutineSettings } from '../types';
 import type { NextPlanLaunch } from '../lib/nextPlan';
 
 export const OnboardingPage: React.FC = () => {
@@ -56,6 +56,8 @@ export const OnboardingPage: React.FC = () => {
     nextPlan?: NextPlanLaunch;
     /** B-106: the old plan's fixed date, filled in for a fresh plan. */
     fixedDate?: string;
+    /** ND-40: the routine of the plan a skill follows. */
+    routine?: RoutineSettings;
   } | null;
   const initialGoal = navState?.presetGoal || navState?.draftGoal;
   const nextPlan = navState?.nextPlan ?? null;
@@ -105,6 +107,7 @@ export const OnboardingPage: React.FC = () => {
         currentGoalId={!token ? undefined : goalLoadFailed ? null : activeGoal?.id}
         nextPlan={nextPlan}
         initialFixedDate={navState?.fixedDate ?? nextPlan?.fixedDate}
+        initialRoutine={navState?.routine}
         apiOffline={apiStatus === 'offline'}
       />
     </div>

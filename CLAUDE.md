@@ -62,7 +62,7 @@ Playwright runs with one worker on purpose (parallel workers stall the Vite dev 
 - Postgres is required everywhere, local included; there is no SQLite mode. The database must allow the pgvector extension, because the older migrations run `CREATE EXTENSION vector` (for the `research_cache` table, since dropped).
 - Always use `prisma migrate deploy`, never `prisma db push`. `db push` skips the migrations folder, which holds `CREATE EXTENSION vector` and the raw-SQL indexes, so the database drifts from the migration history.
 - For Supabase use the session pooler connection string; the direct host is IPv6-only.
-- Models: `User`, `Subscription`, `WebhookEvent`, `Goal`, `RoadmapWeek`, `DailyTask`, `WeeklyReview`, `CoachMessage` (`backend/prisma/schema.prisma`). The unused `research_cache` table, four old `Goal` columns and the Stripe-era `User` columns were dropped on 2026-10-24 (B-8, B-14, B-16). `User.remindersEnabled` and `lastReminderAt` hold the reminder email setting (ND-28).
+- Models: `User`, `Subscription`, `WebhookEvent`, `Goal`, `RoadmapWeek`, `DailyTask`, `WeeklyReview`, `CoachMessage` (`backend/prisma/schema.prisma`). The unused `research_cache` table, four old `Goal` columns and the Stripe-era `User` columns were dropped on 2026-10-24 (B-8, B-14, B-16). `User.remindersEnabled` and `lastReminderAt` hold the reminder email setting (ND-28); `trialStartedAt` the 30-day trial (ND-37); `upNextSkill` the guided skill added to the timeline (ND-41).
 
 ## Backend architecture
 
@@ -83,10 +83,10 @@ Main areas (details in `docs/architecture/backend-details.md`; read the part you
 - Week close: `lib/weekClose/`. No weekly tests, targets, checkpoints or weekly update call (ND-35): the next week is written from last week's sessions done, the feel taps (`DailyTask.feel`) and the notes, with code's pace line (`lastWeekOf` in `lib/planV2.ts`, `paceOf` in `lib/ai/weekPlan.ts`).
 - Billing: `lib/billing/`, `config/billing.ts` (Lemon Squeezy, test mode by default). Access (ND-37): the first plan starts a 30-day trial; after it without Pro the plan is paused, read-only (`lib/billing/access.ts`, `accessGuard.ts`).
 - Missed-day reminder email: `lib/reminders/`, `routes/reminders.ts` (`/api/reminders`), run hourly by `.github/workflows/reminders.yml` (`docs/architecture/reminders.md`).
-- Coach (ND-40): `routes/coach.ts` (`/api/coach`), `lib/coach/` (plan context, prompt, crisis reply, limits); trial or Pro, 30 messages a day (`docs/architecture/coach.md`).
+- Coach (ND-41): `routes/coach.ts` (`/api/coach`), `lib/coach/` (plan context, prompt, crisis reply, limits); trial or Pro, 30 messages a day (`docs/architecture/coach.md`).
 - LLM: `lib/ai/gemini.ts` (Gemini only, no fallback provider).
 
-Feature switches (`WEEKLY_UPDATE_ENABLED` is read by nothing since ND-35; delete it in Render), all managed in the Render dashboard only (`sync: false`, unset means off). **Never turn them on or off from code or tests:** `MISSED_SESSIONS_CARRY_ENABLED` (on), `METHOD_RECOVERY_ENABLED` (on), `WEEK_CLOSE_ENABLED` (on), `CUSTOM_RECOVERY_PROFILES_ENABLED` (on), `MISSED_DAY_REMINDERS_ENABLED` (off until Resend is set up, `docs/architecture/reminders.md`), `COACH_ENABLED` (off until Mo turns it on; ND-40). They are read through `lib/flags.ts` (`flagOn`, exactly `true`, per request), and the server logs them all at startup (`[Flags]`).
+Feature switches (`WEEKLY_UPDATE_ENABLED` is read by nothing since ND-35; delete it in Render), all managed in the Render dashboard only (`sync: false`, unset means off). **Never turn them on or off from code or tests:** `MISSED_SESSIONS_CARRY_ENABLED` (on), `METHOD_RECOVERY_ENABLED` (on), `WEEK_CLOSE_ENABLED` (on), `CUSTOM_RECOVERY_PROFILES_ENABLED` (on), `MISSED_DAY_REMINDERS_ENABLED` (off until Resend is set up, `docs/architecture/reminders.md`), `COACH_ENABLED` (off until Mo turns it on; ND-41). They are read through `lib/flags.ts` (`flagOn`, exactly `true`, per request), and the server logs them all at startup (`[Flags]`).
 
 The routes that call the model are rate limited in memory (`lib/rateLimit.ts`): `POST /api/goal/clarify` 10 a minute per IP, `POST /api/goal/create` 10 per 10 minutes per person, `POST /api/coach/messages` 8 a minute per person; over it, 429 `rate_limited`.
 

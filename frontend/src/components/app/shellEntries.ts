@@ -30,7 +30,7 @@ export interface ShellEntries {
   showRoadmap: boolean;
   /** ND-39: Account is a page. */
   accountActive: boolean;
-  /** ND-40: Coach is a page. */
+  /** ND-41: Coach is a page. */
   coachActive: boolean;
 }
 

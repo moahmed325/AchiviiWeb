@@ -1,4 +1,4 @@
--- ND-40: Achivii Coach. One conversation per plan, deleted with the plan or the account.
+-- ND-41: Achivii Coach. One conversation per plan, deleted with the plan or the account.
 CREATE TABLE "coach_messages" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,

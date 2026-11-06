@@ -1,4 +1,4 @@
-/** ND-40: Achivii Coach's limits, in one place. */
+/** ND-41: Achivii Coach's limits, in one place. */
 
 /** Messages a person can send the coach in one of their days. */
 export const COACH_DAILY_MESSAGES = 30;

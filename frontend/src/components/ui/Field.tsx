@@ -108,7 +108,7 @@ export interface TextareaProps extends React.ComponentProps<'textarea'> {
    * limit (80%), linked to the control as a description. `className` then goes to the wrapper.
    */
   showCount?: boolean;
-  /** `compact`: one line to start, for a message box (Coach, ND-40); it doesn't resize. */
+  /** `compact`: one line to start, for a message box (Coach, ND-41); it doesn't resize. */
   size?: 'default' | 'compact';
 }
 

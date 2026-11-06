@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { API, mockApi, signIn } from './mockApi';
 import { expectCleanAt, shellGoal } from './shellFixtures';
 
-// ND-40: Achivii Coach in the browser. The API is mocked; nothing reaches a model.
+// ND-41: Achivii Coach in the browser. The API is mocked; nothing reaches a model.
 
 const ON = { enabled: true, hasGoal: true, access: 'ok', messages: [], remainingToday: 30, dailyLimit: 30 };
 
