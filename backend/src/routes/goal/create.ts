@@ -4,6 +4,8 @@ import { prisma } from '../../lib/prisma.js';
 import { getAuthUser } from '../auth.js';
 import { normalizeTimezone, resolveGoalStart } from '../../lib/timezone.js';
 import { authorizeNewPlan, authorizeNextPlan } from '../../lib/billing/goalAuthorization.js';
+import { accessFor } from '../../lib/billing/access.js';
+import { ALONGSIDE_STATUS } from '../../lib/plans.js';
 import { journeyResultOf, journeySummary, NEXT_PLAN_MODES, nextPlanStart, readPreviousPlan, type NextPlanMode, type PreviousPlan } from '../../lib/nextPlan.js';
 import { clarifyGoalWithAI, UserRoutineInput } from '../../lib/ai/goalDecomposer.js';
 import { findPresetForGoal } from '../../lib/ai/presets/index.js';
@@ -12,7 +14,7 @@ import { loadGoalInput } from '../../lib/safety/stepLoad.js';
 import { generateRoadmap, TOTAL_WEEKS, type PlanAnswer, type Roadmap } from '../../lib/ai/roadmap.js';
 import { MIN_WEEKS, planLengthFor } from '../../lib/planLength.js';
 import { activeDaysFor, generateWeekPlan, slotTimeFor, validRestWeekdays, type PlanVariant, type WeekDayPlan } from '../../lib/ai/weekPlan.js';
-import { DAILY_MINUTES_MAX, DAILY_MINUTES_MIN, PLAN_VARIANTS, dailyTaskRows, measureTarget, roadmapWeekRows, storedRoadmap } from '../../lib/planV2.js';
+import { DAILY_MINUTES_MAX, DAILY_MINUTES_MIN, PLAN_VARIANTS, dailyTaskRows, measureTarget, readRoutine, roadmapWeekRows, storedRoadmap } from '../../lib/planV2.js';
 import { makeGoalProfile } from '../../lib/recovery/forGoal.js';
 import { customProfilesEnabled, generateRecoveryProfile } from '../../lib/recovery/profileCall.js';
 import type { RecoveryProfile } from '../../lib/recovery/profile.js';
@@ -104,6 +106,39 @@ export function readFixedDate(value: unknown, start: Date): { date: Date | null 
   return { date };
 }
 
+/**
+ * ND-41: why a skill can't start alongside the main plan, or null. Pro only (not in the trial), a guided skill, a main
+ * plan running and none alongside yet, and both plans' daily minutes within the daily limit together.
+ */
+export async function alongsideRefusal(
+  user: { id: string; trialStartedAt?: Date | null },
+  rawGoal: unknown,
+  clarifiedOutcome: unknown,
+  dailyMinutes: number,
+): Promise<{ status: number; error: string; reason: string } | null> {
+  if ((await accessFor(user)).state !== 'pro') {
+    return { status: 403, error: 'Running a skill alongside your plan is part of Achivii Pro.', reason: 'SKILLS_REQUIRE_PRO' };
+  }
+  const isSkill =
+    (typeof rawGoal === 'string' && findPresetForGoal(rawGoal)) || (typeof clarifiedOutcome === 'string' && findPresetForGoal(clarifiedOutcome));
+  if (!isSkill) return { status: 400, error: 'Only a guided skill can run alongside your plan.', reason: 'not_a_skill' };
+  const [main, existing] = await Promise.all([
+    prisma.goal.findFirst({ where: { userId: user.id, status: 'active' }, select: { routine: true } }),
+    prisma.goal.findFirst({ where: { userId: user.id, status: ALONGSIDE_STATUS }, select: { id: true } }),
+  ]);
+  if (!main) return { status: 409, error: 'Start a main plan first; a skill runs alongside it.', reason: 'no_main_plan' };
+  if (existing) return { status: 409, error: 'A skill is already running alongside your plan.', reason: 'alongside_running' };
+  const mainMinutes = Number(readRoutine(main).dailyMinutes) || 0;
+  if (mainMinutes + dailyMinutes > DAILY_MINUTES_MAX) {
+    return {
+      status: 400,
+      error: `Together your plans would ask more than ${DAILY_MINUTES_MAX / 60} hours a day. Choose less time for this skill.`,
+      reason: 'too_much_time',
+    };
+  }
+  return null;
+}
+
 export async function saveV2Goal(input: {
   userId: string;
   rawGoal: string;
@@ -119,6 +154,8 @@ export async function saveV2Goal(input: {
   /** B-109: the plan's weeks (`planLengthFor`); missing is 12. */
   totalWeeks?: number;
   isPreset: boolean;
+  /** ND-41: saved as the skill running alongside the main plan, which is left as it is. */
+  alongside?: boolean;
   /** ND-40: the pathway this plan follows; when it was the person's up-next skill, that slot is emptied. */
   presetId?: string;
   /** Method-aware recovery (M1.3a): saved under `recovery` when it passed the checks. */
@@ -130,14 +167,17 @@ export async function saveV2Goal(input: {
   const stored = storedRoadmap(roadmap, input.answerList, input.recovery);
   // One transaction (B-100): a failed write must not archive the person's current goal and leave a half-saved new one.
   return prisma.$transaction(async (tx) => {
-    await tx.goal.updateMany({ where: { userId: input.userId, status: 'active' }, data: { status: 'archived' } });
+    // ND-41: a skill alongside leaves the main plan running; any other new plan replaces it.
+    if (!input.alongside) {
+      await tx.goal.updateMany({ where: { userId: input.userId, status: 'active' }, data: { status: 'archived' } });
+    }
     const goal = await tx.goal.create({
       data: {
         userId: input.userId,
         rawGoal: input.rawGoal,
         clarifiedOutcome: roadmap.finalGoal,
         methodologyNotes: `${roadmap.method.name}: ${roadmap.method.summary}`,
-        status: 'active',
+        status: input.alongside ? ALONGSIDE_STATUS : 'active',
         startDate: input.start,
         targetDate: input.targetDate,
         fixedDate: input.fixedDate ?? null,
@@ -277,6 +317,16 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
       res.status(400).json({ error: 'Choose how many days a week you can practise.' });
       return;
     }
+    // ND-41: a skill run alongside the main plan: Pro, a guided skill, a main plan running, none alongside yet, and
+    // the two plans' daily time together within the daily limit.
+    const alongside = req.body?.alongside === true;
+    if (alongside) {
+      const refusal = await alongsideRefusal(user, rawGoal, clarifiedOutcome, dailyMinutes);
+      if (refusal) {
+        res.status(refusal.status).json({ error: refusal.error, reason: refusal.reason });
+        return;
+      }
+    }
     // Edit my schedule (B-108): the chosen rest days are optional; sent, they must fit the days a week.
     const restWeekdays = routine?.restWeekdays === undefined || routine?.restWeekdays === null ? null : validRestWeekdays(routine.planVariant, routine.restWeekdays);
     if (routine?.restWeekdays !== undefined && routine?.restWeekdays !== null && !restWeekdays) {
@@ -412,6 +462,7 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
         ...lengthInput,
         isPreset: Boolean(preset),
         presetId: preset?.id,
+        alongside,
         recovery,
         previousPlan: nextPlan ? nextPlan.previousPlan : null,
       });

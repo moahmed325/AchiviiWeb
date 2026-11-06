@@ -6,6 +6,7 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../../lib/prisma.js';
 import { getAuthUser } from '../auth.js';
 import { isLocked } from '../../lib/billing/accessGuard.js';
+import { planOf, statusOf } from '../../lib/plans.js';
 import { TOTAL_WEEKS } from '../../lib/ai/roadmap.js';
 import { readRoutine, routineRecord } from '../../lib/planV2.js';
 import {
@@ -64,7 +65,7 @@ weekRoutes.post('/close-week', async (req: Request, res: Response): Promise<void
     }
 
     const found = await prisma.goal.findFirst({
-      where: { userId: user.id, status: 'active' },
+      where: { userId: user.id, status: statusOf(planOf(req)) },
       include: { roadmapWeeks: { orderBy: { weekNumber: 'asc' } } },
     });
     if (!found) {
@@ -152,7 +153,7 @@ export async function closedWeekOf(req: Request, res: Response, weekNumber: numb
     return null;
   }
   const goal = await prisma.goal.findFirst({
-    where: { userId: user.id, status: 'active' },
+    where: { userId: user.id, status: statusOf(planOf(req)) },
     select: { id: true, planVersion: true, roadmapWeeks: { where: { weekNumber } } },
   });
   const week = goal?.roadmapWeeks[0];
@@ -204,7 +205,7 @@ weekRoutes.post('/daily-time', async (req: Request, res: Response): Promise<void
     if (!weekCloseEnabled()) return refuse(res, 'week_close_disabled');
 
     const goal = await prisma.goal.findFirst({
-      where: { userId: user.id, status: 'active' },
+      where: { userId: user.id, status: statusOf(planOf(req)) },
       select: {
         id: true,
         planVersion: true,

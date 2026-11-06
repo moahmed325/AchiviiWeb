@@ -5,6 +5,7 @@
  * held key session as an ordinary day (carry now) without storing anything about it (ND-2, ND-14).
  */
 import type { Prisma } from '@prisma/client';
+import { statusOf, type PlanRole } from './plans.js';
 import { prisma } from './prisma.js';
 import { flagOn } from './flags.js';
 import { getZonedDateString } from './timezone.js';
@@ -74,8 +75,9 @@ export function carryEnabled(): boolean {
 /** Method-aware recovery's switch (M3.1a); its own module since M3.1d, re-exported here for its callers. */
 export { methodRecoveryEnabled };
 
-export function loadReconcileGoal(userId: string): Promise<ReconcileGoal | null> {
-  const where = { userId, status: 'active' };
+/** ND-41: the main plan unless `role` names the skill running alongside it. */
+export function loadReconcileGoal(userId: string, role: PlanRole = 'main'): Promise<ReconcileGoal | null> {
+  const where = { userId, status: statusOf(role) };
   if (methodRecoveryEnabled()) {
     const dailyTasks = { ...RECONCILE_GOAL_SELECT.dailyTasks, select: { ...RECONCILE_GOAL_SELECT.dailyTasks.select, ...METHOD_DAY_TEXT } };
     return prisma.goal.findFirst({ where, select: { ...RECONCILE_GOAL_SELECT, dailyTasks, roadmap: true } });

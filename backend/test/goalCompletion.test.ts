@@ -283,12 +283,10 @@ describe('Goal Completion Transition Lifecycle (Milestone M9.2 — OD-1b Option 
       expect(json.activeGoal.status).toBe('active');
 
       // Verify that completed goal query was NEVER called
-      expect(prisma.goal.findFirst).toHaveBeenCalledTimes(1);
-      expect(prisma.goal.findFirst).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { userId: mockUser.id, status: 'active' },
-        })
-      );
+      // ND-41: then only the skill running alongside it, never the completed goals.
+      expect(prisma.goal.findFirst).toHaveBeenCalledTimes(2);
+      expect(prisma.goal.findFirst).toHaveBeenNthCalledWith(1, expect.objectContaining({ where: { userId: mockUser.id, status: 'active' } }));
+      expect(prisma.goal.findFirst).toHaveBeenNthCalledWith(2, expect.objectContaining({ where: { userId: mockUser.id, status: 'alongside' } }));
     });
 
     it('returns null when user has neither active nor completed goals', async () => {

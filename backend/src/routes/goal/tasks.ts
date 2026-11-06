@@ -1,4 +1,5 @@
 // B-102: task completion and task updates, moved out of routes/goal.ts.
+import { planOf, statusOf } from '../../lib/plans.js';
 import { Router, Request, Response } from 'express';
 import { prisma } from '../../lib/prisma.js';
 import { getAuthUser } from '../auth.js';
@@ -22,7 +23,7 @@ taskRoutes.post('/complete', async (req: Request, res: Response): Promise<void> 
     if (await refuseIfLocked(user, res)) return;
 
     const activeGoal = await prisma.goal.findFirst({
-      where: { userId: user.id, status: 'active' },
+      where: { userId: user.id, status: statusOf(planOf(req)) },
       include: {
         roadmapWeeks: {
           orderBy: { weekNumber: 'asc' }

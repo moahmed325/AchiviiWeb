@@ -3,6 +3,7 @@ import { addDays } from '../missedSessions.js';
 import { reminderFor, type ReminderCandidate } from './plan.js';
 import { buildReminderEmail, sendEmail } from './email.js';
 import { trialEndsAt } from '../billing/access.js';
+import { RUNNING_STATUSES } from '../plans.js';
 import { hasProEntitlement } from '../billing/entitlement.js';
 
 export interface ReminderRun {
@@ -26,7 +27,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export async function runReminders(now: Date = new Date(), spacingMs = SEND_SPACING_MS): Promise<ReminderRun> {
   const utcToday = now.toISOString().slice(0, 10);
   const users = await prisma.user.findMany({
-    where: { remindersEnabled: true, goals: { some: { status: 'active' } } },
+    where: { remindersEnabled: true, goals: { some: { status: { in: RUNNING_STATUSES } } } },
     select: {
       id: true,
       email: true,
@@ -35,7 +36,8 @@ export async function runReminders(now: Date = new Date(), spacingMs = SEND_SPAC
       lastReminderAt: true,
       trialStartedAt: true,
       goals: {
-        where: { status: 'active' },
+        // ND-41: the main plan and the skill alongside it; a day counts as missed only when both are.
+        where: { status: { in: RUNNING_STATUSES } },
         select: {
           id: true,
           dailyTasks: {

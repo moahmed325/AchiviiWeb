@@ -1,4 +1,5 @@
 // Edit my schedule (B-108, docs/archive/edit-schedule/plan.md): change the active goal's days, minutes and time of day.
+import { planOf, statusOf } from '../../lib/plans.js';
 import { Router, Request, Response } from 'express';
 import { prisma } from '../../lib/prisma.js';
 import { shapeOf } from '../../lib/planLength.js';
@@ -83,7 +84,7 @@ scheduleRoutes.patch('/schedule', async (req: Request, res: Response): Promise<v
       return;
     }
     const goal = await prisma.goal.findFirst({
-      where: { userId: user.id, status: 'active' },
+      where: { userId: user.id, status: statusOf(planOf(req)) },
       select: {
         id: true,
         planVersion: true,
