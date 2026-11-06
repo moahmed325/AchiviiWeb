@@ -339,6 +339,9 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     if (path === '/api/goal/active' && route.request().method() === 'DELETE') {
       calls.resets += 1;
       if (resetStatus >= 400) return json(route, resetStatus, { error: 'Failed to reset goal' });
+      // As the server: the plan is gone, and a skill alongside becomes the main plan (ND-41).
+      saved = alongside ? { ...alongside, status: 'active' } : null;
+      alongside = null;
       return json(route, 200, { success: true });
     }
     if (path === '/api/goal/active') {
