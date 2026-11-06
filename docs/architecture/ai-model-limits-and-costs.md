@@ -15,11 +15,12 @@ Written 2026-10-15 for Mo (B-28). Prices and limits change often. Check the two 
 | Creates a pathway goal (clarify, roadmap, week 1) | 3 | about 9 (each step retries once, and busy errors are retried twice more) |
 | Creates a custom goal (clarify, roadmap, recovery profile, week 1) | 4 | about 11 (the profile call retries once; if it still fails the goal uses a template) |
 | Closes a week, by review or automatically (next week) | 1 | about 3 (the week call retries once, and busy errors are retried) |
+| Sends Coach a message (ND-41, with `COACH_ENABLED` on) | 1 | about 3 (busy errors are retried); capped at 30 a day per person |
 | Anything else (Today, Focus, ticking steps, missed days) | 0 | 0 |
 
 Since 2026-10-28 `CUSTOM_RECOVERY_PROFILES_ENABLED` is on, so a custom goal makes the profile call. The weekly update call went with the weekly tests on 2026-10-30 (ND-35), so a week close makes only the week call. The last week has no week after it, so its close makes no call.
 
-So, roughly: **a new user costs about 3 calls on day 1 (4 for a custom goal), and then about 1 call a week.**
+So, roughly: **a new user costs about 3 calls on day 1 (4 for a custom goal), and then about 1 call a week**, plus one call per Coach message. Coach is the one feature whose calls grow with use: each message sends the plan, the last 12 messages and the new one (a few thousand tokens), so watch the free tier's daily requests before turning `COACH_ENABLED` on for many people.
 
 ## 2. How far the free tier goes
 

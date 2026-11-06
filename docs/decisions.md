@@ -136,7 +136,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-8 | Progress: separate page or Journey layer | Design | Decided (A) | 8 |
 | ND-9 | Payments in scope or not | Product | Decided (A) | 10 |
 | ND-10 | Custom-goal gating | Product | Superseded by ND-37 | 10 |
-| ND-11 | Coach scope | Product | Decided (A) | 10 |
+| ND-11 | Coach scope | Product | Superseded by ND-41 | 10 |
 | ND-12 | Phase 2 frontend scope additions (`api.ts` status, `GoalContext` failure flag) | Architecture | Decided (A) | 2 |
 | ND-13 | Onboarding step order around the clarify wait | Design | Superseded by ND-36 | 3 |
 | ND-14 | Grouping clarify questions into "starting point" and "success" | Design | Superseded by ND-36 | 3 |
@@ -1442,7 +1442,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Decided (A) |
+| Status | Superseded by ND-41 |
 | Category | Product |
 | Needed by | 10 |
 | Raised | 2026-09-23 — `docs/features/billing/04-phases.md` Phase 10 |
@@ -2030,6 +2030,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-11-05 | ND-38 Under Mo's ask to make missed sessions the best: a missed step that can't fit whole moves shorter, a day that is over doesn't block the search (MR-10 amended), after a gap the most important missed step comes back on the first day back, and next week's writer hears the main steps never done. |
 | 2026-11-05 | ND-39 Decided by Mo: Account is a page (membership with Go Pro or Manage, the goal and its schedule, profile, preferences, sign out, start over set apart). |
 | 2026-11-05 | ND-40 Decided by Mo (stage 3 of 4): the 10 guided plans are skills; with Pro, one is added to the timeline ("Up next") and offered first when the current plan ends, with its routine carried over. |
+| 2026-11-06 | ND-41 Decided by Mo: a real Coach at /coach that knows the plan and never changes it; trial and Pro; 30 messages a day; behind COACH_ENABLED. ND-11 marked Superseded. |
 
 ### ND-32 — The Roadmap at a glance, a name in the greeting, no weekly review by hand
 
@@ -2246,3 +2247,21 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 **Consequences.** Running a skill alongside the main goal is stage 4.
 
 **Related.** ND-36, ND-37, `frontend/src/components/PathwaysExplorerModal.tsx`, `frontend/src/components/pathways/UpNextSkill.tsx`, `backend/src/routes/auth.ts`.
+
+### ND-41 — A real Coach
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-11-06 — Mo: "let's do the coach page next" |
+| Decided | 2026-11-06 — Mo: a real AI coach (not tips, not a nicer "coming soon"), for the trial and Pro |
+
+**Context.** ND-11 shipped Coach as an honest "Coming soon" dialog and left a real coach for its own project. Everything a coach needs to know is now stored: the goal in the person's words, the method, the phases, each week's focus, each day's session, whether it was done, how it felt and the person's notes.
+
+**Decision.** Coach is a page at `/coach`: a conversation with a coach that knows the person's plan. It answers from the plan (Gemini, the provider the app already uses), briefly and specifically; it never changes the plan and points to the app's own controls instead; it gives no medical or mental-health diagnosis, never pushes through pain or past the plan, and answers any message about self-harm with a fixed reply that points to real help, without the model. One conversation per plan, deleted with it. Available during the 30-day trial and with Pro; after the trial without Pro the conversation stays readable and sending is paused (ND-37). 30 messages a day per person, and 8 a minute. Behind `COACH_ENABLED`, off until Mo turns it on.
+
+**Consequences.** `CoachMessage` (migration `20261106120000_coach_messages`), `routes/coach.ts`, `lib/coach/`, `pages/CoachPage.tsx`; `CoachModal` removed. Supersedes ND-11. Details in `docs/architecture/coach.md`.
+
+**Related.** ND-11, ND-35, ND-37.

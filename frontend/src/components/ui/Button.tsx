@@ -97,7 +97,8 @@ export interface IconButtonProps extends Omit<React.ComponentProps<'button'>, 'c
   /** Accessible name. Required: an icon alone has no text. */
   label: string;
   icon: React.ReactNode;
-  variant?: 'quiet' | 'secondary';
+  /** `gold`: the one action of a small form (Coach's Send, ND-41). */
+  variant?: 'quiet' | 'secondary' | 'gold';
   /** Replaces the icon with a spinner and blocks clicks; keeps focus like Button. */
   loading?: boolean;
 }
@@ -127,7 +128,9 @@ export const IconButton: React.FC<IconButtonProps> = ({
         'transition-[background-color,border-color,color] duration-(--duration-quick) disabled:cursor-not-allowed disabled:opacity-45 aria-busy:cursor-progress',
         variant === 'quiet'
           ? 'text-text-secondary hover:bg-text/[0.06] hover:text-text'
-          : 'border border-border-strong text-text hover:border-text/40 hover:bg-text/[0.04]',
+          : variant === 'gold'
+            ? 'bg-achievement text-text-on-inverse hover:bg-achievement-hover'
+            : 'border border-border-strong text-text hover:border-text/40 hover:bg-text/[0.04]',
         className,
       )}
       {...rest}

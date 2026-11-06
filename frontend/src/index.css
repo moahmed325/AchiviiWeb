@@ -589,6 +589,102 @@ html:has(.marketing) {
     border: 1px dashed color-mix(in oklab, var(--color-danger) 35%, transparent);
   }
 
+  /* ND-41: Coach. The coach's mark, the two kinds of bubble, the typing dots and the starters. Flat colour, no glow. */
+  .coach-mark {
+    display: inline-flex;
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background-color: color-mix(in oklab, var(--color-achievement) 16%, transparent);
+    color: var(--color-achievement);
+  }
+
+  .coach-mark--lg {
+    width: 3.25rem;
+    height: 3.25rem;
+  }
+
+  .coach-bubble {
+    max-width: min(36rem, 85%);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    border-radius: var(--radius-card);
+    border-top-left-radius: var(--radius-block);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    padding: 0.875rem 1.125rem;
+    color: var(--color-text);
+    font-size: var(--text-body);
+    line-height: 1.6;
+    animation: rise-in 360ms var(--ease-ascend) backwards;
+  }
+
+  .coach-bubble--you {
+    border-color: transparent;
+    border-top-left-radius: var(--radius-card);
+    border-top-right-radius: var(--radius-block);
+    background-color: var(--color-surface-elevated);
+  }
+
+  @keyframes coach-dot {
+    0%, 80%, 100% { opacity: 0.25; }
+    40% { opacity: 1; }
+  }
+
+  .coach-typing {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: var(--radius-card);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    padding: 0 1.125rem;
+  }
+
+  .coach-typing span[aria-hidden] {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 9999px;
+    background-color: var(--color-achievement);
+    animation: coach-dot 1.2s ease-in-out infinite;
+  }
+
+  .coach-typing span[aria-hidden]:nth-of-type(2) { animation-delay: 0.15s; }
+  .coach-typing span[aria-hidden]:nth-of-type(3) { animation-delay: 0.3s; }
+
+  .coach-suggestion {
+    display: inline-flex;
+    min-height: 2.75rem;
+    width: 100%;
+    cursor: pointer;
+    align-items: center;
+    border-radius: 9999px;
+    border: 1px solid var(--color-border-strong);
+    padding: 0.5rem 1rem;
+    text-align: left;
+    color: var(--color-text);
+    font-size: var(--text-small);
+    transition: border-color var(--duration-quick), background-color var(--duration-quick);
+  }
+
+  .coach-suggestion:hover {
+    border-color: color-mix(in oklab, var(--color-achievement) 55%, transparent);
+    background-color: color-mix(in oklab, var(--color-achievement) 6%, transparent);
+  }
+
+  @media (min-width: 640px) {
+    .coach-suggestion { width: auto; }
+  }
+
+  /* The composer stays at the foot of the screen above the bottom bar, on the page's own background. */
+  .coach-composer {
+    background-color: var(--color-background);
+  }
+
   /* ProgressRing: a quiet track and an arc that fills once on arrival. */
   @keyframes progress-ring-fill {
     from { stroke-dashoffset: 100; }

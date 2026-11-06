@@ -12,6 +12,7 @@ const Dashboard = React.lazy(() => import('./pages/Dashboard').then((m) => ({ de
 const OnboardingPage = React.lazy(() => import('./pages/OnboardingPage'));
 const RoadmapPage = React.lazy(() => import('./pages/RoadmapPage'));
 const AccountPage = React.lazy(() => import('./pages/AccountPage'));
+const CoachPage = React.lazy(() => import('./pages/CoachPage'));
 const SignupPage = React.lazy(() => import('./pages/auth/SignupPage'));
 const LoginPage = React.lazy(() => import('./pages/auth/LoginPage'));
 /* B-15: password reset. */
@@ -104,6 +105,18 @@ export const App: React.FC = () => {
                   <ProtectedRoute requireGoal={false}>
                     <React.Suspense fallback={null}>
                       <AccountPage />
+                    </React.Suspense>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* ND-41: Coach is a page; without a plan it says so. */}
+              <Route
+                path="/coach"
+                element={
+                  <ProtectedRoute requireGoal={false}>
+                    <React.Suspense fallback={null}>
+                      <CoachPage />
                     </React.Suspense>
                   </ProtectedRoute>
                 }

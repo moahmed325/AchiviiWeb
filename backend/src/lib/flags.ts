@@ -10,6 +10,8 @@ export const FEATURE_FLAGS = [
   'CUSTOM_RECOVERY_PROFILES_ENABLED',
   // ND-28: the missed-day reminder email. Off until Resend is set up; turning it off is the kill switch.
   'MISSED_DAY_REMINDERS_ENABLED',
+  // ND-41: Achivii Coach (it calls the model). Off until Mo turns it on; turning it off is the kill switch.
+  'COACH_ENABLED',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];

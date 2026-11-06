@@ -320,6 +320,10 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     if (path === '/api/billing/entitlement') {
       return json(route, 200, { plan, entitled: plan === 'pro', access: plan === 'pro' ? 'pro' : access, trialEndsAt });
     }
+    // ND-41: Coach, off by default (as in production until COACH_ENABLED). A spec that needs it on routes these itself.
+    if (path === '/api/coach') {
+      return json(route, 200, { enabled: false, hasGoal: Boolean(goal), access: 'ok', messages: [], remainingToday: 30, dailyLimit: 30 });
+    }
     // ND-39: the Account page's membership card. No subscription details; a spec that needs them routes this itself.
     if (path === '/api/billing/account') {
       return json(route, 200, { plan, status: plan === 'pro' ? 'ACTIVE' : 'none', billingInterval: null, currentPeriodEnd: null, cancelAtPeriodEnd: false, manageUrl: null });

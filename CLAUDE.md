@@ -62,11 +62,11 @@ Playwright runs with one worker on purpose (parallel workers stall the Vite dev 
 - Postgres is required everywhere, local included; there is no SQLite mode. The database must allow the pgvector extension, because the older migrations run `CREATE EXTENSION vector` (for the `research_cache` table, since dropped).
 - Always use `prisma migrate deploy`, never `prisma db push`. `db push` skips the migrations folder, which holds `CREATE EXTENSION vector` and the raw-SQL indexes, so the database drifts from the migration history.
 - For Supabase use the session pooler connection string; the direct host is IPv6-only.
-- Models: `User`, `Subscription`, `WebhookEvent`, `Goal`, `RoadmapWeek`, `DailyTask`, `WeeklyReview` (`backend/prisma/schema.prisma`). The unused `research_cache` table, four old `Goal` columns and the Stripe-era `User` columns were dropped on 2026-10-24 (B-8, B-14, B-16). `User.remindersEnabled` and `lastReminderAt` hold the reminder email setting (ND-28); `trialStartedAt` the 30-day trial (ND-37); `upNextSkill` the guided skill added to the timeline (ND-40).
+- Models: `User`, `Subscription`, `WebhookEvent`, `Goal`, `RoadmapWeek`, `DailyTask`, `WeeklyReview`, `CoachMessage` (`backend/prisma/schema.prisma`). The unused `research_cache` table, four old `Goal` columns and the Stripe-era `User` columns were dropped on 2026-10-24 (B-8, B-14, B-16). `User.remindersEnabled` and `lastReminderAt` hold the reminder email setting (ND-28); `trialStartedAt` the 30-day trial (ND-37); `upNextSkill` the guided skill added to the timeline (ND-41).
 
 ## Backend architecture
 
-`src/index.ts` mounts `/api/health`, `/api/auth`, `/api/goal`, `/api/billing`, `/api/reminders`. The Lemon Squeezy webhook (`/api/billing/webhook`) is mounted **before** `express.json()` with `express.raw()` so its signature can be verified against the raw body; keep that order.
+`src/index.ts` mounts `/api/health`, `/api/auth`, `/api/goal`, `/api/billing`, `/api/reminders`, `/api/coach`. The Lemon Squeezy webhook (`/api/billing/webhook`) is mounted **before** `express.json()` with `express.raw()` so its signature can be verified against the raw body; keep that order.
 
 Every request gets an id (`lib/requestContext.ts`, header `X-Request-Id`), and every log line inside a request starts with `[req <id>]`. Routes may throw the typed errors in `lib/httpErrors.ts` (`ValidationError`, `UnauthorizedError`, `PolicyError`, `ExternalServiceError`); `errorHandler`, mounted last, answers them and any unhandled error (a 500 with the request id) (B-105). Stored JSON is read through one checked reader per field in `lib/planV2.ts` (`readRoutine`, `routineRecord`, `readStoredRoadmap`, `startingPointValue`) and `parseStoredSteps` in `lib/carryForward.ts` (B-103).
 
@@ -83,11 +83,12 @@ Main areas (details in `docs/architecture/backend-details.md`; read the part you
 - Week close: `lib/weekClose/`. No weekly tests, targets, checkpoints or weekly update call (ND-35): the next week is written from last week's sessions done, the feel taps (`DailyTask.feel`) and the notes, with code's pace line (`lastWeekOf` in `lib/planV2.ts`, `paceOf` in `lib/ai/weekPlan.ts`).
 - Billing: `lib/billing/`, `config/billing.ts` (Lemon Squeezy, test mode by default). Access (ND-37): the first plan starts a 30-day trial; after it without Pro the plan is paused, read-only (`lib/billing/access.ts`, `accessGuard.ts`).
 - Missed-day reminder email: `lib/reminders/`, `routes/reminders.ts` (`/api/reminders`), run hourly by `.github/workflows/reminders.yml` (`docs/architecture/reminders.md`).
+- Coach (ND-41): `routes/coach.ts` (`/api/coach`), `lib/coach/` (plan context, prompt, crisis reply, limits); trial or Pro, 30 messages a day (`docs/architecture/coach.md`).
 - LLM: `lib/ai/gemini.ts` (Gemini only, no fallback provider).
 
-Feature switches (`WEEKLY_UPDATE_ENABLED` is read by nothing since ND-35; delete it in Render), all managed in the Render dashboard only (`sync: false`, unset means off). **Never turn them on or off from code or tests:** `MISSED_SESSIONS_CARRY_ENABLED` (on), `METHOD_RECOVERY_ENABLED` (on), `WEEK_CLOSE_ENABLED` (on), `CUSTOM_RECOVERY_PROFILES_ENABLED` (on), `MISSED_DAY_REMINDERS_ENABLED` (off until Resend is set up, `docs/architecture/reminders.md`). They are read through `lib/flags.ts` (`flagOn`, exactly `true`, per request), and the server logs them all at startup (`[Flags]`).
+Feature switches (`WEEKLY_UPDATE_ENABLED` is read by nothing since ND-35; delete it in Render), all managed in the Render dashboard only (`sync: false`, unset means off). **Never turn them on or off from code or tests:** `MISSED_SESSIONS_CARRY_ENABLED` (on), `METHOD_RECOVERY_ENABLED` (on), `WEEK_CLOSE_ENABLED` (on), `CUSTOM_RECOVERY_PROFILES_ENABLED` (on), `MISSED_DAY_REMINDERS_ENABLED` (off until Resend is set up, `docs/architecture/reminders.md`), `COACH_ENABLED` (off until Mo turns it on; ND-41). They are read through `lib/flags.ts` (`flagOn`, exactly `true`, per request), and the server logs them all at startup (`[Flags]`).
 
-The routes that call the model are rate limited in memory (`lib/rateLimit.ts`): `POST /api/goal/clarify` 10 a minute per IP, `POST /api/goal/create` 10 per 10 minutes per person; over it, 429 `rate_limited`.
+The routes that call the model are rate limited in memory (`lib/rateLimit.ts`): `POST /api/goal/clarify` 10 a minute per IP, `POST /api/goal/create` 10 per 10 minutes per person, `POST /api/coach/messages` 8 a minute per person; over it, 429 `rate_limited`.
 
 Dates use IANA time zones via `lib/timezone.ts`; don't split dates in naive UTC.
 
@@ -98,7 +99,7 @@ Backend is ESM with `NodeNext` resolution, so relative imports need the `.js` ex
 - `App.tsx`: `AuthProvider` > `GoalProvider` > `BrowserRouter` > `AppShell`. Secondary pages are lazy-loaded. `ProtectedRoute requireGoal` gates routes on having an active goal.
 - `lib/api.ts` is the fetch client; `resolveApiBaseUrl()` uses `VITE_API_BASE_URL` (falls back to localhost:5000 in dev, the Render URL in production).
 - `context/GoalContext.tsx` holds the active goal; `lib/journeyAdapter.ts` and `hooks/useJourneyData.ts` shape it for the journey and roadmap views.
-- Feature folders under `components/` (`today`, `dashboard`, `focus`, `review`, `achievement`, `coach`, `billing`, `onboarding`, `pathways`, `marketing`); shared primitives in `components/ui/`.
+- Feature folders under `components/` (`today`, `dashboard`, `focus`, `review`, `achievement`, `billing`, `onboarding`, `pathways`, `marketing`); shared primitives in `components/ui/`.
 - `/__ui` (dev server only) previews every primitive in every state.
 
 ### Frontend rules (from `Design.md`, read it before frontend work)
