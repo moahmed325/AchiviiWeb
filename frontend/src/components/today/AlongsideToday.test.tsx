@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { DailyTask, Goal } from '../../types';
-import { updateDailyTask } from '../../lib/api';
+import { completeGoal, updateDailyTask } from '../../lib/api';
 import { AlongsideToday } from './AlongsideToday';
 
-const ctx = vi.hoisted(() => ({ update: vi.fn() }));
+const ctx = vi.hoisted(() => ({ update: vi.fn(), refresh: vi.fn() }));
 vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({ token: 't', user: { timezone: 'UTC' } }) }));
-vi.mock('../../lib/api', () => ({ updateDailyTask: vi.fn() }));
+vi.mock('../../lib/api', () => ({ updateDailyTask: vi.fn(), completeGoal: vi.fn().mockResolvedValue({}) }));
 
 const today = new Date().toISOString().slice(0, 10);
 const task = (over: Partial<DailyTask> = {}): DailyTask =>
@@ -27,7 +27,7 @@ const task = (over: Partial<DailyTask> = {}): DailyTask =>
 const skill = (tasks: DailyTask[]) => ({ id: 'skill', rawGoal: 'Play 5 Songs on Acoustic Guitar', currentWeek: 2, dailyTasks: tasks }) as unknown as Goal;
 
 vi.mock('../../context/GoalContext', () => ({
-  useGoal: () => ({ activeGoal: { id: 'main', alongsideGoal: skill([task()]) }, updateActiveGoal: ctx.update }),
+  useGoal: () => ({ activeGoal: { id: 'main', alongsideGoal: skill([task()]) }, updateActiveGoal: ctx.update, refreshGoal: ctx.refresh }),
 }));
 
 describe('AlongsideToday (ND-41)', () => {
@@ -57,5 +57,15 @@ describe('AlongsideToday (ND-41)', () => {
     unmount();
     render(<AlongsideToday goal={skill([task({ isRestDay: true })])} />);
     expect(screen.getByText(/Nothing for this skill today/)).toBeInTheDocument();
+  });
+
+  it('once its last week is over, finishes the skill (ND-41)', async () => {
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const ended = { ...skill([task({ date: yesterday })]), currentWeek: 12 } as Goal;
+    render(<AlongsideToday goal={ended} />);
+    expect(screen.getByText(/reached the end of this skill’s plan/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Finish this skill' }));
+    expect(completeGoal).toHaveBeenCalledWith('t', undefined, 'alongside');
+    expect(ctx.refresh).toHaveBeenCalled();
   });
 });

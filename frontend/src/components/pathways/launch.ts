@@ -68,8 +68,9 @@ export function usePathwayLaunch() {
     startPathway: (pathway: CertifiedPathway, routine?: RoutineSettings | null) => go(pathwayLaunch(pathway, routine)),
     // ND-41: a skill run alongside the main plan, its routine starting from the main plan's.
     startAlongside: (pathway: CertifiedPathway, routine?: RoutineSettings | null) => {
+      // No draft goal: the skill's title must never come back as a later main plan's goal; the state carries it.
       const launch = pathwayLaunch(pathway, routine);
-      go({ ...launch, state: { ...launch.state, alongside: true } });
+      navigate(launch.to, { state: { ...launch.state, alongside: true } });
     },
     startCustomGoal: () => go(CUSTOM_GOAL_LAUNCH),
     startTypedGoal: (goal: string) => go(typedGoalLaunch(goal)),

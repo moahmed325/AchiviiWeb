@@ -474,6 +474,8 @@ export function useOnboardingState({
     if (prior === null || !token) return null;
     try {
       const active = await fetchActiveGoal(token);
+      // ND-41: a skill alongside is found beside the main plan, not as it.
+      if (alongside) return active?.alongsideGoal && active.alongsideGoal.rawGoal.trim() === rawGoal.trim() ? active.alongsideGoal : null;
       return active && active.id !== prior && active.rawGoal.trim() === rawGoal.trim() ? active : null;
     } catch {
       return null;

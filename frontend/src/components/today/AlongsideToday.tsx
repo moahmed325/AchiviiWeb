@@ -3,8 +3,9 @@ import { Check, Clock, Sparkles } from 'lucide-react';
 import type { Goal } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { useGoal } from '../../context/GoalContext';
-import { updateDailyTask } from '../../lib/api';
-import { isRestLike, isToday, parseSteps } from '../../lib/today';
+import { completeGoal, updateDailyTask } from '../../lib/api';
+import { planWeeks } from '../../lib/planLength';
+import { isRestLike, isToday, parseSteps, todayKey } from '../../lib/today';
 import { Button } from '../ui';
 
 /**
@@ -13,12 +14,28 @@ import { Button } from '../ui';
  */
 export const AlongsideToday: React.FC<{ goal: Goal }> = ({ goal }) => {
   const { token, user } = useAuth();
-  const { activeGoal, updateActiveGoal } = useGoal();
+  const { activeGoal, updateActiveGoal, refreshGoal } = useGoal();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const task = (goal.dailyTasks ?? []).find((t) => isToday(t, new Date(), user?.timezone));
   const steps = task ? parseSteps(task.detailedSteps) : [];
   const done = task?.status === 'completed';
+  // The skill's last week is written and its last day has passed: it ends here, by the person's tap.
+  const lastDay = (goal.dailyTasks ?? []).reduce((last, t) => (t.date > last ? t.date : last), '');
+  const finished = !task && (goal.currentWeek || 1) >= planWeeks(goal) && lastDay !== '' && lastDay < todayKey(new Date(), user?.timezone);
+
+  const finish = async () => {
+    if (!token) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await completeGoal(token, undefined, 'alongside');
+      await refreshGoal();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Not saved. Please try again.');
+      setSaving(false);
+    }
+  };
 
   const toggle = async () => {
     if (!task || !token) return;
@@ -50,7 +67,17 @@ export const AlongsideToday: React.FC<{ goal: Goal }> = ({ goal }) => {
         {goal.rawGoal}
       </h2>
 
-      {!task || isRestLike(task) ? (
+      {finished ? (
+        <>
+          <p className="mt-3 text-body text-text-secondary">You’ve reached the end of this skill’s plan. Well done.</p>
+          <Button variant="gold" className="mt-5" loading={saving} onClick={() => void finish()}>
+            Finish this skill
+          </Button>
+          <p role="alert" className="mt-2 text-small text-danger empty:hidden">
+            {error ?? ''}
+          </p>
+        </>
+      ) : !task || isRestLike(task) ? (
         <p className="mt-3 text-body text-text-secondary">Nothing for this skill today. It picks up on its next training day.</p>
       ) : (
         <>

@@ -377,7 +377,13 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!token) return false;
     try {
       await apiResetGoal(token);
+      // ND-41: a skill running alongside becomes the main plan on the server; load it rather than assume none.
       setActiveGoal(null);
+      try {
+        setActiveGoal(await fetchActiveGoal(token));
+      } catch {
+        // Nothing more to show; the next load fetches it.
+      }
       return true;
     } catch (err) {
       console.error('Failed to reset goal:', err);
@@ -390,7 +396,8 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
     async (payload?: GoalCompletionPayload): Promise<Goal> => {
       if (!token) throw new Error('Not authenticated');
       const goal = await apiCompleteGoal(token, payload);
-      setActiveGoal(goal);
+      // ND-41: the server's completed goal comes without the skill alongside; keep it, so the end screen can offer it.
+      setActiveGoal((prev) => ({ ...goal, alongsideGoal: goal.alongsideGoal ?? prev?.alongsideGoal ?? null }));
       return goal;
     },
     [token]

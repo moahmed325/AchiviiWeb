@@ -382,13 +382,15 @@ export async function resetActiveGoal(token: string, plan: PlanRole = 'main'): P
 
 export async function completeGoal(
   token: string,
-  payload?: GoalCompletionPayload
+  payload?: GoalCompletionPayload,
+  plan: PlanRole = 'main'
 ): Promise<Goal> {
   const response = await fetch(`${API_BASE_URL}/api/goal/complete`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
+      ...planHeader(plan),
     },
     body: JSON.stringify(payload || {}),
   });
